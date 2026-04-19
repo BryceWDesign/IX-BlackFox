@@ -5,8 +5,9 @@ Eval scores task outcomes, verifies claims, records benchmark results,
 and supports regression checks so BlackFox can measure whether its work
 is actually correct. The first concrete layers provide a deterministic
 evaluation model for findings, scores, rule-based checks, benchmark
-suite schemas for repeatable task validation, and evidence recording for
-auditable verification.
+suite schemas for repeatable task validation, evidence recording for
+auditable verification, and an output-verification layer that combines
+artifacts, evaluations, and regression outcomes.
 """
 
 from ix_blackfox.eval.benchmark import (
@@ -29,6 +30,13 @@ from ix_blackfox.eval.evidence import (
     EvidenceRecorder,
     EvidenceSnapshot,
 )
+from ix_blackfox.eval.verification import (
+    OutputVerifier,
+    VerificationContext,
+    VerificationIssue,
+    VerificationReport,
+    VerificationStatus,
+)
 
 __all__ = [
     "BaseEvaluator",
@@ -44,5 +52,10 @@ __all__ = [
     "EvidenceRecord",
     "EvidenceRecorder",
     "EvidenceSnapshot",
+    "OutputVerifier",
     "RuleBasedEvaluator",
+    "VerificationContext",
+    "VerificationIssue",
+    "VerificationReport",
+    "VerificationStatus",
 ]
