@@ -6,8 +6,9 @@ and trace layers so the runtime can preserve context without collapsing
 everything into a single unstructured history blob. The first concrete
 layers are working memory for live execution context, episodic memory
 for session-scoped recollection of prior outcomes, semantic memory
-for distilled reusable facts and constraints, and artifact memory for
-durable runtime outputs and files.
+for distilled reusable facts and constraints, artifact memory for
+durable runtime outputs and files, and trace memory for auditable
+execution history.
 """
 
 from ix_blackfox.memory.artifact import (
@@ -25,6 +26,11 @@ from ix_blackfox.memory.semantic import (
     SemanticMemorySnapshot,
     SemanticMemoryStore,
 )
+from ix_blackfox.memory.trace import (
+    TraceMemorySnapshot,
+    TraceMemoryStore,
+    TraceRecord,
+)
 from ix_blackfox.memory.working import (
     WorkingMemoryItem,
     WorkingMemorySnapshot,
@@ -41,6 +47,9 @@ __all__ = [
     "SemanticMemoryRecord",
     "SemanticMemorySnapshot",
     "SemanticMemoryStore",
+    "TraceMemorySnapshot",
+    "TraceMemoryStore",
+    "TraceRecord",
     "WorkingMemoryItem",
     "WorkingMemorySnapshot",
     "WorkingMemoryStore",
