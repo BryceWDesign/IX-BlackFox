@@ -8,6 +8,7 @@ first so later orchestration layers have a stable base to build on.
 """
 
 from ix_blackfox.kernel.runtime import BlackFoxKernel, KernelSnapshot, KernelStatus
+from ix_blackfox.kernel.state import SharedStateSnapshot, SharedStateStore, StateEntry
 from ix_blackfox.kernel.tasks import (
     TaskInput,
     TaskKind,
@@ -21,6 +22,9 @@ __all__ = [
     "BlackFoxKernel",
     "KernelSnapshot",
     "KernelStatus",
+    "SharedStateSnapshot",
+    "SharedStateStore",
+    "StateEntry",
     "TaskInput",
     "TaskKind",
     "TaskPriority",
