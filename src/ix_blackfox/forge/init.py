@@ -6,7 +6,8 @@ symbols, plans patches, executes builds and tests, and verifies results
 inside controlled environments. The first concrete layers are workspace
 management for isolated file operations, file-graph scanning for stable
 repository inventory, static Python code analysis, structured patch
-planning, controlled command execution, and test running.
+planning, controlled command execution, test running, and regression
+result collection.
 """
 
 from ix_blackfox.forge.code_analysis import (
@@ -36,6 +37,12 @@ from ix_blackfox.forge.patch_plan import (
     PatchPlan,
     PatchPriority,
 )
+from ix_blackfox.forge.regression import (
+    ForgeRegressionCollector,
+    RegressionReport,
+    RegressionStatus,
+    RegressionSuiteSummary,
+)
 from ix_blackfox.forge.test_runner import (
     ForgeTestRunner,
     TestRunResult,
@@ -59,6 +66,7 @@ __all__ = [
     "ForgeCommandRunner",
     "ForgeFileGraphScanner",
     "ForgePatchPlanner",
+    "ForgeRegressionCollector",
     "ForgeTestRunner",
     "ForgeWorkspaceError",
     "ForgeWorkspaceManager",
@@ -70,6 +78,9 @@ __all__ = [
     "PythonFunctionSymbol",
     "PythonImportSymbol",
     "PythonModuleAnalysis",
+    "RegressionReport",
+    "RegressionStatus",
+    "RegressionSuiteSummary",
     "TestRunResult",
     "TestRunSpec",
     "WorkspaceReservation",
