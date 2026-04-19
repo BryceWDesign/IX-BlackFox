@@ -1,9 +1,28 @@
 """
 Evaluation subsystem.
 
-Eval will score task outcomes, verify claims, record benchmark results,
-and support regression checks so BlackFox can measure whether its work
-is actually correct.
+Eval scores task outcomes, verifies claims, records benchmark results,
+and supports regression checks so BlackFox can measure whether its work
+is actually correct. The first concrete layer provides a deterministic
+evaluation model for findings, scores, and rule-based checks.
 """
 
-__all__: list[str] = []
+from ix_blackfox.eval.core import (
+    BaseEvaluator,
+    EvaluationContext,
+    EvaluationFinding,
+    EvaluationResult,
+    EvaluationSeverity,
+    EvaluationStatus,
+    RuleBasedEvaluator,
+)
+
+__all__ = [
+    "BaseEvaluator",
+    "EvaluationContext",
+    "EvaluationFinding",
+    "EvaluationResult",
+    "EvaluationSeverity",
+    "EvaluationStatus",
+    "RuleBasedEvaluator",
+]
