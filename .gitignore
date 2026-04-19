@@ -1,0 +1,49 @@
+# Operating system noise
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.hypothesis/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Build and packaging artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Coverage and test output
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+junit.xml
+
+# Local runtime state
+.blackfox/
+.ix_blackfox/
+runtime/
+artifacts/
+tmp/
+logs/
+
+# Editor settings
+.vscode/
+.idea/
+
+# Notebook noise
+.ipynb_checkpoints/
