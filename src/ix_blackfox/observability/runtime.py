@@ -195,7 +195,9 @@ class JsonlStructuredLogger:
                 ensure_ascii=False,
             )
         except TypeError as exc:
-            raise ValueError(f"Structured log data is not JSON-serializable: {exc}") from exc
+            raise ValueError(
+                f"Structured log data is not JSON-serializable: {exc}"
+            ) from exc
 
         with self._lock:
             with self._path.open("a", encoding="utf-8") as handle:
@@ -249,6 +251,17 @@ class JsonlStructuredLogger:
         Return the total number of stored log records.
         """
         return len(self.read().records)
+
+
+def _restore_structured_data(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): _restore_structured_data(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return tuple(_restore_structured_data(item) for item in value)
+    return value
 
 
 def _normalize_identifier(value: str, *, label: str) -> str:
