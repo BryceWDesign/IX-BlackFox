@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum, auto
@@ -145,6 +146,9 @@ class BaseEvaluator(ABC):
         """
 
 
+EvaluationRule = Callable[[EvaluationContext], EvaluationFinding | None]
+
+
 class RuleBasedEvaluator(BaseEvaluator):
     """
     Small deterministic evaluator for rule-based checks.
@@ -202,9 +206,6 @@ class RuleBasedEvaluator(BaseEvaluator):
             score=score,
             findings=tuple(findings),
         )
-
-
-type EvaluationRule = callable
 
 
 def _status_from_findings(
