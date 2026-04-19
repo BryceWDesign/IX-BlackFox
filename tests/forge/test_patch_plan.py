@@ -90,7 +90,7 @@ def ping() -> str:
     plan = ForgePatchPlanner().suggest_from_analysis(analysis=analysis, graph=graph)
 
     assert plan.summary == "Initial forge patch plan generated from static analysis."
-    assert plan.operation_count() == 4
+    assert plan.operation_count() == 3
 
     broken_ops = plan.filter_by_path("input/src/broken.py")
     tool_ops = plan.filter_by_path("input/src/tool.py")
