@@ -101,7 +101,7 @@ class LogRecord:
                 if raw.get("correlation_id") is None
                 else str(raw["correlation_id"])
             ),
-            data=dict(raw.get("data", {})),
+            data=_restore_structured_data(dict(raw.get("data", {}))),
         )
 
 
