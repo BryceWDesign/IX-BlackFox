@@ -35,11 +35,13 @@ class EntrypointSpec:
         """
         Parse a pack entrypoint string in the form ``module.path:attribute``.
         """
-        raw_entrypoint = entrypoint.strip()
-        if not raw_entrypoint:
-            raise ValueError("Pack entrypoint must not be empty.")
+raw_entrypoint = entrypoint.strip()
+if not raw_entrypoint:
+    raise ValueError(
+        "Pack entrypoint must be in the form 'module.path:attribute'."
+    )
 
-        module_path, separator, attribute_name = raw_entrypoint.partition(":")
+module_path, separator, attribute_name = raw_entrypoint.partition(":")
         normalized_module_path = module_path.strip()
         normalized_attribute_name = attribute_name.strip()
 
