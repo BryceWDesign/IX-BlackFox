@@ -35,6 +35,7 @@ from ix_blackfox.sentinel import (
     PolicyGuardrailCheck,
     SentinelContext,
     SentinelRuntime,
+    SentinelSeverity,
 )
 from ix_blackfox.switchboard import CapabilityRoute, CapabilitySwitchboard
 from ix_blackfox.vault import ProvenanceLedger, VaultStateStore
@@ -338,4 +339,6 @@ def test_runtime_contracts_cover_core_subsystem_interop(tmp_path: Path) -> None:
     assert snapshot.filter_by_level(LogLevel.INFO) == (log_record,)
     assert snapshot.filter_by_event("contracts.runtime_validated") == (log_record,)
     assert log_record.data["registered_packs"] == ("programming", "architecture")
-    assert sentinel_report.filter_by_severity(EvaluationSeverity.ERROR) == ()
+    assert len(sentinel_report.filter_by_severity(SentinelSeverity.ERROR)) == 2
+    assert len(sentinel_report.filter_by_severity(SentinelSeverity.WARNING)) == 1
+    assert sentinel_report.filter_by_severity(SentinelSeverity.CRITICAL) == ()
