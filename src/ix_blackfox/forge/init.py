@@ -5,7 +5,8 @@ Forge is the programming workbench of BlackFox. It ingests code, inspects
 symbols, plans patches, executes builds and tests, and verifies results
 inside controlled environments. The first concrete layers are workspace
 management for isolated file operations, file-graph scanning for stable
-repository inventory, and static Python code analysis.
+repository inventory, static Python code analysis, and structured patch
+planning.
 """
 
 from ix_blackfox.forge.code_analysis import (
@@ -22,6 +23,13 @@ from ix_blackfox.forge.file_graph import (
     FileNode,
     ForgeFileGraphScanner,
 )
+from ix_blackfox.forge.patch_plan import (
+    ForgePatchPlanner,
+    PatchOperation,
+    PatchOperationType,
+    PatchPlan,
+    PatchPriority,
+)
 from ix_blackfox.forge.workspace import (
     ForgeWorkspaceError,
     ForgeWorkspaceManager,
@@ -35,8 +43,13 @@ __all__ = [
     "FileNode",
     "ForgeCodeAnalyzer",
     "ForgeFileGraphScanner",
+    "ForgePatchPlanner",
     "ForgeWorkspaceError",
     "ForgeWorkspaceManager",
+    "PatchOperation",
+    "PatchOperationType",
+    "PatchPlan",
+    "PatchPriority",
     "PythonClassSymbol",
     "PythonFunctionSymbol",
     "PythonImportSymbol",
