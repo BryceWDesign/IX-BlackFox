@@ -1,8 +1,24 @@
 """
 Vault subsystem.
 
-Vault will manage protected state, artifact provenance, hashing,
-confidential material handling, and zeroization-aware storage routines.
+Vault manages protected state, artifact provenance, hashing, and
+confidential-material handling. The first layer provides tamper-evident
+sealing, stable fingerprinting, and redaction-oriented zeroization
+helpers without overstating confidentiality guarantees.
 """
 
-__all__: list[str] = []
+from ix_blackfox.vault.seal import (
+    SealedPayload,
+    fingerprint_bytes,
+    seal_payload,
+    verify_seal,
+    zeroize_text,
+)
+
+__all__ = [
+    "SealedPayload",
+    "fingerprint_bytes",
+    "seal_payload",
+    "verify_seal",
+    "zeroize_text",
+]
