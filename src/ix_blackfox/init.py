@@ -9,4 +9,32 @@ The public package surface remains intentionally small until the core
 runtime contracts are in place.
 """
 
-__all__: list[str] = []
+from ix_blackfox.exceptions import (
+    BlackFoxError,
+    ConfigurationError,
+    ErrorContext,
+    EvaluationError,
+    ForgeError,
+    KernelError,
+    MemoryError,
+    ObservabilityError,
+    PackError,
+    SentinelError,
+    SwitchboardError,
+    VaultError,
+)
+
+__all__ = [
+    "BlackFoxError",
+    "ConfigurationError",
+    "ErrorContext",
+    "EvaluationError",
+    "ForgeError",
+    "KernelError",
+    "MemoryError",
+    "ObservabilityError",
+    "PackError",
+    "SentinelError",
+    "SwitchboardError",
+    "VaultError",
+]
