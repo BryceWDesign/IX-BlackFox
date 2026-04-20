@@ -115,6 +115,7 @@ CLI entrypoint layer.
 ## Built-In Packs
 
 ### Programming Pack
+
 Current behavior:
 
 - inspects programming-oriented prompts
@@ -123,10 +124,11 @@ Current behavior:
 - emits pack events
 - returns structured planning output
 
-Current scope is intentionally bounded.
+Current scope is intentionally bounded.  
 It does **not** pretend to autonomously repair arbitrary code without the forge path being invoked explicitly.
 
 ### Architecture Pack
+
 Current behavior:
 
 - inspects architecture-oriented prompts
@@ -135,7 +137,7 @@ Current behavior:
 - emits pack events
 - returns structured design output
 
-Current scope is intentionally bounded.
+Current scope is intentionally bounded.  
 It does **not** claim to generate full architecture proof or implementation automatically.
 
 ## Current Safety Posture
@@ -170,26 +172,36 @@ BlackFox currently does **not** claim:
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
+```
 
-Run tests
+### Run tests
+
+```bash
 pytest
+```
 
-Run the CLI placeholder
+### Run the CLI placeholder
+
+```bash
 blackfox
-Example Development Flow
+```
+
+## Example Development Flow
 
 The current intended shape of a normal programming-oriented flow is:
 
-create a typed task
-route it through the switchboard
-load the selected pack
-execute the pack under pack context
-use forge when repository work is needed
-collect traces, evidence, and evaluation outputs
-verify artifacts and regression outcomes
-write structured logs
-Repository Layout
+- create a typed task
+- route it through the switchboard
+- load the selected pack
+- execute the pack under pack context
+- use forge when repository work is needed
+- collect traces, evidence, and evaluation outputs
+- verify artifacts and regression outcomes
+- write structured logs
 
+## Repository Layout
+
+```text
 src/ix_blackfox/
 ├── bus/
 ├── config/
@@ -209,58 +221,62 @@ src/ix_blackfox/
 
 tests/
 docs/
+```
 
-What Is Real Right Now
+## What Is Real Right Now
 
 This repository already includes real tested implementations for:
 
-runtime config loading
-kernel lifecycle
-task models
-shared state
-event envelopes and dispatch
-capability manifests and routing
-pack loading and execution contracts
-working / episodic / semantic / artifact / trace memory
-integrity sealing
-provenance chain verification
-disk-backed integrity-checked state
-contradiction / failure-loop / policy sentinel checks
-forge workspace isolation
-file graph scanning
-static Python AST analysis
-patch-plan generation
-command execution
-pytest-based test running
-JUnit regression collection
-rule-based evaluation
-benchmark suite models
-evidence recording
-output verification
-structured JSONL logging
-What Still Comes Next
+- runtime config loading
+- kernel lifecycle
+- task models
+- shared state
+- event envelopes and dispatch
+- capability manifests and routing
+- pack loading and execution contracts
+- working / episodic / semantic / artifact / trace memory
+- integrity sealing
+- provenance chain verification
+- disk-backed integrity-checked state
+- contradiction / failure-loop / policy sentinel checks
+- forge workspace isolation
+- file graph scanning
+- static Python AST analysis
+- patch-plan generation
+- command execution
+- pytest-based test running
+- JUnit regression collection
+- rule-based evaluation
+- benchmark suite models
+- evidence recording
+- output verification
+- structured JSONL logging
+
+## What Still Comes Next
 
 The current foundation leaves room for later work such as:
 
-deeper kernel scheduling
-richer pack orchestration
-stronger memory promotion rules
-patch execution loops
-more built-in packs
-richer benchmark suites
-broader language support in forge analysis
-stronger operator interfaces
-model-backed semantic routing layers
-Philosophy
+- deeper kernel scheduling
+- richer pack orchestration
+- stronger memory promotion rules
+- patch execution loops
+- more built-in packs
+- richer benchmark suites
+- broader language support in forge analysis
+- stronger operator interfaces
+- model-backed semantic routing layers
+
+## Philosophy
 
 BlackFox is measurement-first and structure-first.
 
 The standard is:
 
-explicit contracts over vague behavior
-verification over assumption
-auditability over mystery
-bounded claims over inflated claims
-License
+- explicit contracts over vague behavior
+- verification over assumption
+- auditability over mystery
+- bounded claims over inflated claims
+
+## License
 
 Apache 2.0
