@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="IX-BlackFox-Logo.png" alt="IX-BlackFox Logo">
+</p>
+
 # IX-BlackFox
 
 IX-BlackFox is a programming-first intelligence runtime built as **one sovereign codebase**.
