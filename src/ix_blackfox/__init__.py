@@ -24,6 +24,8 @@ from ix_blackfox.exceptions import (
     VaultError,
 )
 
+from ix_blackfox.runtime import BlackFoxRuntime, RuntimeRunReport, RuntimeRunStatus
+
 __all__ = [
     "BlackFoxError",
     "ConfigurationError",
@@ -37,4 +39,7 @@ __all__ = [
     "SentinelError",
     "SwitchboardError",
     "VaultError",
+    "BlackFoxRuntime",
+    "RuntimeRunReport",
+    "RuntimeRunStatus",
 ]
