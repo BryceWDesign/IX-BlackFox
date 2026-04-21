@@ -34,6 +34,7 @@ BlackFox is organized into the following core subsystems:
 - `forge/`
 - `eval/`
 - `observability/`
+- `runtime/`
 - `interface/`
 
 These are not cosmetic folders. Each exists to enforce a boundary.
@@ -61,18 +62,21 @@ A normal runtime flow is intended to look like this:
    - Pack events are published to the bus.
    - Shared state is updated.
 
-5. **Forge execution**
+5. **Runtime orchestration**
+   - The runtime layer fuses task-kind inference, replay observation, routing, pack execution, sentinel checks, evaluation, verification, artifact persistence, provenance, and sealed state capture into one explicit execution spine.
+
+6. **Forge execution**
    - When code or repository work is needed, the forge handles workspace isolation,
      file scanning, analysis, patch planning, command execution, testing, and regression collection.
 
-6. **Sentinel evaluation**
+7. **Sentinel evaluation**
    - Runtime safety checks inspect contradictions, repeated failures, and policy problems.
 
-7. **Evaluation and verification**
+8. **Evaluation and verification**
    - Findings, evidence, regression outcomes, and artifact expectations are combined.
    - A final verification status is derived.
 
-8. **Observability and trace retention**
+9. **Observability and trace retention**
    - Logs, traces, evidence, and memory records remain available for audit and debugging.
 
 ---
@@ -510,3 +514,29 @@ That means:
 - explicit audit trails
 
 That is the footing this repository is built on.
+
+---
+
+## 11. Runtime Composition Layer
+
+### Module
+- `runtime/`
+
+### Responsibility
+The runtime package is the execution spine that turns BlackFox from a collection of good subsystems into a single auditable run path.
+
+### Current capabilities
+- deterministic task-kind inference for unknown intake
+- replay-aware task fingerprint observation
+- explicit route selection and pack loading
+- end-to-end pack execution composition
+- sentinel, evaluation, and verification wiring
+- artifact materialization for pack outputs
+- provenance-ledger append for run artifacts
+- sealed vault persistence for run reports
+- CLI-backed task execution surface
+
+### Design rule
+The runtime layer composes subsystems.
+It should not erase their boundaries.
+Its job is to wire explicit contracts together, preserve auditability, and keep execution explainable.
