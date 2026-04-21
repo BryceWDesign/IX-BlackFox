@@ -27,15 +27,19 @@ This repository is currently a **foundation runtime**.
 It already contains working core scaffolding for:
 
 - kernel lifecycle and typed tasks
+- deterministic task-kind inference for unknown intake
 - internal event bus
 - shared state
 - capability routing
 - manifest-driven pack loading
+- end-to-end runtime orchestration
+- replay-aware intake observation
 - tiered memory
 - vault integrity and provenance
 - sentinel checks
 - forge workspace, analysis, command, test, and regression tooling
 - evaluation, evidence, and verification layers
+- materialized run artifacts and persisted run reports
 - structured logging
 - built-in programming and architecture packs
 - smoke and contract tests
@@ -109,6 +113,9 @@ Evaluation, benchmark schemas, evidence capture, and output verification.
 ### `observability/`
 Append-only JSONL structured logging.
 
+### `runtime/`
+End-to-end execution spine that fuses inference, replay observation, routing, pack execution, sentinel checks, evaluation, verification, artifact persistence, provenance, and vault-backed run state.
+
 ### `interface/`
 CLI entrypoint layer.
 
@@ -180,24 +187,34 @@ pip install -e ".[dev]"
 pytest
 ```
 
-### Run the CLI placeholder
+### Run one programming task through the real runtime
 
 ```bash
-blackfox
+blackfox run --prompt "Fix the failing tests and patch the code." --kind programming
 ```
 
-## Example Development Flow
+### Emit the full run report as JSON
+
+```bash
+blackfox run \
+  --prompt "Fix the failing tests and patch the code." \
+  --kind programming \
+  --json
+```
+
+## Example Runtime Flow
 
 The current intended shape of a normal programming-oriented flow is:
 
-- create a typed task
-- route it through the switchboard
-- load the selected pack
-- execute the pack under pack context
-- use forge when repository work is needed
-- collect traces, evidence, and evaluation outputs
-- verify artifacts and regression outcomes
-- write structured logs
+1. create or infer a typed task
+2. observe replay status for the normalized task shape
+3. route it through the switchboard
+4. load the selected pack
+5. execute the pack under pack context
+6. run sentinel checks over the resulting trace window
+7. evaluate and verify the run outcome
+8. materialize artifacts, report, provenance, and sealed run state
+9. write structured logs
 
 ## Repository Layout
 
@@ -214,6 +231,7 @@ src/ix_blackfox/
 ├── packs/
 │   ├── architecture/
 │   └── programming/
+├── runtime/
 ├── sentinel/
 ├── switchboard/
 ├── vault/
@@ -229,12 +247,18 @@ This repository already includes real tested implementations for:
 
 - runtime config loading
 - kernel lifecycle
+- deterministic task classification for unknown intake
+- replay-aware task observation
 - task models
 - shared state
 - event envelopes and dispatch
 - capability manifests and routing
 - pack loading and execution contracts
+- end-to-end runtime orchestration
 - working / episodic / semantic / artifact / trace memory
+- persisted artifact and run-report materialization
+- provenance and sealed run-state persistence
+- CLI execution through the actual runtime
 - integrity sealing
 - provenance chain verification
 - disk-backed integrity-checked state
