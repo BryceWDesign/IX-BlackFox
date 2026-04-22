@@ -16,7 +16,6 @@ from ix_blackfox.eval import (
     EvaluationFinding,
     EvaluationResult,
     EvaluationSeverity,
-    EvaluationStatus,
     EvidenceRecorder,
     OutputVerifier,
     RuleBasedEvaluator,
@@ -59,12 +58,16 @@ from ix_blackfox.vault import (
     fingerprint_bytes,
 )
 
-from ix_blackfox.runtime.inference import DeterministicTaskClassifier, TaskInference
-from ix_blackfox.runtime.replay import ReplayObservation, TaskReplayGuard
+from ix_blackfox.runtime.approval import (
+    RuntimeApprovalResolution,
+    RuntimeApprovalResolver,
+)
 from ix_blackfox.runtime.governance import (
     RuntimeGovernancePreflightEngine,
     RuntimeGovernancePreflightResult,
 )
+from ix_blackfox.runtime.inference import DeterministicTaskClassifier, TaskInference
+from ix_blackfox.runtime.replay import ReplayObservation, TaskReplayGuard
 
 
 class RuntimeRunStatus(StrEnum):
@@ -97,6 +100,7 @@ class RuntimeRunReport:
     replay_observation: ReplayObservation
     task_inference: TaskInference | None = None
     governance_preflight: RuntimeGovernancePreflightResult | None = None
+    approval_resolution: RuntimeApprovalResolution | None = None
     produced_artifacts: tuple[str, ...] = field(default_factory=tuple)
     artifact_paths: dict[str, str] = field(default_factory=dict)
     trace_ids: tuple[str, ...] = field(default_factory=tuple)
@@ -128,6 +132,10 @@ class RuntimeRunReport:
         if self.governance_preflight is not None:
             governance_preflight = self.governance_preflight.to_dict()
 
+        approval_resolution = None
+        if self.approval_resolution is not None:
+            approval_resolution = self.approval_resolution.to_dict()
+
         return {
             "session_id": self.session_id,
             "run_id": self.run_id,
@@ -143,6 +151,7 @@ class RuntimeRunReport:
             "replay_observation": asdict(self.replay_observation),
             "task_inference": inference,
             "governance_preflight": governance_preflight,
+            "approval_resolution": approval_resolution,
             "produced_artifacts": self.produced_artifacts,
             "artifact_paths": self.artifact_paths,
             "trace_ids": self.trace_ids,
@@ -182,6 +191,7 @@ class BlackFoxRuntime:
         replay_guard: TaskReplayGuard,
         classifier: DeterministicTaskClassifier,
         governance_preflight: RuntimeGovernancePreflightEngine,
+        approval_resolver: RuntimeApprovalResolver,
     ) -> None:
         self._config = config
         self._kernel = kernel
@@ -203,6 +213,7 @@ class BlackFoxRuntime:
         self._replay_guard = replay_guard
         self._classifier = classifier
         self._governance_preflight = governance_preflight
+        self._approval_resolver = approval_resolver
         self._session_id = f"session-{uuid4().hex}"
         self._loaded_packs: dict[str, BasePack] = {}
 
@@ -244,6 +255,7 @@ class BlackFoxRuntime:
         replay_guard = TaskReplayGuard(window_size=128)
         classifier = DeterministicTaskClassifier()
         governance_preflight = RuntimeGovernancePreflightEngine()
+        approval_resolver = RuntimeApprovalResolver()
 
         runtime = cls(
             config=config,
@@ -266,6 +278,7 @@ class BlackFoxRuntime:
             replay_guard=replay_guard,
             classifier=classifier,
             governance_preflight=governance_preflight,
+            approval_resolver=approval_resolver,
         )
         runtime._register_builtin_packs()
         runtime._register_builtin_checks()
@@ -371,6 +384,7 @@ class BlackFoxRuntime:
                 replay_observation=replay_observation,
                 sentinel_report=sentinel_report,
                 governance_preflight=None,
+                approval_resolution=None,
             )
             verification = self._verifier.verify(
                 VerificationContext(
@@ -391,6 +405,7 @@ class BlackFoxRuntime:
                 evaluation=evaluation,
                 verification=verification,
                 governance_preflight=None,
+                approval_resolution=None,
             )
 
         self._append_trace(
@@ -440,6 +455,29 @@ class BlackFoxRuntime:
             },
         )
 
+        approval_resolution = self._approval_resolver.resolve(
+            task=task,
+            preflight=governance_preflight,
+        )
+        if governance_preflight.requires_review:
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="approval",
+                message=(
+                    "Runtime approval resolution "
+                    f"{'satisfied' if approval_resolution.satisfied else 'did not satisfy'} "
+                    "the review gate."
+                ),
+                level="info" if approval_resolution.satisfied else "warning",
+                source="runtime",
+                data={
+                    "required": approval_resolution.required,
+                    "satisfied": approval_resolution.satisfied,
+                    "approval_ids": approval_resolution.approval_ids,
+                    "issues": approval_resolution.issues,
+                },
+            )
+
         if governance_preflight.blocked:
             failed_task = task.mark_failed(error=governance_preflight.decision.rationale)
             sentinel_report = self._sentinel.evaluate(
@@ -455,6 +493,7 @@ class BlackFoxRuntime:
                 replay_observation=replay_observation,
                 sentinel_report=sentinel_report,
                 governance_preflight=governance_preflight,
+                approval_resolution=approval_resolution,
             )
             verification = self._verifier.verify(
                 VerificationContext(
@@ -475,6 +514,48 @@ class BlackFoxRuntime:
                 evaluation=evaluation,
                 verification=verification,
                 governance_preflight=governance_preflight,
+                approval_resolution=approval_resolution,
+            )
+
+        if governance_preflight.requires_review and not approval_resolution.satisfied:
+            paused_task = task.mark_completed(
+                result_summary="Run paused pending governance approval."
+            )
+            sentinel_report = self._sentinel.evaluate(
+                SentinelContext(
+                    task=paused_task,
+                    trace_records=self._task_traces(task.request.task_id),
+                )
+            )
+            evaluation = self._evaluate_run(
+                task=paused_task,
+                route=route,
+                artifacts=(),
+                replay_observation=replay_observation,
+                sentinel_report=sentinel_report,
+                governance_preflight=governance_preflight,
+                approval_resolution=approval_resolution,
+            )
+            verification = self._verifier.verify(
+                VerificationContext(
+                    subject_id=task.request.task_id,
+                    expected_artifacts=(),
+                    produced_artifacts=(),
+                    evaluation_results=(evaluation,),
+                )
+            )
+            return self._finalize_run(
+                task=paused_task,
+                route=route,
+                pack_name=None,
+                pack_result=None,
+                replay_observation=replay_observation,
+                task_inference=inference,
+                sentinel_report=sentinel_report,
+                evaluation=evaluation,
+                verification=verification,
+                governance_preflight=governance_preflight,
+                approval_resolution=approval_resolution,
             )
 
         manifest = self._manifest_registry.get(route.capability_name)
@@ -490,6 +571,7 @@ class BlackFoxRuntime:
                 "route_confidence": route.confidence,
                 "route_reason": route.reason.value,
                 "session_id": self._session_id,
+                "approval_ids": approval_resolution.approval_ids,
             },
         )
 
@@ -514,6 +596,7 @@ class BlackFoxRuntime:
                 replay_observation=replay_observation,
                 sentinel_report=sentinel_report,
                 governance_preflight=governance_preflight,
+                approval_resolution=approval_resolution,
             )
             verification = self._verifier.verify(
                 VerificationContext(
@@ -534,6 +617,7 @@ class BlackFoxRuntime:
                 evaluation=evaluation,
                 verification=verification,
                 governance_preflight=governance_preflight,
+                approval_resolution=approval_resolution,
             )
 
         self._append_trace(
@@ -565,6 +649,7 @@ class BlackFoxRuntime:
             replay_observation=replay_observation,
             sentinel_report=sentinel_report,
             governance_preflight=governance_preflight,
+            approval_resolution=approval_resolution,
         )
         verification = self._verifier.verify(
             VerificationContext(
@@ -587,6 +672,7 @@ class BlackFoxRuntime:
             evaluation=evaluation,
             verification=verification,
             governance_preflight=governance_preflight,
+            approval_resolution=approval_resolution,
         )
 
     def _register_builtin_packs(self) -> None:
@@ -646,6 +732,7 @@ class BlackFoxRuntime:
         replay_observation: ReplayObservation,
         sentinel_report: SentinelReport,
         governance_preflight: RuntimeGovernancePreflightResult | None,
+        approval_resolution: RuntimeApprovalResolution | None,
     ) -> EvaluationResult:
         evaluator = RuleBasedEvaluator(
             evaluator_name="runtime_run_quality",
@@ -655,6 +742,7 @@ class BlackFoxRuntime:
                 lambda context: _replay_rule(context),
                 lambda context: _sentinel_rule(context),
                 lambda context: _governance_rule(context),
+                lambda context: _approval_rule(context),
             ),
             passing_score=1.0,
             review_score=0.6,
@@ -669,6 +757,7 @@ class BlackFoxRuntime:
                     "replay_observation": replay_observation,
                     "sentinel_report": sentinel_report,
                     "governance_preflight": governance_preflight,
+                    "approval_resolution": approval_resolution,
                 },
             )
         )
@@ -686,6 +775,7 @@ class BlackFoxRuntime:
         evaluation: EvaluationResult,
         verification: VerificationReport,
         governance_preflight: RuntimeGovernancePreflightResult | None,
+        approval_resolution: RuntimeApprovalResolution | None,
     ) -> RuntimeRunReport:
         artifact_paths: dict[str, str] = {}
         produced_artifacts: list[str] = []
@@ -709,6 +799,7 @@ class BlackFoxRuntime:
             replay_observation=replay_observation,
             produced_artifacts=tuple(produced_artifacts),
             governance_preflight=governance_preflight,
+            approval_resolution=approval_resolution,
         )
 
         run_report = RuntimeRunReport(
@@ -726,6 +817,7 @@ class BlackFoxRuntime:
             replay_observation=replay_observation,
             task_inference=task_inference,
             governance_preflight=governance_preflight,
+            approval_resolution=approval_resolution,
             produced_artifacts=tuple(produced_artifacts),
             artifact_paths=artifact_paths,
             trace_ids=tuple(record.trace_id for record in self._task_traces(task.request.task_id)),
@@ -803,6 +895,7 @@ class BlackFoxRuntime:
         replay_observation: ReplayObservation,
         produced_artifacts: tuple[str, ...],
         governance_preflight: RuntimeGovernancePreflightResult | None,
+        approval_resolution: RuntimeApprovalResolution | None,
     ) -> None:
         trace_ids = tuple(record.trace_id for record in self._task_traces(task.request.task_id))
         self._evidence.record(
@@ -848,7 +941,26 @@ class BlackFoxRuntime:
                     "policy_reason": governance_preflight.decision.reason.value,
                     "ticket_id": governance_preflight.ticket.ticket_id,
                     "ticket_disposition": governance_preflight.ticket.disposition.value,
+                    "approval_required": (
+                        False if approval_resolution is None else approval_resolution.required
+                    ),
+                    "approval_satisfied": (
+                        False if approval_resolution is None else approval_resolution.satisfied
+                    ),
+                    "approval_ids": (
+                        () if approval_resolution is None else approval_resolution.approval_ids
+                    ),
                 },
+            )
+
+        if approval_resolution is not None and approval_resolution.required:
+            self._evidence.record(
+                subject_id=task.request.task_id,
+                evidence_type="approval",
+                summary="Recorded runtime approval resolution outcome.",
+                source="runtime",
+                trace_ids=trace_ids,
+                metadata=approval_resolution.to_dict(),
             )
 
         self._evidence.record(
@@ -1130,15 +1242,23 @@ def _governance_rule(context: EvaluationContext) -> EvaluationFinding | None:
             },
         )
 
-    if preflight.requires_review:
+    return None
+
+
+def _approval_rule(context: EvaluationContext) -> EvaluationFinding | None:
+    resolution = context.metadata.get("approval_resolution")
+    if not isinstance(resolution, RuntimeApprovalResolution):
+        return None
+
+    if resolution.required and not resolution.satisfied:
         return EvaluationFinding(
-            code="runtime.governance_review_required",
+            code="runtime.approval_pending",
             severity=EvaluationSeverity.WARNING,
-            summary="Governance preflight marked the run as review-required.",
-            details=preflight.decision.rationale,
+            summary="Runtime execution is waiting on governance approval.",
+            details="Review-gated work cannot proceed until an approval artifact resolves it.",
             data={
-                "risk_level": preflight.risk.risk_level.value,
-                "policy_decision": preflight.decision.decision.value,
+                "approval_ids": resolution.approval_ids,
+                "issues": resolution.issues,
             },
         )
 
