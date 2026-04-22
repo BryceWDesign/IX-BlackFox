@@ -26,12 +26,18 @@ def test_runtime_records_allowing_governance_preflight_for_programming_run(
     assert report.approval_resolution is not None
     assert report.approval_resolution.required is False
     assert report.approval_resolution.satisfied is True
+    assert report.governance_receipts is not None
+    assert report.governance_receipts.chain_verified is True
+    assert report.governance_receipts.receipt_count == 4
+    assert report.governance_receipts.artifact_path is not None
 
     payload = json.loads(Path(report.report_path).read_text(encoding="utf-8"))
     assert payload["governance_preflight"]["decision"]["decision"] == "allow"
     assert payload["governance_preflight"]["ticket"]["disposition"] == "ready"
     assert payload["approval_resolution"]["required"] is False
     assert payload["approval_resolution"]["satisfied"] is True
+    assert payload["governance_receipts"]["receipt_count"] == 4
+    assert payload["governance_receipts"]["chain_verified"] is True
 
 
 def test_runtime_blocks_network_egress_during_governance_preflight(
@@ -50,7 +56,10 @@ def test_runtime_blocks_network_egress_during_governance_preflight(
 
     assert report.status == RuntimeRunStatus.FAILED
     assert report.pack_name is None
-    assert report.produced_artifacts == ()
+    assert report.governance_receipts is not None
+    assert report.governance_receipts.chain_verified is True
+    assert report.governance_receipts.receipt_count == 2
+    assert report.produced_artifacts == ("blackfox-governance-receipts.json",)
     assert report.governance_preflight is not None
     assert report.governance_preflight.blocked is True
     assert report.governance_preflight.decision.decision.value == "block"
@@ -61,6 +70,7 @@ def test_runtime_blocks_network_egress_during_governance_preflight(
     assert payload["status"] == "failed"
     assert payload["governance_preflight"]["decision"]["decision"] == "block"
     assert payload["governance_preflight"]["risk"]["risk_level"] == "critical"
+    assert payload["governance_receipts"]["receipt_count"] == 2
 
 
 def test_runtime_pauses_review_required_run_without_approval_artifact(
@@ -76,19 +86,22 @@ def test_runtime_pauses_review_required_run_without_approval_artifact(
 
     assert report.status == RuntimeRunStatus.NEEDS_REVIEW
     assert report.pack_name is None
-    assert report.produced_artifacts == ()
+    assert report.produced_artifacts == ("blackfox-governance-receipts.json",)
     assert report.governance_preflight is not None
     assert report.governance_preflight.requires_review is True
     assert report.governance_preflight.decision.decision.value == "require_review"
     assert report.approval_resolution is not None
     assert report.approval_resolution.required is True
     assert report.approval_resolution.satisfied is False
+    assert report.governance_receipts is not None
+    assert report.governance_receipts.receipt_count == 1
     assert report.task_summary == "Run paused pending governance approval."
 
     payload = json.loads(Path(report.report_path).read_text(encoding="utf-8"))
     assert payload["status"] == "needs_review"
     assert payload["approval_resolution"]["required"] is True
     assert payload["approval_resolution"]["satisfied"] is False
+    assert payload["governance_receipts"]["receipt_count"] == 1
 
 
 def test_runtime_executes_review_required_run_when_approval_artifact_is_present(
@@ -122,9 +135,13 @@ def test_runtime_executes_review_required_run_when_approval_artifact_is_present(
     assert report.approval_resolution.required is True
     assert report.approval_resolution.satisfied is True
     assert len(report.approval_resolution.approval_ids) == 1
+    assert report.governance_receipts is not None
+    assert report.governance_receipts.chain_verified is True
+    assert report.governance_receipts.receipt_count == 5
 
     payload = json.loads(Path(report.report_path).read_text(encoding="utf-8"))
     assert payload["status"] == "passed"
     assert payload["approval_resolution"]["required"] is True
     assert payload["approval_resolution"]["satisfied"] is True
     assert len(payload["approval_resolution"]["approval_ids"]) == 1
+    assert payload["governance_receipts"]["receipt_count"] == 5
