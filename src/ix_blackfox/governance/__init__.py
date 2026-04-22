@@ -6,9 +6,12 @@ normalized action intents, risk classification, policy decisions,
 approval records, and chained receipts that make forge execution
 provable instead of implicit.
 
-The first concrete layer establishes stable action-intent and risk
-models so later policy, approval, and execution mediation can share one
-deterministic vocabulary.
+The current layer provides:
+- normalized action-intent and risk models
+- deterministic policy evaluation for governed actions
+
+Later commits will add approval records, receipt chains, forge
+execution tickets, and end-to-end runtime integration.
 """
 
 from ix_blackfox.governance.models import (
@@ -18,6 +21,12 @@ from ix_blackfox.governance.models import (
     RiskFactor,
     RiskLevel,
 )
+from ix_blackfox.governance.policy import (
+    GovernancePolicy,
+    PolicyDecision,
+    PolicyDecisionReason,
+    PolicyDecisionType,
+)
 
 __all__ = [
     "ActionIntent",
@@ -25,4 +34,8 @@ __all__ = [
     "ActionRiskProfile",
     "RiskFactor",
     "RiskLevel",
+    "GovernancePolicy",
+    "PolicyDecision",
+    "PolicyDecisionReason",
+    "PolicyDecisionType",
 ]
