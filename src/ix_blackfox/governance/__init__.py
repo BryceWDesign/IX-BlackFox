@@ -10,9 +10,10 @@ The current layer provides:
 - normalized action-intent and risk models
 - deterministic policy evaluation for governed actions
 - approval requests, decisions, and a persisted approval state store
+- chained governance receipts for auditable execution history
 
-Later commits will add receipt chains, forge execution tickets, and
-end-to-end runtime integration.
+Later commits will add forge execution tickets and end-to-end runtime
+integration.
 """
 
 from ix_blackfox.governance.approval import (
@@ -35,6 +36,12 @@ from ix_blackfox.governance.policy import (
     PolicyDecisionReason,
     PolicyDecisionType,
 )
+from ix_blackfox.governance.receipt import (
+    GovernanceReceiptLedger,
+    GovernanceReceiptLedgerSnapshot,
+    GovernanceReceiptRecord,
+    ReceiptEventType,
+)
 
 __all__ = [
     "ActionIntent",
@@ -51,4 +58,8 @@ __all__ = [
     "ApprovalState",
     "ApprovalStatus",
     "GovernanceApprovalStore",
+    "GovernanceReceiptLedger",
+    "GovernanceReceiptLedgerSnapshot",
+    "GovernanceReceiptRecord",
+    "ReceiptEventType",
 ]
