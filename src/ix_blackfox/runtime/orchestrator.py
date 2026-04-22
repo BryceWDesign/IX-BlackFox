@@ -61,6 +61,10 @@ from ix_blackfox.vault import (
 
 from ix_blackfox.runtime.inference import DeterministicTaskClassifier, TaskInference
 from ix_blackfox.runtime.replay import ReplayObservation, TaskReplayGuard
+from ix_blackfox.runtime.governance import (
+    RuntimeGovernancePreflightEngine,
+    RuntimeGovernancePreflightResult,
+)
 
 
 class RuntimeRunStatus(StrEnum):
@@ -92,6 +96,7 @@ class RuntimeRunReport:
     sentinel_report: SentinelReport
     replay_observation: ReplayObservation
     task_inference: TaskInference | None = None
+    governance_preflight: RuntimeGovernancePreflightResult | None = None
     produced_artifacts: tuple[str, ...] = field(default_factory=tuple)
     artifact_paths: dict[str, str] = field(default_factory=dict)
     trace_ids: tuple[str, ...] = field(default_factory=tuple)
@@ -119,6 +124,10 @@ class RuntimeRunReport:
                 "matched_labels": self.task_inference.matched_labels,
             }
 
+        governance_preflight = None
+        if self.governance_preflight is not None:
+            governance_preflight = self.governance_preflight.to_dict()
+
         return {
             "session_id": self.session_id,
             "run_id": self.run_id,
@@ -133,6 +142,7 @@ class RuntimeRunReport:
             "sentinel_report": _sentinel_to_dict(self.sentinel_report),
             "replay_observation": asdict(self.replay_observation),
             "task_inference": inference,
+            "governance_preflight": governance_preflight,
             "produced_artifacts": self.produced_artifacts,
             "artifact_paths": self.artifact_paths,
             "trace_ids": self.trace_ids,
@@ -171,6 +181,7 @@ class BlackFoxRuntime:
         state_store: VaultStateStore,
         replay_guard: TaskReplayGuard,
         classifier: DeterministicTaskClassifier,
+        governance_preflight: RuntimeGovernancePreflightEngine,
     ) -> None:
         self._config = config
         self._kernel = kernel
@@ -191,6 +202,7 @@ class BlackFoxRuntime:
         self._state_store = state_store
         self._replay_guard = replay_guard
         self._classifier = classifier
+        self._governance_preflight = governance_preflight
         self._session_id = f"session-{uuid4().hex}"
         self._loaded_packs: dict[str, BasePack] = {}
 
@@ -231,6 +243,7 @@ class BlackFoxRuntime:
         )
         replay_guard = TaskReplayGuard(window_size=128)
         classifier = DeterministicTaskClassifier()
+        governance_preflight = RuntimeGovernancePreflightEngine()
 
         runtime = cls(
             config=config,
@@ -252,6 +265,7 @@ class BlackFoxRuntime:
             state_store=state_store,
             replay_guard=replay_guard,
             classifier=classifier,
+            governance_preflight=governance_preflight,
         )
         runtime._register_builtin_packs()
         runtime._register_builtin_checks()
@@ -356,6 +370,7 @@ class BlackFoxRuntime:
                 artifacts=(),
                 replay_observation=replay_observation,
                 sentinel_report=sentinel_report,
+                governance_preflight=None,
             )
             verification = self._verifier.verify(
                 VerificationContext(
@@ -375,6 +390,7 @@ class BlackFoxRuntime:
                 sentinel_report=sentinel_report,
                 evaluation=evaluation,
                 verification=verification,
+                governance_preflight=None,
             )
 
         self._append_trace(
@@ -392,6 +408,74 @@ class BlackFoxRuntime:
                 "matched_labels": route.matched_labels,
             },
         )
+
+        governance_preflight = self._governance_preflight.evaluate(
+            task=task,
+            route=route,
+        )
+        self._append_trace(
+            correlation_id=task.request.task_id,
+            stage="governance",
+            message=(
+                "Governance preflight produced decision "
+                f"'{governance_preflight.decision.decision.value}' at risk "
+                f"level '{governance_preflight.risk.risk_level.value}'."
+            ),
+            level=(
+                "error"
+                if governance_preflight.blocked
+                else "warning"
+                if governance_preflight.requires_review
+                else "info"
+            ),
+            source="runtime",
+            data={
+                "action_kind": governance_preflight.intent.action_kind.value,
+                "risk_level": governance_preflight.risk.risk_level.value,
+                "policy_decision": governance_preflight.decision.decision.value,
+                "policy_reason": governance_preflight.decision.reason.value,
+                "ticket_id": governance_preflight.ticket.ticket_id,
+                "ticket_disposition": governance_preflight.ticket.disposition.value,
+                "factor_codes": governance_preflight.risk.factor_codes(),
+            },
+        )
+
+        if governance_preflight.blocked:
+            failed_task = task.mark_failed(error=governance_preflight.decision.rationale)
+            sentinel_report = self._sentinel.evaluate(
+                SentinelContext(
+                    task=failed_task,
+                    trace_records=self._task_traces(task.request.task_id),
+                )
+            )
+            evaluation = self._evaluate_run(
+                task=failed_task,
+                route=route,
+                artifacts=(),
+                replay_observation=replay_observation,
+                sentinel_report=sentinel_report,
+                governance_preflight=governance_preflight,
+            )
+            verification = self._verifier.verify(
+                VerificationContext(
+                    subject_id=task.request.task_id,
+                    expected_artifacts=(),
+                    produced_artifacts=(),
+                    evaluation_results=(evaluation,),
+                )
+            )
+            return self._finalize_run(
+                task=failed_task,
+                route=route,
+                pack_name=None,
+                pack_result=None,
+                replay_observation=replay_observation,
+                task_inference=inference,
+                sentinel_report=sentinel_report,
+                evaluation=evaluation,
+                verification=verification,
+                governance_preflight=governance_preflight,
+            )
 
         manifest = self._manifest_registry.get(route.capability_name)
         if manifest is None:
@@ -429,6 +513,7 @@ class BlackFoxRuntime:
                 artifacts=(),
                 replay_observation=replay_observation,
                 sentinel_report=sentinel_report,
+                governance_preflight=governance_preflight,
             )
             verification = self._verifier.verify(
                 VerificationContext(
@@ -448,6 +533,7 @@ class BlackFoxRuntime:
                 sentinel_report=sentinel_report,
                 evaluation=evaluation,
                 verification=verification,
+                governance_preflight=governance_preflight,
             )
 
         self._append_trace(
@@ -478,6 +564,7 @@ class BlackFoxRuntime:
             artifacts=pack_result.artifacts,
             replay_observation=replay_observation,
             sentinel_report=sentinel_report,
+            governance_preflight=governance_preflight,
         )
         verification = self._verifier.verify(
             VerificationContext(
@@ -499,6 +586,7 @@ class BlackFoxRuntime:
             sentinel_report=sentinel_report,
             evaluation=evaluation,
             verification=verification,
+            governance_preflight=governance_preflight,
         )
 
     def _register_builtin_packs(self) -> None:
@@ -557,6 +645,7 @@ class BlackFoxRuntime:
         artifacts: tuple[str, ...],
         replay_observation: ReplayObservation,
         sentinel_report: SentinelReport,
+        governance_preflight: RuntimeGovernancePreflightResult | None,
     ) -> EvaluationResult:
         evaluator = RuleBasedEvaluator(
             evaluator_name="runtime_run_quality",
@@ -565,6 +654,7 @@ class BlackFoxRuntime:
                 lambda context: _artifact_rule(context),
                 lambda context: _replay_rule(context),
                 lambda context: _sentinel_rule(context),
+                lambda context: _governance_rule(context),
             ),
             passing_score=1.0,
             review_score=0.6,
@@ -578,6 +668,7 @@ class BlackFoxRuntime:
                     "route": route,
                     "replay_observation": replay_observation,
                     "sentinel_report": sentinel_report,
+                    "governance_preflight": governance_preflight,
                 },
             )
         )
@@ -594,6 +685,7 @@ class BlackFoxRuntime:
         sentinel_report: SentinelReport,
         evaluation: EvaluationResult,
         verification: VerificationReport,
+        governance_preflight: RuntimeGovernancePreflightResult | None,
     ) -> RuntimeRunReport:
         artifact_paths: dict[str, str] = {}
         produced_artifacts: list[str] = []
@@ -616,6 +708,7 @@ class BlackFoxRuntime:
             sentinel_report=sentinel_report,
             replay_observation=replay_observation,
             produced_artifacts=tuple(produced_artifacts),
+            governance_preflight=governance_preflight,
         )
 
         run_report = RuntimeRunReport(
@@ -632,6 +725,7 @@ class BlackFoxRuntime:
             sentinel_report=sentinel_report,
             replay_observation=replay_observation,
             task_inference=task_inference,
+            governance_preflight=governance_preflight,
             produced_artifacts=tuple(produced_artifacts),
             artifact_paths=artifact_paths,
             trace_ids=tuple(record.trace_id for record in self._task_traces(task.request.task_id)),
@@ -708,6 +802,7 @@ class BlackFoxRuntime:
         sentinel_report: SentinelReport,
         replay_observation: ReplayObservation,
         produced_artifacts: tuple[str, ...],
+        governance_preflight: RuntimeGovernancePreflightResult | None,
     ) -> None:
         trace_ids = tuple(record.trace_id for record in self._task_traces(task.request.task_id))
         self._evidence.record(
@@ -739,6 +834,23 @@ class BlackFoxRuntime:
                 "score": evaluation.score,
             },
         )
+        if governance_preflight is not None:
+            self._evidence.record(
+                subject_id=task.request.task_id,
+                evidence_type="governance",
+                summary="Recorded governance preflight outcome.",
+                source="runtime",
+                trace_ids=trace_ids,
+                metadata={
+                    "action_kind": governance_preflight.intent.action_kind.value,
+                    "risk_level": governance_preflight.risk.risk_level.value,
+                    "policy_decision": governance_preflight.decision.decision.value,
+                    "policy_reason": governance_preflight.decision.reason.value,
+                    "ticket_id": governance_preflight.ticket.ticket_id,
+                    "ticket_disposition": governance_preflight.ticket.disposition.value,
+                },
+            )
+
         self._evidence.record(
             subject_id=task.request.task_id,
             evidence_type="sentinel",
@@ -998,6 +1110,38 @@ def _sentinel_rule(context: EvaluationContext) -> EvaluationFinding | None:
             summary="Sentinel reported review-worthy runtime issues.",
             details=f"issue_count={len(report.issues)}",
         )
+    return None
+
+
+def _governance_rule(context: EvaluationContext) -> EvaluationFinding | None:
+    preflight = context.metadata.get("governance_preflight")
+    if not isinstance(preflight, RuntimeGovernancePreflightResult):
+        return None
+
+    if preflight.blocked:
+        return EvaluationFinding(
+            code="runtime.governance_blocked",
+            severity=EvaluationSeverity.ERROR,
+            summary="Governance preflight blocked runtime execution.",
+            details=preflight.decision.rationale,
+            data={
+                "risk_level": preflight.risk.risk_level.value,
+                "policy_decision": preflight.decision.decision.value,
+            },
+        )
+
+    if preflight.requires_review:
+        return EvaluationFinding(
+            code="runtime.governance_review_required",
+            severity=EvaluationSeverity.WARNING,
+            summary="Governance preflight marked the run as review-required.",
+            details=preflight.decision.rationale,
+            data={
+                "risk_level": preflight.risk.risk_level.value,
+                "policy_decision": preflight.decision.decision.value,
+            },
+        )
+
     return None
 
 
