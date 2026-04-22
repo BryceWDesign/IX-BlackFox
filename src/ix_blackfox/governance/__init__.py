@@ -9,11 +9,19 @@ provable instead of implicit.
 The current layer provides:
 - normalized action-intent and risk models
 - deterministic policy evaluation for governed actions
+- approval requests, decisions, and a persisted approval state store
 
-Later commits will add approval records, receipt chains, forge
-execution tickets, and end-to-end runtime integration.
+Later commits will add receipt chains, forge execution tickets, and
+end-to-end runtime integration.
 """
 
+from ix_blackfox.governance.approval import (
+    ApprovalDecision,
+    ApprovalRequest,
+    ApprovalState,
+    ApprovalStatus,
+    GovernanceApprovalStore,
+)
 from ix_blackfox.governance.models import (
     ActionIntent,
     ActionKind,
@@ -38,4 +46,9 @@ __all__ = [
     "PolicyDecision",
     "PolicyDecisionReason",
     "PolicyDecisionType",
+    "ApprovalDecision",
+    "ApprovalRequest",
+    "ApprovalState",
+    "ApprovalStatus",
+    "GovernanceApprovalStore",
 ]
