@@ -22,6 +22,7 @@ from ix_blackfox.eval import (
     VerificationContext,
     VerificationReport,
 )
+from ix_blackfox.governance import GovernanceReceiptLedger
 from ix_blackfox.kernel import (
     BlackFoxKernel,
     SharedStateStore,
@@ -67,6 +68,10 @@ from ix_blackfox.runtime.governance import (
     RuntimeGovernancePreflightResult,
 )
 from ix_blackfox.runtime.inference import DeterministicTaskClassifier, TaskInference
+from ix_blackfox.runtime.receipts import (
+    RuntimeGovernanceReceiptRecorder,
+    RuntimeGovernanceReceiptReport,
+)
 from ix_blackfox.runtime.replay import ReplayObservation, TaskReplayGuard
 
 
@@ -101,6 +106,7 @@ class RuntimeRunReport:
     task_inference: TaskInference | None = None
     governance_preflight: RuntimeGovernancePreflightResult | None = None
     approval_resolution: RuntimeApprovalResolution | None = None
+    governance_receipts: RuntimeGovernanceReceiptReport | None = None
     produced_artifacts: tuple[str, ...] = field(default_factory=tuple)
     artifact_paths: dict[str, str] = field(default_factory=dict)
     trace_ids: tuple[str, ...] = field(default_factory=tuple)
@@ -136,6 +142,10 @@ class RuntimeRunReport:
         if self.approval_resolution is not None:
             approval_resolution = self.approval_resolution.to_dict()
 
+        governance_receipts = None
+        if self.governance_receipts is not None:
+            governance_receipts = self.governance_receipts.to_dict()
+
         return {
             "session_id": self.session_id,
             "run_id": self.run_id,
@@ -152,6 +162,7 @@ class RuntimeRunReport:
             "task_inference": inference,
             "governance_preflight": governance_preflight,
             "approval_resolution": approval_resolution,
+            "governance_receipts": governance_receipts,
             "produced_artifacts": self.produced_artifacts,
             "artifact_paths": self.artifact_paths,
             "trace_ids": self.trace_ids,
@@ -192,6 +203,7 @@ class BlackFoxRuntime:
         classifier: DeterministicTaskClassifier,
         governance_preflight: RuntimeGovernancePreflightEngine,
         approval_resolver: RuntimeApprovalResolver,
+        receipt_recorder: RuntimeGovernanceReceiptRecorder,
     ) -> None:
         self._config = config
         self._kernel = kernel
@@ -214,6 +226,7 @@ class BlackFoxRuntime:
         self._classifier = classifier
         self._governance_preflight = governance_preflight
         self._approval_resolver = approval_resolver
+        self._receipt_recorder = receipt_recorder
         self._session_id = f"session-{uuid4().hex}"
         self._loaded_packs: dict[str, BasePack] = {}
 
@@ -256,6 +269,7 @@ class BlackFoxRuntime:
         classifier = DeterministicTaskClassifier()
         governance_preflight = RuntimeGovernancePreflightEngine()
         approval_resolver = RuntimeApprovalResolver()
+        receipt_recorder = RuntimeGovernanceReceiptRecorder()
 
         runtime = cls(
             config=config,
@@ -279,6 +293,7 @@ class BlackFoxRuntime:
             classifier=classifier,
             governance_preflight=governance_preflight,
             approval_resolver=approval_resolver,
+            receipt_recorder=receipt_recorder,
         )
         runtime._register_builtin_packs()
         runtime._register_builtin_checks()
@@ -406,6 +421,7 @@ class BlackFoxRuntime:
                 verification=verification,
                 governance_preflight=None,
                 approval_resolution=None,
+                governance_receipt_ledger=None,
             )
 
         self._append_trace(
@@ -428,6 +444,12 @@ class BlackFoxRuntime:
             task=task,
             route=route,
         )
+        governance_receipt_ledger = self._receipt_recorder.create_ledger()
+        self._receipt_recorder.record_preflight(
+            ledger=governance_receipt_ledger,
+            preflight=governance_preflight,
+        )
+
         self._append_trace(
             correlation_id=task.request.task_id,
             stage="governance",
@@ -459,6 +481,12 @@ class BlackFoxRuntime:
             task=task,
             preflight=governance_preflight,
         )
+        self._receipt_recorder.record_approval_resolution(
+            ledger=governance_receipt_ledger,
+            preflight=governance_preflight,
+            resolution=approval_resolution,
+        )
+
         if governance_preflight.requires_review:
             self._append_trace(
                 correlation_id=task.request.task_id,
@@ -515,6 +543,7 @@ class BlackFoxRuntime:
                 verification=verification,
                 governance_preflight=governance_preflight,
                 approval_resolution=approval_resolution,
+                governance_receipt_ledger=governance_receipt_ledger,
             )
 
         if governance_preflight.requires_review and not approval_resolution.satisfied:
@@ -556,6 +585,7 @@ class BlackFoxRuntime:
                 verification=verification,
                 governance_preflight=governance_preflight,
                 approval_resolution=approval_resolution,
+                governance_receipt_ledger=governance_receipt_ledger,
             )
 
         manifest = self._manifest_registry.get(route.capability_name)
@@ -563,6 +593,12 @@ class BlackFoxRuntime:
             raise RuntimeError(f"Route target '{route.capability_name}' has no registered manifest.")
 
         pack = self._load_pack(manifest.pack_name)
+        self._receipt_recorder.record_execution_started(
+            ledger=governance_receipt_ledger,
+            preflight=governance_preflight,
+            pack_name=pack.pack_name,
+        )
+
         pack_context = PackContext(
             config=self._config,
             bus=self._bus,
@@ -578,6 +614,12 @@ class BlackFoxRuntime:
         try:
             pack_result = pack.execute(task=task, context=pack_context)
         except Exception as exc:
+            self._receipt_recorder.record_execution_failed(
+                ledger=governance_receipt_ledger,
+                preflight=governance_preflight,
+                pack_name=pack.pack_name,
+                error=str(exc),
+            )
             self._append_trace(
                 correlation_id=task.request.task_id,
                 stage="pack",
@@ -618,7 +660,15 @@ class BlackFoxRuntime:
                 verification=verification,
                 governance_preflight=governance_preflight,
                 approval_resolution=approval_resolution,
+                governance_receipt_ledger=governance_receipt_ledger,
             )
+
+        self._receipt_recorder.record_execution_completed(
+            ledger=governance_receipt_ledger,
+            preflight=governance_preflight,
+            pack_name=pack.pack_name,
+            artifact_count=len(pack_result.artifacts),
+        )
 
         self._append_trace(
             correlation_id=task.request.task_id,
@@ -673,6 +723,7 @@ class BlackFoxRuntime:
             verification=verification,
             governance_preflight=governance_preflight,
             approval_resolution=approval_resolution,
+            governance_receipt_ledger=governance_receipt_ledger,
         )
 
     def _register_builtin_packs(self) -> None:
@@ -776,6 +827,7 @@ class BlackFoxRuntime:
         verification: VerificationReport,
         governance_preflight: RuntimeGovernancePreflightResult | None,
         approval_resolution: RuntimeApprovalResolution | None,
+        governance_receipt_ledger: GovernanceReceiptLedger | None,
     ) -> RuntimeRunReport:
         artifact_paths: dict[str, str] = {}
         produced_artifacts: list[str] = []
@@ -789,6 +841,24 @@ class BlackFoxRuntime:
             artifact_paths.update({name: str(path) for name, path in materialized.items()})
             produced_artifacts.extend(materialized)
 
+        governance_receipts: RuntimeGovernanceReceiptReport | None = None
+        if governance_preflight is not None and governance_receipt_ledger is not None:
+            self._receipt_recorder.record_verification_outcome(
+                ledger=governance_receipt_ledger,
+                preflight=governance_preflight,
+                verification_status=verification.status.value,
+                issue_count=len(verification.issues),
+            )
+            governance_receipts = self._persist_governance_receipts(
+                task_id=task.request.task_id,
+                intent_id=governance_preflight.intent.intent_id,
+                ledger=governance_receipt_ledger,
+            )
+            if governance_receipts.artifact_path is not None:
+                artifact_name = "blackfox-governance-receipts.json"
+                artifact_paths[artifact_name] = governance_receipts.artifact_path
+                produced_artifacts.append(artifact_name)
+
         self._record_evidence(
             task=task,
             route=route,
@@ -800,6 +870,7 @@ class BlackFoxRuntime:
             produced_artifacts=tuple(produced_artifacts),
             governance_preflight=governance_preflight,
             approval_resolution=approval_resolution,
+            governance_receipts=governance_receipts,
         )
 
         run_report = RuntimeRunReport(
@@ -818,6 +889,7 @@ class BlackFoxRuntime:
             task_inference=task_inference,
             governance_preflight=governance_preflight,
             approval_resolution=approval_resolution,
+            governance_receipts=governance_receipts,
             produced_artifacts=tuple(produced_artifacts),
             artifact_paths=artifact_paths,
             trace_ids=tuple(record.trace_id for record in self._task_traces(task.request.task_id)),
@@ -896,6 +968,7 @@ class BlackFoxRuntime:
         produced_artifacts: tuple[str, ...],
         governance_preflight: RuntimeGovernancePreflightResult | None,
         approval_resolution: RuntimeApprovalResolution | None,
+        governance_receipts: RuntimeGovernanceReceiptReport | None,
     ) -> None:
         trace_ids = tuple(record.trace_id for record in self._task_traces(task.request.task_id))
         self._evidence.record(
@@ -963,6 +1036,22 @@ class BlackFoxRuntime:
                 metadata=approval_resolution.to_dict(),
             )
 
+        if governance_receipts is not None:
+            self._evidence.record(
+                subject_id=task.request.task_id,
+                evidence_type="governance_receipts",
+                summary="Recorded persisted governance receipt chain for the run.",
+                source="runtime",
+                artifact_refs=()
+                if governance_receipts.artifact_path is None
+                else (governance_receipts.artifact_path,),
+                metadata={
+                    "receipt_count": governance_receipts.receipt_count,
+                    "chain_verified": governance_receipts.chain_verified,
+                    "artifact_path": governance_receipts.artifact_path,
+                },
+            )
+
         self._evidence.record(
             subject_id=task.request.task_id,
             evidence_type="sentinel",
@@ -1021,6 +1110,45 @@ class BlackFoxRuntime:
             materialized[logical_name] = path
 
         return materialized
+
+    def _persist_governance_receipts(
+        self,
+        *,
+        task_id: str,
+        intent_id: str,
+        ledger: GovernanceReceiptLedger,
+    ) -> RuntimeGovernanceReceiptReport:
+        root_dir = self._config.paths.artifacts_dir / "runs" / task_id
+        root_dir.mkdir(parents=True, exist_ok=True)
+        artifact_path = root_dir / "blackfox-governance-receipts.json"
+
+        report = self._receipt_recorder.report_from_ledger(
+            ledger=ledger,
+            intent_id=intent_id,
+            artifact_path=str(artifact_path),
+        )
+        payload = report.to_dict()
+        content = json.dumps(payload, sort_keys=True, indent=2, ensure_ascii=False)
+        artifact_path.write_text(content, encoding="utf-8")
+
+        digest = fingerprint_bytes(content.encode("utf-8"))
+        self._artifact_memory.upsert(
+            logical_name=f"governance-receipts-{task_id}",
+            path=artifact_path,
+            artifact_type="report",
+            digest=digest,
+            source="runtime",
+            tags=("governance", "receipts"),
+            metadata={"task_id": task_id, "intent_id": intent_id},
+        )
+        self._provenance.append(
+            subject=f"governance-receipts:{task_id}",
+            action="created",
+            fingerprint=digest,
+            actor="runtime",
+            metadata={"path": str(artifact_path), "intent_id": intent_id},
+        )
+        return report
 
     def _persist_run_report(self, report: RuntimeRunReport) -> Path:
         root_dir = self._config.paths.artifacts_dir / "runs" / report.task_id
