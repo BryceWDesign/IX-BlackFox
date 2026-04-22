@@ -7,8 +7,9 @@ inside controlled environments. The first concrete layers are workspace
 management for isolated file operations, file-graph scanning for stable
 repository inventory, static Python code analysis, structured patch
 planning, governed patch-intent bridging, controlled command execution,
-test running, regression result collection, and governed execution
-tickets that normalize forge work before runtime mediation.
+governed command mediation, test running, regression result collection,
+and governed execution tickets that normalize forge work before runtime
+mediation.
 """
 
 from ix_blackfox.forge.code_analysis import (
@@ -35,6 +36,10 @@ from ix_blackfox.forge.file_graph import (
     FileGraphSnapshot,
     FileNode,
     ForgeFileGraphScanner,
+)
+from ix_blackfox.forge.governed_command_runner import (
+    GovernedCommandRunResult,
+    GovernedForgeCommandRunner,
 )
 from ix_blackfox.forge.governed_patch_intents import (
     ForgePatchIntentBridge,
@@ -79,11 +84,12 @@ __all__ = [
     "ForgeExecutionTicketBuilder",
     "ForgeFileGraphScanner",
     "ForgePatchIntentBridge",
-    "ForgePatchPlanner",
     "ForgeRegressionCollector",
     "ForgeTestRunner",
     "ForgeWorkspaceError",
     "ForgeWorkspaceManager",
+    "GovernedCommandRunResult",
+    "GovernedForgeCommandRunner",
     "GovernedPatchIntentBundle",
     "PatchOperation",
     "PatchOperationType",
