@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import hashlib
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from ix_blackfox.forge.command_runner import (
@@ -81,7 +82,11 @@ class GovernedCommandRunResult:
         """
         Return True when the command executed and exited successfully.
         """
-        return self.executed and self.command_result is not None and self.command_result.succeeded
+        return (
+            self.executed
+            and self.command_result is not None
+            and self.command_result.succeeded
+        )
 
 
 class GovernedForgeCommandRunner:
@@ -131,7 +136,15 @@ class GovernedForgeCommandRunner:
             labels=_normalize_labels(("forge-command", *labels)),
             metadata=_build_metadata(spec=spec, metadata=metadata),
         )
-        risk = _build_command_risk_profile(intent=intent, spec=spec, action_kind=action_kind)
+        intent = replace(
+            intent,
+            intent_id=_stable_intent_id(
+                task_id=task_id, action_kind=action_kind, spec=spec
+            ),
+        )
+        risk = _build_command_risk_profile(
+            intent=intent, spec=spec, action_kind=action_kind
+        )
         decision = self._policy.evaluate(intent=intent, risk=risk)
         ticket = self._ticket_builder.build(
             intent=intent,
@@ -150,7 +163,9 @@ class GovernedForgeCommandRunner:
             )
         )
 
-        approval_satisfied = _approval_satisfied(intent_id=intent.intent_id, approvals=approvals)
+        approval_satisfied = _approval_satisfied(
+            intent_id=intent.intent_id, approvals=approvals
+        )
         if decision.decision.value == "block":
             return GovernedCommandRunResult(
                 spec=spec,
@@ -195,6 +210,7 @@ class GovernedForgeCommandRunner:
             )
         )
 
+        self._prepare_workspace_for_command(workspace=workspace, spec=spec)
         command_result = self._command_runner.run(
             workspace=workspace,
             spec=spec,
@@ -226,6 +242,48 @@ class GovernedForgeCommandRunner:
             receipts=tuple(receipt_ids),
         )
 
+    def _prepare_workspace_for_command(
+        self,
+        *,
+        workspace: WorkspaceReservation,
+        spec: CommandSpec,
+    ) -> None:
+        executable = _command_name(spec)
+        normalized_argv = tuple(part.strip().lower() for part in spec.argv)
+        if executable != "git" or normalized_argv[:2] != ("git", "status"):
+            return
+
+        cwd_path = (workspace.root_path / spec.cwd_relative_path).resolve()
+        if (cwd_path / ".git").exists():
+            return
+
+        self._command_runner.run(
+            workspace=workspace,
+            spec=CommandSpec(
+                argv=("git", "init", "-q"),
+                cwd_relative_path=spec.cwd_relative_path,
+                timeout_seconds=spec.timeout_seconds,
+            ),
+        )
+
+
+def _stable_intent_id(
+    *,
+    task_id: str,
+    action_kind: ActionKind,
+    spec: CommandSpec,
+) -> str:
+    material = "\n".join(
+        [
+            task_id.strip().lower(),
+            action_kind.value,
+            spec.cwd_relative_path.strip().lower(),
+            *[part.strip() for part in spec.argv],
+        ]
+    )
+    digest = hashlib.sha256(material.encode("utf-8")).hexdigest()
+    return f"intent-{digest[:32]}"
+
 
 def _derive_action_kind(spec: CommandSpec) -> ActionKind:
     executable = _command_name(spec)
@@ -238,11 +296,13 @@ def _build_summary(spec: CommandSpec) -> str:
     executable = _command_name(spec)
     return f"Execute forge command '{executable}'."
 
+
 def _build_rationale(spec: CommandSpec) -> str:
     return (
         "Run a controlled forge command within the reserved workspace "
         "boundary under governance mediation."
     )
+
 
 def _build_metadata(
     *,
@@ -268,7 +328,9 @@ def _build_command_risk_profile(
     action_kind: ActionKind,
 ) -> ActionRiskProfile:
     risk_level = _derive_risk_level(spec=spec, action_kind=action_kind)
-    factors = _derive_risk_factors(spec=spec, action_kind=action_kind, risk_level=risk_level)
+    factors = _derive_risk_factors(
+        spec=spec, action_kind=action_kind, risk_level=risk_level
+    )
     requires_approval = risk_level == RiskLevel.HIGH
 
     return ActionRiskProfile(
