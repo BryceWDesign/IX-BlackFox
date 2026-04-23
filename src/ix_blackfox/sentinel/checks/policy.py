@@ -218,7 +218,7 @@ class PolicyGuardrailCheck(SentinelCheck):
     ) -> tuple[PolicyObservation, ...]:
         if not isinstance(raw_observations, Sequence) or isinstance(
             raw_observations,
-            (str, bytes, bytearray),
+            str | bytes | bytearray,
         ):
             raise ValueError(
                 "Policy observations must be a sequence of mappings or observations."
