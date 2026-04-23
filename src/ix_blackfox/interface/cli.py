@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from ix_blackfox.kernel import TaskKind
-from ix_blackfox.runtime import BlackFoxRuntime, RuntimeRunStatus
-
+from ix_blackfox.runtime import (
+    BlackFoxRuntime,
+    RuntimeRunReport,
+    RuntimeRunStatus,
+)
 
 _KIND_CHOICES = tuple(kind.value for kind in TaskKind)
 
@@ -26,7 +30,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "run":
         metadata = _load_runtime_metadata(args)
         runtime = BlackFoxRuntime.create_default(
-            root_dir=Path(args.root_dir).resolve() if args.root_dir is not None else None,
+            root_dir=Path(args.root_dir).resolve()
+            if args.root_dir is not None
+            else None,
         )
         report = runtime.run_prompt(
             prompt=args.prompt,
@@ -35,7 +41,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             metadata=metadata,
         )
         if args.json:
-            print(json.dumps(report.to_dict(), indent=2, sort_keys=True, ensure_ascii=False))
+            print(
+                json.dumps(
+                    report.to_dict(), indent=2, sort_keys=True, ensure_ascii=False
+                )
+            )
         else:
             _print_human_summary(report)
         return 0 if report.status != RuntimeRunStatus.FAILED else 1
@@ -146,15 +156,13 @@ def _normalize_approval_entries(entries: list[Any]) -> list[dict[str, Any]]:
 
     for index, entry in enumerate(entries):
         if not isinstance(entry, dict):
-            raise ValueError(
-                f"Approval entry at index {index} must be a JSON object."
-            )
+            raise ValueError(f"Approval entry at index {index} must be a JSON object.")
         normalized.append(dict(entry))
 
     return normalized
 
 
-def _print_human_summary(report) -> None:
+def _print_human_summary(report: RuntimeRunReport) -> None:
     print(f"Run ID: {report.run_id}")
     print(f"Task ID: {report.task_id}")
     print(f"Task kind: {report.task_kind.value}")
@@ -200,8 +208,7 @@ def _print_human_summary(report) -> None:
             )
             if report.approval_resolution.issues:
                 print(
-                    "Approval issues: "
-                    + "; ".join(report.approval_resolution.issues)
+                    "Approval issues: " + "; ".join(report.approval_resolution.issues)
                 )
         else:
             print("Approval gate: not required")
@@ -213,7 +220,9 @@ def _print_human_summary(report) -> None:
             f"(chain_verified={report.governance_receipts.chain_verified})"
         )
         if report.governance_receipts.artifact_path is not None:
-            print(f"Governance receipt path: {report.governance_receipts.artifact_path}")
+            print(
+                f"Governance receipt path: {report.governance_receipts.artifact_path}"
+            )
 
     print(
         "Artifacts: "
