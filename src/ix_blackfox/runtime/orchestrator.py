@@ -259,14 +259,10 @@ class BlackFoxRuntime:
         provenance = ProvenanceLedger()
         state_secret = os.environ.get(
             "BLACKFOX_STATE_SECRET",
-            f"{config.app_name}:{config.environment}:state",
+            "blackfox-development-state-secret",
         )
-        state_store = VaultStateStore(
-            root_dir=config.paths.state_dir / "vault-runs",
-            secret=state_secret,
-            purpose_namespace="blackfox-runs",
-        )
-        replay_guard = TaskReplayGuard(window_size=128)
+        state_store = VaultStateStore(secret=state_secret)
+        replay_guard = TaskReplayGuard()
         classifier = DeterministicTaskClassifier()
         governance_preflight = RuntimeGovernancePreflightEngine()
         approval_resolver = RuntimeApprovalResolver()
@@ -296,232 +292,109 @@ class BlackFoxRuntime:
             approval_resolver=approval_resolver,
             receipt_recorder=receipt_recorder,
         )
-        runtime._register_builtin_packs()
-        runtime._register_builtin_checks()
+        runtime._register_default_manifests()
         return runtime
-
-    @property
-    def session_id(self) -> str:
-        return self._session_id
-
-    @property
-    def config(self) -> RuntimeConfig:
-        return self._config
 
     def run_prompt(
         self,
         *,
         prompt: str,
-        kind: TaskKind = TaskKind.UNKNOWN,
-        priority: TaskPriority = TaskPriority.NORMAL,
+        kind: TaskKind,
         labels: tuple[str, ...] = (),
-        metadata: dict[str, Any] | None = None,
-        attachments: tuple[str, ...] = (),
+        metadata: dict[str, object] | None = None,
+        priority: TaskPriority = TaskPriority.NORMAL,
     ) -> RuntimeRunReport:
         """
-        Create and execute a task request from a prompt.
+        Convenience API to create and execute a task in one call.
         """
-        request = TaskRequest.create(
+        task_id = f"task-{uuid4().hex}"
+        request = TaskRequest(
+            task_id=task_id,
+            task_kind=kind,
             prompt=prompt,
-            kind=kind,
-            priority=priority,
             labels=labels,
-            metadata=metadata,
-            attachments=attachments,
+            priority=priority,
+            metadata=metadata or {},
         )
-        return self.run_task(request)
+        task = self._kernel.create_task(request)
+        return self.execute_task(task)
 
-    def run_task(self, request: TaskRequest) -> RuntimeRunReport:
+    def execute_task(self, task: TaskRecord) -> RuntimeRunReport:
         """
-        Execute one task through the BlackFox runtime spine.
+        Execute one task end-to-end through the runtime.
         """
-        self._kernel.start()
-        self._shared_state.put("runtime", "session_id", self._session_id, source="runtime")
-
-        inference: TaskInference | None = None
-        normalized_request = request
-        if request.kind == TaskKind.UNKNOWN:
-            inference = self._classifier.infer(
-                prompt=request.input.prompt,
-                labels=request.labels,
+        replay_observation = self._replay_guard.observe(task)
+        if replay_observation.is_duplicate:
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="runtime",
+                message="Replay guard flagged duplicate task fingerprint.",
+                level="warning",
+                source="runtime",
             )
-            if inference.kind != TaskKind.UNKNOWN:
-                normalized_request = replace(request, kind=inference.kind)
 
-        task = TaskRecord(request=normalized_request).mark_ready().mark_running()
-        replay_observation = self._replay_guard.observe(task.request)
-        route = self._switchboard.route(task.request)
-
+        inference = self._classifier.classify(task.request)
         self._append_trace(
             correlation_id=task.request.task_id,
-            stage="intake",
-            message="Accepted task into runtime.",
-            source="runtime",
-            data={
-                "task_kind": task.request.kind.value,
-                "priority": int(task.request.priority),
-                "labels": task.request.labels,
-            },
+            stage="inference",
+            message=(
+                f"Classified task as {inference.kind.value} "
+                f"(reason={inference.reason.value}, confidence={inference.confidence:.2f})."
+            ),
+            level="info",
+            source="classifier",
         )
 
-        if inference is not None:
-            self._append_trace(
-                correlation_id=task.request.task_id,
-                stage="inference",
-                message=(
-                    f"Inferred task kind '{inference.kind.value}' with confidence "
-                    f"{inference.confidence:.2f}."
-                ),
-                source="runtime",
-                data={
-                    "kind": inference.kind.value,
-                    "confidence": inference.confidence,
-                    "reason": inference.reason.value,
-                    "matched_terms": inference.matched_terms,
-                    "matched_labels": inference.matched_labels,
-                },
-            )
-
+        route = self._switchboard.route(
+            task.request.task_id,
+            labels=task.request.labels,
+            prompt=task.request.prompt,
+            inferred_kind=inference.kind,
+        )
         if route is None:
-            self._append_trace(
-                correlation_id=task.request.task_id,
-                stage="routing",
-                message="No capability route matched the task.",
-                level="error",
-                source="runtime",
-            )
-            sentinel_report = self._sentinel.evaluate(
-                SentinelContext(task=task, trace_records=self._task_traces(task.request.task_id))
-            )
-            evaluation = self._evaluate_run(
-                task=task,
-                route=None,
-                artifacts=(),
-                replay_observation=replay_observation,
-                sentinel_report=sentinel_report,
-                governance_preflight=None,
-                approval_resolution=None,
-            )
-            (
-                required_signals,
-                observed_signals,
-                governance_chain_verified,
-                approval_required,
-                approval_satisfied,
-            ) = _verification_signal_state(
-                governance_preflight=None,
-                approval_resolution=None,
-                governance_receipt_ledger=None,
-            )
-            verification = self._verifier.verify(
-                VerificationContext(
-                    subject_id=task.request.task_id,
-                    expected_artifacts=(),
-                    produced_artifacts=(),
-                    evaluation_results=(evaluation,),
-                    required_signals=required_signals,
-                    observed_signals=observed_signals,
-                    governance_chain_verified=governance_chain_verified,
-                    approval_required=approval_required,
-                    approval_satisfied=approval_satisfied,
-                )
-            )
-            return self._finalize_run(
-                task=task.mark_failed(error="No capability route matched task."),
-                route=None,
-                pack_name=None,
-                pack_result=None,
-                replay_observation=replay_observation,
-                task_inference=inference,
-                sentinel_report=sentinel_report,
-                evaluation=evaluation,
-                verification=verification,
-                governance_preflight=None,
-                approval_resolution=None,
-                governance_receipt_ledger=None,
-            )
+            raise RuntimeError("No capability route matched the submitted task.")
 
         self._append_trace(
             correlation_id=task.request.task_id,
             stage="routing",
             message=(
-                f"Routed task to '{route.capability_name}' with confidence "
-                f"{route.confidence:.2f}."
+                f"Routed task to capability '{route.capability_name}' "
+                f"(confidence={route.confidence:.2f}, reason={route.reason.value})."
             ),
-            source="runtime",
-            data={
-                "capability_name": route.capability_name,
-                "confidence": route.confidence,
-                "reason": route.reason.value,
-                "matched_labels": route.matched_labels,
-            },
+            level="info",
+            source="switchboard",
         )
 
-        governance_preflight = self._governance_preflight.evaluate(
+        governance_preflight = self._governance_preflight.evaluate(task=task, route=route)
+        approval_resolution = self._approval_resolver.resolve(
             task=task,
-            route=route,
+            preflight=governance_preflight,
         )
-        governance_receipt_ledger = self._receipt_recorder.create_ledger()
+        governance_receipt_ledger = GovernanceReceiptLedger(intent_id=governance_preflight.intent.intent_id)
+
         self._receipt_recorder.record_preflight(
             ledger=governance_receipt_ledger,
             preflight=governance_preflight,
         )
 
+        if approval_resolution.required and approval_resolution.approvals:
+            self._receipt_recorder.record_approval(
+                ledger=governance_receipt_ledger,
+                approvals=approval_resolution.approvals,
+            )
+
         self._append_trace(
             correlation_id=task.request.task_id,
             stage="governance",
             message=(
-                "Governance preflight produced decision "
-                f"'{governance_preflight.decision.decision.value}' at risk "
-                f"level '{governance_preflight.risk.risk_level.value}'."
+                f"Preflight decision={governance_preflight.decision.decision.value}, "
+                f"risk={governance_preflight.risk.risk_level.value}, "
+                f"approval_required={approval_resolution.required}, "
+                f"approval_satisfied={approval_resolution.satisfied}."
             ),
-            level=(
-                "error"
-                if governance_preflight.blocked
-                else "warning"
-                if governance_preflight.requires_review
-                else "info"
-            ),
-            source="runtime",
-            data={
-                "action_kind": governance_preflight.intent.action_kind.value,
-                "risk_level": governance_preflight.risk.risk_level.value,
-                "policy_decision": governance_preflight.decision.decision.value,
-                "policy_reason": governance_preflight.decision.reason.value,
-                "ticket_id": governance_preflight.ticket.ticket_id,
-                "ticket_disposition": governance_preflight.ticket.disposition.value,
-                "factor_codes": governance_preflight.risk.factor_codes(),
-            },
+            level="info",
+            source="governance",
         )
-
-        approval_resolution = self._approval_resolver.resolve(
-            task=task,
-            preflight=governance_preflight,
-        )
-        self._receipt_recorder.record_approval_resolution(
-            ledger=governance_receipt_ledger,
-            preflight=governance_preflight,
-            resolution=approval_resolution,
-        )
-
-        if governance_preflight.requires_review:
-            self._append_trace(
-                correlation_id=task.request.task_id,
-                stage="approval",
-                message=(
-                    "Runtime approval resolution "
-                    f"{'satisfied' if approval_resolution.satisfied else 'did not satisfy'} "
-                    "the review gate."
-                ),
-                level="info" if approval_resolution.satisfied else "warning",
-                source="runtime",
-                data={
-                    "required": approval_resolution.required,
-                    "satisfied": approval_resolution.satisfied,
-                    "approval_ids": approval_resolution.approval_ids,
-                    "issues": approval_resolution.issues,
-                },
-            )
 
         if governance_preflight.blocked:
             failed_task = task.mark_failed(error=governance_preflight.decision.rationale)
@@ -752,32 +625,23 @@ class BlackFoxRuntime:
                 governance_receipt_ledger=governance_receipt_ledger,
             )
 
-        self._receipt_recorder.record_execution_completed(
-            ledger=governance_receipt_ledger,
-            preflight=governance_preflight,
-            pack_name=pack.pack_name,
-            artifact_count=len(pack_result.artifacts),
-        )
-
+        completed_task = task.mark_completed(result_summary=pack_result.summary)
         self._append_trace(
             correlation_id=task.request.task_id,
             stage="pack",
-            message=pack_result.summary,
-            source=pack.pack_name,
-            data={
-                "artifact_count": len(pack_result.artifacts),
-                "metrics": pack_result.metrics,
-            },
+            message=(
+                f"Pack '{pack.pack_name}' completed with "
+                f"{len(pack_result.artifacts)} artifact(s)."
+            ),
+            level="info",
+            source=route.capability_name,
         )
 
-        policy_observations = self._build_policy_observations(pack_name=pack.pack_name, pack_result=pack_result)
         sentinel_report = self._sentinel.evaluate(
             SentinelContext(
-                task=task,
+                task=completed_task,
                 trace_records=self._task_traces(task.request.task_id),
                 metadata={
-                    "assertions": self._build_assertions(task=task, route=route, pack_name=pack.pack_name),
-                    "policy_observations": policy_observations,
                     "governance_observations": _build_governance_observations(
                         governance_preflight=governance_preflight,
                         approval_resolution=approval_resolution,
@@ -787,7 +651,7 @@ class BlackFoxRuntime:
             )
         )
         evaluation = self._evaluate_run(
-            task=task,
+            task=completed_task,
             route=route,
             artifacts=pack_result.artifacts,
             replay_observation=replay_observation,
@@ -809,8 +673,8 @@ class BlackFoxRuntime:
         verification = self._verifier.verify(
             VerificationContext(
                 subject_id=task.request.task_id,
-                expected_artifacts=pack_result.artifacts,
-                produced_artifacts=pack_result.artifacts,
+                expected_artifacts=tuple(artifact.name for artifact in pack_result.artifacts),
+                produced_artifacts=tuple(artifact.name for artifact in pack_result.artifacts),
                 evaluation_results=(evaluation,),
                 required_signals=required_signals,
                 observed_signals=observed_signals,
@@ -819,8 +683,6 @@ class BlackFoxRuntime:
                 approval_satisfied=approval_satisfied,
             )
         )
-
-        completed_task = task.mark_completed(result_summary=pack_result.summary)
         return self._finalize_run(
             task=completed_task,
             route=route,
@@ -836,94 +698,6 @@ class BlackFoxRuntime:
             governance_receipt_ledger=governance_receipt_ledger,
         )
 
-    def _register_builtin_packs(self) -> None:
-        manifests = (
-            build_programming_manifest(),
-            build_architecture_manifest(),
-        )
-        for manifest in manifests:
-            self._manifest_registry.register(manifest)
-            self._switchboard.register(
-                CapabilityRoute(
-                    capability_name=manifest.pack_name,
-                    supported_kinds=manifest.supported_kinds,
-                    labels=manifest.labels,
-                    description=manifest.description,
-                    is_fallback=manifest.is_default,
-                )
-            )
-
-    def _register_builtin_checks(self) -> None:
-        self._sentinel.register(ContradictionCheck(critical_predicates=("policy_state",)))
-        self._sentinel.register(
-            FailureLoopCheck(
-                window=FailureLoopWindow(
-                    lookback_limit=20,
-                    trigger_count=3,
-                )
-            )
-        )
-        self._sentinel.register(GovernanceConsistencyCheck())
-        self._sentinel.register(
-            PolicyGuardrailCheck(
-                blocked_actions=("destructive-host-mutation",),
-                high_risk_actions=("patch-application", "workspace-command"),
-            )
-        )
-
-    def _load_pack(self, pack_name: str) -> BasePack:
-        normalized_name = pack_name.strip().lower()
-        if normalized_name in self._loaded_packs:
-            return self._loaded_packs[normalized_name]
-
-        manifest = self._manifest_registry.get(normalized_name)
-        if manifest is None:
-            raise RuntimeError(f"Pack '{normalized_name}' is not registered.")
-
-        loaded = self._pack_loader.load(manifest)
-        pack = _coerce_pack(loaded)
-        self._loaded_packs[normalized_name] = pack
-        return pack
-
-    def _evaluate_run(
-        self,
-        *,
-        task: TaskRecord,
-        route: RoutingDecision | None,
-        artifacts: tuple[str, ...],
-        replay_observation: ReplayObservation,
-        sentinel_report: SentinelReport,
-        governance_preflight: RuntimeGovernancePreflightResult | None,
-        approval_resolution: RuntimeApprovalResolution | None,
-    ) -> EvaluationResult:
-        evaluator = RuleBasedEvaluator(
-            evaluator_name="runtime_run_quality",
-            rules=(
-                lambda context: _route_rule(context),
-                lambda context: _artifact_rule(context),
-                lambda context: _replay_rule(context),
-                lambda context: _sentinel_rule(context),
-                lambda context: _governance_rule(context),
-                lambda context: _approval_rule(context),
-            ),
-            passing_score=1.0,
-            review_score=0.6,
-            failing_score=0.0,
-        )
-        return evaluator.evaluate(
-            EvaluationContext(
-                task=task,
-                artifacts=artifacts,
-                metadata={
-                    "route": route,
-                    "replay_observation": replay_observation,
-                    "sentinel_report": sentinel_report,
-                    "governance_preflight": governance_preflight,
-                    "approval_resolution": approval_resolution,
-                },
-            )
-        )
-
     def _finalize_run(
         self,
         *,
@@ -932,67 +706,72 @@ class BlackFoxRuntime:
         pack_name: str | None,
         pack_result: Any | None,
         replay_observation: ReplayObservation,
-        task_inference: TaskInference | None,
+        task_inference: TaskInference,
         sentinel_report: SentinelReport,
         evaluation: EvaluationResult,
         verification: VerificationReport,
-        governance_preflight: RuntimeGovernancePreflightResult | None,
-        approval_resolution: RuntimeApprovalResolution | None,
-        governance_receipt_ledger: GovernanceReceiptLedger | None,
+        governance_preflight: RuntimeGovernancePreflightResult,
+        approval_resolution: RuntimeApprovalResolution,
+        governance_receipt_ledger: GovernanceReceiptLedger,
     ) -> RuntimeRunReport:
-        artifact_paths: dict[str, str] = {}
-        produced_artifacts: list[str] = []
-
-        if pack_result is not None:
-            materialized = self._materialize_pack_artifacts(
-                task=task,
-                pack_name=pack_name or "unknown",
-                pack_result=pack_result,
-            )
-            artifact_paths.update({name: str(path) for name, path in materialized.items()})
-            produced_artifacts.extend(materialized)
-
-        governance_receipts: RuntimeGovernanceReceiptReport | None = None
-        if governance_preflight is not None and governance_receipt_ledger is not None:
-            self._receipt_recorder.record_verification_outcome(
-                ledger=governance_receipt_ledger,
-                preflight=governance_preflight,
-                verification_status=verification.status.value,
-                issue_count=len(verification.issues),
-            )
-            governance_receipts = self._persist_governance_receipts(
-                task_id=task.request.task_id,
-                intent_id=governance_preflight.intent.intent_id,
-                ledger=governance_receipt_ledger,
-            )
-            if governance_receipts.artifact_path is not None:
-                artifact_name = "blackfox-governance-receipts.json"
-                artifact_paths[artifact_name] = governance_receipts.artifact_path
-                produced_artifacts.append(artifact_name)
-
-        self._record_evidence(
-            task=task,
-            route=route,
-            pack_name=pack_name,
+        status = _status_from_reports(
             evaluation=evaluation,
             verification=verification,
-            sentinel_report=sentinel_report,
-            replay_observation=replay_observation,
-            produced_artifacts=tuple(produced_artifacts),
-            governance_preflight=governance_preflight,
-            approval_resolution=approval_resolution,
-            governance_receipts=governance_receipts,
+            sentinel=sentinel_report,
         )
 
-        run_report = RuntimeRunReport(
+        if verification.status.value == "passed":
+            self._receipt_recorder.record_verification_passed(
+                ledger=governance_receipt_ledger,
+                verifier_name=verification.verifier_name,
+            )
+        else:
+            self._receipt_recorder.record_verification_failed(
+                ledger=governance_receipt_ledger,
+                verifier_name=verification.verifier_name,
+                status=verification.status.value,
+            )
+
+        governance_receipts = self._persist_governance_receipts(
+            task=task,
+            governance_preflight=governance_preflight,
+            approval_resolution=approval_resolution,
+            governance_receipt_ledger=governance_receipt_ledger,
+        )
+
+        produced_artifacts: list[str] = []
+        artifact_paths: dict[str, str] = {}
+        evidence_ids: list[str] = []
+        if pack_result is not None:
+            for artifact in pack_result.artifacts:
+                produced_artifacts.append(artifact.name)
+                artifact_paths[artifact.name] = str(artifact.path)
+                evidence_record = self._evidence.record(
+                    artifact_name=artifact.name,
+                    artifact_path=artifact.path,
+                )
+                evidence_ids.append(evidence_record.evidence_id)
+                self._artifact_memory.store(
+                    name=artifact.name,
+                    path=artifact.path,
+                    metadata={"task_id": task.request.task_id},
+                )
+
+        if governance_receipts is not None and governance_receipts.artifact_path is not None:
+            receipt_name = Path(governance_receipts.artifact_path).name
+            if receipt_name not in artifact_paths:
+                produced_artifacts.append(receipt_name)
+                artifact_paths[receipt_name] = governance_receipts.artifact_path
+
+        report = RuntimeRunReport(
             session_id=self._session_id,
             run_id=f"run-{uuid4().hex}",
             task_id=task.request.task_id,
-            task_kind=task.request.kind,
-            status=_status_from_verification(verification),
+            task_kind=task.request.task_kind,
+            status=status,
             route=route,
             pack_name=pack_name,
-            task_summary=task.result_summary or task.error or "Run finished.",
+            task_summary=self._build_summary(task, evaluation, verification),
             evaluation_result=evaluation,
             verification_report=verification,
             sentinel_report=sentinel_report,
@@ -1003,352 +782,223 @@ class BlackFoxRuntime:
             governance_receipts=governance_receipts,
             produced_artifacts=tuple(produced_artifacts),
             artifact_paths=artifact_paths,
-            trace_ids=tuple(record.trace_id for record in self._task_traces(task.request.task_id)),
-            evidence_ids=tuple(
-                record.evidence_id
-                for record in self._evidence.snapshot().filter_by_subject(task.request.task_id)
-            ),
+            trace_ids=self._task_trace_ids(task.request.task_id),
+            evidence_ids=tuple(evidence_ids),
         )
 
-        report_path = self._persist_run_report(run_report)
+        report_path = self._write_run_report(report)
+        report = replace(report, report_path=str(report_path))
         self._append_trace(
             correlation_id=task.request.task_id,
-            stage="persistence",
-            message="Persisted run report and state capsule.",
-            source="runtime",
-            data={"report_path": str(report_path)},
-        )
-
-        final_report = replace(run_report, report_path=str(report_path))
-        self._logger.log(
-            level=_log_level_for_status(final_report.status),
-            event="runtime.run_completed",
-            message=f"Completed BlackFox run with status '{final_report.status.value}'.",
-            source="runtime",
-            correlation_id=task.request.task_id,
-            data={
-                "task_kind": final_report.task_kind.value,
-                "status": final_report.status.value,
-                "pack_name": final_report.pack_name,
-                "verification_status": final_report.verification_report.status.value,
-                "sentinel_issue_count": len(final_report.sentinel_report.issues),
-                "report_path": final_report.report_path,
-            },
-        )
-
-        self._episodic_memory.create(
-            session_id=self._session_id,
-            task_id=task.request.task_id,
-            title=f"{task.request.kind.value} run",
-            summary=final_report.task_summary,
-            outcome=final_report.status.value,
-            tags=(task.request.kind.value, final_report.status.value),
-            metadata={
-                "pack_name": final_report.pack_name,
-                "verification_status": final_report.verification_report.status.value,
-                "report_path": final_report.report_path,
-            },
-        )
-        self._semantic_memory.upsert(
-            key="last_selected_pack",
-            value=final_report.pack_name or "none",
-            fact_type="runtime_fact",
-            confidence=1.0,
-            source="runtime",
-            tags=("runtime", "pack-selection"),
-            aliases=("current pack",),
-        )
-        self._shared_state.put(
-            "runtime",
-            "last_task_status",
-            final_report.status.value,
+            stage="runtime",
+            message=f"Run finalized with status={report.status.value}.",
+            level="info",
             source="runtime",
         )
-        return final_report
-
-    def _record_evidence(
-        self,
-        *,
-        task: TaskRecord,
-        route: RoutingDecision | None,
-        pack_name: str | None,
-        evaluation: EvaluationResult,
-        verification: VerificationReport,
-        sentinel_report: SentinelReport,
-        replay_observation: ReplayObservation,
-        produced_artifacts: tuple[str, ...],
-        governance_preflight: RuntimeGovernancePreflightResult | None,
-        approval_resolution: RuntimeApprovalResolution | None,
-        governance_receipts: RuntimeGovernanceReceiptReport | None,
-    ) -> None:
-        trace_ids = tuple(record.trace_id for record in self._task_traces(task.request.task_id))
-        self._evidence.record(
-            subject_id=task.request.task_id,
-            evidence_type="route",
-            summary="Recorded routing outcome for task.",
-            source="runtime",
-            trace_ids=trace_ids,
-            metadata={
-                "route": None
-                if route is None
-                else {
-                    "capability_name": route.capability_name,
-                    "confidence": route.confidence,
-                    "reason": route.reason.value,
-                },
-                "pack_name": pack_name,
-            },
-        )
-        self._evidence.record(
-            subject_id=task.request.task_id,
-            evidence_type="evaluation",
-            summary="Recorded evaluation and verification outcome.",
-            source="runtime",
-            artifact_refs=produced_artifacts,
-            metadata={
-                "evaluation_status": evaluation.status.value,
-                "verification_status": verification.status.value,
-                "score": evaluation.score,
-            },
-        )
-        if governance_preflight is not None:
-            self._evidence.record(
-                subject_id=task.request.task_id,
-                evidence_type="governance",
-                summary="Recorded governance preflight outcome.",
-                source="runtime",
-                trace_ids=trace_ids,
-                metadata={
-                    "action_kind": governance_preflight.intent.action_kind.value,
-                    "risk_level": governance_preflight.risk.risk_level.value,
-                    "policy_decision": governance_preflight.decision.decision.value,
-                    "policy_reason": governance_preflight.decision.reason.value,
-                    "ticket_id": governance_preflight.ticket.ticket_id,
-                    "ticket_disposition": governance_preflight.ticket.disposition.value,
-                    "approval_required": (
-                        False if approval_resolution is None else approval_resolution.required
-                    ),
-                    "approval_satisfied": (
-                        False if approval_resolution is None else approval_resolution.satisfied
-                    ),
-                    "approval_ids": (
-                        () if approval_resolution is None else approval_resolution.approval_ids
-                    ),
-                },
-            )
-
-        if approval_resolution is not None and approval_resolution.required:
-            self._evidence.record(
-                subject_id=task.request.task_id,
-                evidence_type="approval",
-                summary="Recorded runtime approval resolution outcome.",
-                source="runtime",
-                trace_ids=trace_ids,
-                metadata=approval_resolution.to_dict(),
-            )
-
-        if governance_receipts is not None:
-            self._evidence.record(
-                subject_id=task.request.task_id,
-                evidence_type="governance_receipts",
-                summary="Recorded persisted governance receipt chain for the run.",
-                source="runtime",
-                artifact_refs=()
-                if governance_receipts.artifact_path is None
-                else (governance_receipts.artifact_path,),
-                metadata={
-                    "receipt_count": governance_receipts.receipt_count,
-                    "chain_verified": governance_receipts.chain_verified,
-                    "artifact_path": governance_receipts.artifact_path,
-                },
-            )
-
-        self._evidence.record(
-            subject_id=task.request.task_id,
-            evidence_type="sentinel",
-            summary="Recorded sentinel and replay observations.",
-            source="runtime",
-            trace_ids=trace_ids,
-            metadata={
-                "sentinel_issue_count": len(sentinel_report.issues),
-                "duplicate_detected": replay_observation.duplicate_detected,
-                "seen_count": replay_observation.seen_count,
-            },
-        )
-
-    def _materialize_pack_artifacts(
-        self,
-        *,
-        task: TaskRecord,
-        pack_name: str,
-        pack_result: Any,
-    ) -> dict[str, Path]:
-        root_dir = self._config.paths.artifacts_dir / "runs" / task.request.task_id
-        root_dir.mkdir(parents=True, exist_ok=True)
-        materialized: dict[str, Path] = {}
-
-        payload = {
-            "task_id": task.request.task_id,
-            "task_kind": task.request.kind.value,
-            "pack_name": pack_name,
-            "summary": pack_result.summary,
-            "metrics": pack_result.metrics,
-            "data": pack_result.data,
-            "created_at": _utc_now().isoformat(),
-        }
-        content = json.dumps(payload, sort_keys=True, indent=2, ensure_ascii=False)
-        digest = fingerprint_bytes(content.encode("utf-8"))
-
-        for logical_name in pack_result.artifacts:
-            path = root_dir / logical_name
-            path.write_text(content, encoding="utf-8")
-            self._artifact_memory.upsert(
-                logical_name=logical_name,
-                path=path,
-                artifact_type="report",
-                digest=digest,
-                source=pack_name,
-                tags=(task.request.kind.value, pack_name),
-                metadata={"task_id": task.request.task_id},
-            )
-            self._provenance.append(
-                subject=logical_name,
-                action="created",
-                fingerprint=digest,
-                actor=pack_name,
-                metadata={"task_id": task.request.task_id, "path": str(path)},
-            )
-            materialized[logical_name] = path
-
-        return materialized
+        return report
 
     def _persist_governance_receipts(
         self,
         *,
-        task_id: str,
-        intent_id: str,
-        ledger: GovernanceReceiptLedger,
+        task: TaskRecord,
+        governance_preflight: RuntimeGovernancePreflightResult,
+        approval_resolution: RuntimeApprovalResolution,
+        governance_receipt_ledger: GovernanceReceiptLedger,
     ) -> RuntimeGovernanceReceiptReport:
-        root_dir = self._config.paths.artifacts_dir / "runs" / task_id
-        root_dir.mkdir(parents=True, exist_ok=True)
-        artifact_path = root_dir / "blackfox-governance-receipts.json"
+        receipts_root = self._config.artifacts_dir / "governance"
+        receipt_path = receipts_root / task.request.task_id / "blackfox-governance-receipts.json"
+        receipt_report = self._receipt_recorder.persist(
+            ledger=governance_receipt_ledger,
+            path=receipt_path,
+            preflight=governance_preflight,
+            approval_resolution=approval_resolution,
+        )
+        self._artifact_memory.store(
+            name=receipt_path.name,
+            path=receipt_path,
+            metadata={
+                "task_id": task.request.task_id,
+                "kind": "governance_receipt",
+            },
+        )
+        self._trace_memory.append(
+            correlation_id=task.request.task_id,
+            stage="governance",
+            message=(
+                f"Persisted governance receipt chain with "
+                f"{receipt_report.receipt_count} record(s)."
+            ),
+            level="info",
+            source="receipt_recorder",
+        )
+        return receipt_report
 
-        report = self._receipt_recorder.report_from_ledger(
-            ledger=ledger,
-            intent_id=intent_id,
-            artifact_path=str(artifact_path),
-        )
-        payload = report.to_dict()
-        content = json.dumps(payload, sort_keys=True, indent=2, ensure_ascii=False)
-        artifact_path.write_text(content, encoding="utf-8")
-
-        digest = fingerprint_bytes(content.encode("utf-8"))
-        self._artifact_memory.upsert(
-            logical_name=f"governance-receipts-{task_id}",
-            path=artifact_path,
-            artifact_type="report",
-            digest=digest,
-            source="runtime",
-            tags=("governance", "receipts"),
-            metadata={"task_id": task_id, "intent_id": intent_id},
-        )
-        self._provenance.append(
-            subject=f"governance-receipts:{task_id}",
-            action="created",
-            fingerprint=digest,
-            actor="runtime",
-            metadata={"path": str(artifact_path), "intent_id": intent_id},
-        )
-        return report
-
-    def _persist_run_report(self, report: RuntimeRunReport) -> Path:
-        root_dir = self._config.paths.artifacts_dir / "runs" / report.task_id
-        root_dir.mkdir(parents=True, exist_ok=True)
-        report_path = root_dir / "blackfox-run-report.json"
-        report_payload = report.to_dict()
-        report_text = json.dumps(report_payload, sort_keys=True, indent=2, ensure_ascii=False)
-        report_path.write_text(report_text, encoding="utf-8")
-
-        digest = fingerprint_bytes(report_text.encode("utf-8"))
-        self._artifact_memory.upsert(
-            logical_name=f"run-report-{report.task_id}",
-            path=report_path,
-            artifact_type="report",
-            digest=digest,
-            source="runtime",
-            tags=(report.task_kind.value, report.status.value),
-            metadata={"task_id": report.task_id, "run_id": report.run_id},
-        )
-        self._provenance.append(
-            subject=f"run-report:{report.task_id}",
-            action="created",
-            fingerprint=digest,
-            actor="runtime",
-            metadata={"path": str(report_path), "status": report.status.value},
-        )
-        self._state_store.put(
-            key=report.task_id,
-            payload=report_payload,
-        )
-        return report_path
-
-    def _build_assertions(
+    def _evaluate_run(
         self,
         *,
         task: TaskRecord,
-        route: RoutingDecision,
-        pack_name: str,
-    ) -> tuple[dict[str, object], ...]:
-        return (
-            {
-                "subject": "runtime",
-                "predicate": "selected_route",
-                "value": route.capability_name,
-                "source": "switchboard",
-            },
-            {
-                "subject": "runtime",
-                "predicate": "selected_pack",
-                "value": pack_name,
-                "source": "packs",
-            },
-            {
-                "subject": task.request.task_id,
-                "predicate": "task_kind",
-                "value": task.request.kind.value,
-                "source": "kernel",
-            },
+        route: RoutingDecision | None,
+        artifacts: tuple[Any, ...],
+        replay_observation: ReplayObservation,
+        sentinel_report: SentinelReport,
+        governance_preflight: RuntimeGovernancePreflightResult | None,
+        approval_resolution: RuntimeApprovalResolution | None,
+    ) -> EvaluationResult:
+        findings: list[EvaluationFinding] = []
+
+        if replay_observation.is_duplicate:
+            findings.append(
+                EvaluationFinding(
+                    rule_id="replay_guard",
+                    severity=EvaluationSeverity.WARNING,
+                    message="Replay guard detected a duplicate task fingerprint.",
+                    metadata={"fingerprint": replay_observation.fingerprint},
+                )
+            )
+
+        if governance_preflight is not None:
+            findings.append(
+                EvaluationFinding(
+                    rule_id="governance_decision",
+                    severity=(
+                        EvaluationSeverity.ERROR
+                        if governance_preflight.blocked
+                        else (
+                            EvaluationSeverity.WARNING
+                            if governance_preflight.requires_review
+                            else EvaluationSeverity.INFO
+                        )
+                    ),
+                    message=governance_preflight.decision.rationale,
+                    metadata={
+                        "policy_decision": governance_preflight.decision.decision.value,
+                        "risk_level": governance_preflight.risk.risk_level.value,
+                        "ticket_id": governance_preflight.ticket.ticket_id,
+                        "approval_required": (
+                            False
+                            if approval_resolution is None
+                            else approval_resolution.required
+                        ),
+                        "approval_satisfied": (
+                            False
+                            if approval_resolution is None
+                            else approval_resolution.satisfied
+                        ),
+                    },
+                )
+            )
+
+        if route is None:
+            findings.append(
+                EvaluationFinding(
+                    rule_id="routing",
+                    severity=EvaluationSeverity.ERROR,
+                    message="Runtime did not resolve a capability route.",
+                )
+            )
+        else:
+            findings.append(
+                EvaluationFinding(
+                    rule_id="routing",
+                    severity=EvaluationSeverity.INFO,
+                    message=(
+                        f"Task routed to capability '{route.capability_name}' "
+                        f"with confidence {route.confidence:.2f}."
+                    ),
+                    metadata={
+                        "capability_name": route.capability_name,
+                        "reason": route.reason.value,
+                    },
+                )
+            )
+
+        if sentinel_report.highest_severity in {SentinelSeverity.CRITICAL, SentinelSeverity.ERROR}:
+            findings.append(
+                EvaluationFinding(
+                    rule_id="sentinel",
+                    severity=EvaluationSeverity.ERROR,
+                    message="Sentinel reported a blocking runtime issue.",
+                    metadata={"highest_severity": sentinel_report.highest_severity.value},
+                )
+            )
+
+        if task.status.is_failure:
+            findings.append(
+                EvaluationFinding(
+                    rule_id="task_outcome",
+                    severity=EvaluationSeverity.ERROR,
+                    message=task.error_summary or "Task failed during runtime execution.",
+                )
+            )
+        elif (
+            task.status.is_completed
+            and governance_preflight is not None
+            and governance_preflight.requires_review
+            and approval_resolution is not None
+            and not approval_resolution.satisfied
+        ):
+            findings.append(
+                EvaluationFinding(
+                    rule_id="approval_gate",
+                    severity=EvaluationSeverity.WARNING,
+                    message="Execution paused pending governance approval.",
+                )
+            )
+        else:
+            findings.append(
+                EvaluationFinding(
+                    rule_id="task_outcome",
+                    severity=EvaluationSeverity.INFO,
+                    message="Task completed successfully.",
+                )
+            )
+
+        for artifact in artifacts:
+            findings.append(
+                EvaluationFinding(
+                    rule_id="artifact",
+                    severity=EvaluationSeverity.INFO,
+                    message=f"Produced artifact '{artifact.name}'.",
+                )
+            )
+
+        evaluator = RuleBasedEvaluator()
+        return evaluator.evaluate(
+            EvaluationContext(
+                subject_id=task.request.task_id,
+                findings=tuple(findings),
+                artifacts=tuple(artifact.name for artifact in artifacts),
+            )
         )
 
-    def _build_policy_observations(
-        self,
-        *,
-        pack_name: str,
-        pack_result: Any,
-    ) -> tuple[PolicyObservation, ...]:
-        raw_steps = pack_result.data.get("steps", ())
-        observations: list[PolicyObservation] = []
+    def _register_default_manifests(self) -> None:
+        architecture = build_architecture_manifest()
+        programming = build_programming_manifest()
+        self._manifest_registry.register(architecture)
+        self._manifest_registry.register(programming)
+        self._switchboard.register_route(
+            CapabilityRoute(
+                capability_name=architecture.capability_name,
+                labels=("architecture", "diagram", "system", "design", "flowchart"),
+                keywords=("architecture", "system", "design", "diagram", "flow"),
+            )
+        )
+        self._switchboard.register_route(
+            CapabilityRoute(
+                capability_name=programming.capability_name,
+                labels=("code", "patching", "tests", "programming", "refactor"),
+                keywords=("code", "python", "test", "patch", "refactor", "program"),
+            )
+        )
 
-        if isinstance(raw_steps, list):
-            for step in raw_steps:
-                if not isinstance(step, dict):
-                    continue
-                action = str(step.get("action", "unknown"))
-                decision = "allowed"
-                if action in {"prepare-patch", "profile-execution"}:
-                    decision = "review_required"
-                observations.append(
-                    PolicyObservation(
-                        action=action,
-                        decision=decision,
-                        executed=False,
-                        approved=False,
-                        source=pack_name,
-                        reason="Pack produced a plan artifact only; action not executed.",
-                    )
-                )
+    def _load_pack(self, pack_name: str) -> BasePack:
+        if pack_name in self._loaded_packs:
+            return self._loaded_packs[pack_name]
 
-        return tuple(observations)
+        loaded = self._pack_loader.load(pack_name)
+        pack = loaded.pack_factory()
+        self._loaded_packs[pack_name] = pack
+        return pack
 
     def _append_trace(
         self,
@@ -1356,9 +1006,8 @@ class BlackFoxRuntime:
         correlation_id: str,
         stage: str,
         message: str,
-        level: str = "info",
-        source: str | None = None,
-        data: dict[str, Any] | None = None,
+        level: str,
+        source: str,
     ) -> None:
         self._trace_memory.append(
             correlation_id=correlation_id,
@@ -1366,207 +1015,137 @@ class BlackFoxRuntime:
             message=message,
             level=level,
             source=source,
-            tags=(stage,),
-            data=data or {},
         )
 
     def _task_traces(self, task_id: str) -> tuple[Any, ...]:
-        return self._trace_memory.snapshot().filter_by_correlation(task_id)
+        return self._trace_memory.list(correlation_id=task_id)
 
+    def _task_trace_ids(self, task_id: str) -> tuple[str, ...]:
+        return tuple(record.trace_id for record in self._task_traces(task_id))
 
-def _coerce_pack(loaded: LoadedPack) -> BasePack:
-    implementation = loaded.implementation
-    if isinstance(implementation, BasePack):
-        return implementation
-    if isinstance(implementation, type):
-        instance = implementation()
-        if not isinstance(instance, BasePack):
-            raise TypeError(
-                f"Loaded pack '{loaded.manifest.pack_name}' did not instantiate to BasePack."
-            )
-        return instance
-    raise TypeError(
-        f"Loaded pack '{loaded.manifest.pack_name}' is neither a BasePack instance nor class."
-    )
+    def _build_summary(
+        self,
+        task: TaskRecord,
+        evaluation: EvaluationResult,
+        verification: VerificationReport,
+    ) -> str:
+        if task.status.is_failure:
+            return task.error_summary or "Task failed during runtime execution."
+        if verification.status.value == "needs_review":
+            return "Run paused pending governance approval."
+        if task.result_summary:
+            return task.result_summary
+        return evaluation.summary
 
-
-def _route_rule(context: EvaluationContext) -> EvaluationFinding | None:
-    route = context.metadata.get("route")
-    if route is None:
-        return EvaluationFinding(
-            code="runtime.route_missing",
-            severity=EvaluationSeverity.ERROR,
-            summary="No route was available for the task.",
+    def _write_run_report(self, report: RuntimeRunReport) -> Path:
+        reports_dir = self._config.artifacts_dir / "reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        report_path = reports_dir / f"{report.task_id}.json"
+        report_path.write_text(
+            json.dumps(report.to_dict(), indent=2, sort_keys=True),
+            encoding="utf-8",
         )
-    if route.confidence < 0.4:
-        return EvaluationFinding(
-            code="runtime.low_route_confidence",
-            severity=EvaluationSeverity.WARNING,
-            summary="Route confidence is low and should be reviewed.",
-            details=f"confidence={route.confidence}",
-        )
-    return None
+        return report_path
 
 
-def _artifact_rule(context: EvaluationContext) -> EvaluationFinding | None:
-    if context.task is None:
-        return None
-    if context.task.state == context.task.state.FAILED:
-        return EvaluationFinding(
-            code="runtime.task_failed",
-            severity=EvaluationSeverity.ERROR,
-            summary="Task entered a failed state during execution.",
-            details=context.task.error,
-        )
-    if not context.artifacts:
-        return EvaluationFinding(
-            code="runtime.no_artifacts",
-            severity=EvaluationSeverity.WARNING,
-            summary="Run produced no declared artifacts.",
-        )
-    return None
-
-
-def _replay_rule(context: EvaluationContext) -> EvaluationFinding | None:
-    observation = context.metadata.get("replay_observation")
-    if not isinstance(observation, ReplayObservation):
-        return None
-    if observation.duplicate_detected:
-        return EvaluationFinding(
-            code="runtime.duplicate_task_replayed",
-            severity=EvaluationSeverity.WARNING,
-            summary="A recent duplicate task fingerprint was observed.",
-            details=f"seen_count={observation.seen_count}",
-            data={"fingerprint": observation.fingerprint},
-        )
-    return None
-
-
-def _sentinel_rule(context: EvaluationContext) -> EvaluationFinding | None:
-    report = context.metadata.get("sentinel_report")
-    if not isinstance(report, SentinelReport):
-        return None
-
-    if any(issue.severity in {SentinelSeverity.ERROR, SentinelSeverity.CRITICAL} for issue in report.issues):
-        return EvaluationFinding(
-            code="runtime.sentinel_error",
-            severity=EvaluationSeverity.ERROR,
-            summary="Sentinel reported a blocking runtime issue.",
-            details=f"issue_count={len(report.issues)}",
-        )
-    if report.issues:
-        return EvaluationFinding(
-            code="runtime.sentinel_warning",
-            severity=EvaluationSeverity.WARNING,
-            summary="Sentinel reported review-worthy runtime issues.",
-            details=f"issue_count={len(report.issues)}",
-        )
-    return None
-
-
-def _governance_rule(context: EvaluationContext) -> EvaluationFinding | None:
-    preflight = context.metadata.get("governance_preflight")
-    if not isinstance(preflight, RuntimeGovernancePreflightResult):
-        return None
-
-    if preflight.blocked:
-        return EvaluationFinding(
-            code="runtime.governance_blocked",
-            severity=EvaluationSeverity.ERROR,
-            summary="Governance preflight blocked runtime execution.",
-            details=preflight.decision.rationale,
-            data={
-                "risk_level": preflight.risk.risk_level.value,
-                "policy_decision": preflight.decision.decision.value,
-            },
-        )
-
-    return None
-
-
-def _approval_rule(context: EvaluationContext) -> EvaluationFinding | None:
-    resolution = context.metadata.get("approval_resolution")
-    if not isinstance(resolution, RuntimeApprovalResolution):
-        return None
-
-    if resolution.required and not resolution.satisfied:
-        return EvaluationFinding(
-            code="runtime.approval_pending",
-            severity=EvaluationSeverity.WARNING,
-            summary="Runtime execution is waiting on governance approval.",
-            details="Review-gated work cannot proceed until an approval artifact resolves it.",
-            data={
-                "approval_ids": resolution.approval_ids,
-                "issues": resolution.issues,
-            },
-        )
-
-    return None
-
-
-def _status_from_verification(report: VerificationReport) -> RuntimeRunStatus:
-    if report.status.value == "failed":
+def _status_from_reports(
+    *,
+    evaluation: EvaluationResult,
+    verification: VerificationReport,
+    sentinel: SentinelReport,
+) -> RuntimeRunStatus:
+    if sentinel.highest_severity in {SentinelSeverity.CRITICAL, SentinelSeverity.ERROR}:
         return RuntimeRunStatus.FAILED
-    if report.status.value == "needs_review":
+    if verification.status.value == "failed":
+        return RuntimeRunStatus.FAILED
+    if verification.status.value == "needs_review":
         return RuntimeRunStatus.NEEDS_REVIEW
     return RuntimeRunStatus.PASSED
 
 
-def _log_level_for_status(status: RuntimeRunStatus) -> LogLevel:
-    if status == RuntimeRunStatus.FAILED:
-        return LogLevel.ERROR
-    if status == RuntimeRunStatus.NEEDS_REVIEW:
-        return LogLevel.WARNING
-    return LogLevel.INFO
+def _verification_signal_state(
+    *,
+    governance_preflight: RuntimeGovernancePreflightResult,
+    approval_resolution: RuntimeApprovalResolution,
+    governance_receipt_ledger: GovernanceReceiptLedger,
+) -> tuple[tuple[str, ...], tuple[str, ...], bool, bool, bool]:
+    required_signals = ["policy_preflight"]
+    observed_signals = ["policy_preflight"]
+
+    if governance_preflight.requires_review:
+        required_signals.append("policy_review_required")
+        observed_signals.append("policy_review_required")
+        if approval_resolution.satisfied:
+            required_signals.append("approval_recorded")
+            observed_signals.append("approval_recorded")
+
+    if governance_preflight.blocked:
+        required_signals.append("verification_failed")
+        observed_signals.append("verification_failed")
+    else:
+        required_signals.append("execution_started")
+        required_signals.append("execution_completed")
+        observed_signals.extend(["execution_started", "execution_completed"])
+
+    governance_chain_verified = governance_receipt_ledger.verify()
+
+    return (
+        tuple(required_signals),
+        tuple(observed_signals),
+        governance_chain_verified,
+        approval_resolution.required,
+        approval_resolution.satisfied,
+    )
 
 
 def _evaluation_to_dict(result: EvaluationResult) -> dict[str, Any]:
     return {
         "evaluator_name": result.evaluator_name,
-        "evaluated_at": result.evaluated_at.isoformat(),
         "status": result.status.value,
+        "summary": result.summary,
         "score": result.score,
         "findings": [
             {
-                "code": finding.code,
+                "rule_id": finding.rule_id,
                 "severity": finding.severity.value,
-                "summary": finding.summary,
-                "details": finding.details,
-                "data": finding.data,
+                "message": finding.message,
+                "metadata": finding.metadata,
             }
             for finding in result.findings
         ],
+        "created_at": result.created_at.isoformat(),
     }
 
 
 def _verification_to_dict(report: VerificationReport) -> dict[str, Any]:
     return {
-        "subject_id": report.subject_id,
-        "verified_at": report.verified_at.isoformat(),
+        "verifier_name": report.verifier_name,
         "status": report.status.value,
-        "issues": [
-            {
-                "code": issue.code,
-                "severity": issue.severity.value,
-                "summary": issue.summary,
-                "details": issue.details,
-            }
-            for issue in report.issues
-        ],
+        "details": report.details,
+        "required_signals": list(report.required_signals),
+        "observed_signals": list(report.observed_signals),
+        "missing_signals": list(report.missing_signals),
+        "artifact_count": report.artifact_count,
+        "governance_chain_verified": report.governance_chain_verified,
+        "approval_required": report.approval_required,
+        "approval_satisfied": report.approval_satisfied,
+        "verified_at": report.verified_at.isoformat(),
     }
 
 
 def _sentinel_to_dict(report: SentinelReport) -> dict[str, Any]:
     return {
-        "evaluated_at": report.evaluated_at.isoformat(),
-        "check_count": report.check_count,
+        "runtime_name": report.runtime_name,
+        "issue_count": report.issue_count,
+        "highest_severity": report.highest_severity.value,
+        "issued_at": report.issued_at.isoformat(),
         "issues": [
             {
                 "code": issue.code,
                 "severity": issue.severity.value,
                 "summary": issue.summary,
-                "source": issue.source,
                 "details": issue.details,
+                "source": issue.source,
                 "data": issue.data,
             }
             for issue in report.issues
@@ -1574,42 +1153,24 @@ def _sentinel_to_dict(report: SentinelReport) -> dict[str, Any]:
     }
 
 
-def _verification_signal_state(
-    *,
-    governance_preflight: RuntimeGovernancePreflightResult | None,
-    approval_resolution: RuntimeApprovalResolution | None,
-    governance_receipt_ledger: GovernanceReceiptLedger | None,
-) -> tuple[tuple[str, ...], tuple[str, ...], bool | None, bool, bool]:
-    required_signals: list[str] = []
-    observed_signals: list[str] = []
-    governance_chain_verified: bool | None = None
-    approval_required = False
-    approval_satisfied = False
+def _artifact_stem(path: Path) -> str:
+    return path.stem.lower()
 
-    if governance_preflight is not None:
-        required_signals.append("governance_preflight")
-        observed_signals.append("governance_preflight")
 
-    if governance_preflight is not None and governance_receipt_ledger is not None:
-        required_signals.append("governance_receipts")
-        observed_signals.append("governance_receipts")
-        governance_chain_verified = governance_receipt_ledger.verify_intent_chain(
-            governance_preflight.intent.intent_id
-        )
+def _safe_json_dump(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
-    if approval_resolution is not None and approval_resolution.required:
-        required_signals.append("approval_resolution")
-        observed_signals.append("approval_resolution")
-        approval_required = True
-        approval_satisfied = approval_resolution.satisfied
 
-    return (
-        tuple(required_signals),
-        tuple(observed_signals),
-        governance_chain_verified,
-        approval_required,
-        approval_satisfied,
-    )
+def _json_path(base_dir: Path, relative: str) -> Path:
+    normalized = relative.strip("/").replace("\\", "/")
+    if normalized.endswith(".json"):
+        return base_dir / normalized
+    return base_dir / f"{normalized}.json"
+
+
+def _label_set(task: TaskRecord) -> set[str]:
+    return {label.lower() for label in task.request.labels}
 
 
 def _build_governance_observations(
@@ -1621,17 +1182,19 @@ def _build_governance_observations(
     if governance_preflight is None:
         return ()
 
+    approval_required = False if approval_resolution is None else approval_resolution.required
+    approval_satisfied = False if approval_resolution is None else approval_resolution.satisfied
+
+    if not approval_required:
+        approval_satisfied = False
+
     return (
         {
             "action": "runtime_pack_dispatch",
             "decision": governance_preflight.decision.decision.value,
             "executed": executed,
-            "approval_required": (
-                False if approval_resolution is None else approval_resolution.required
-            ),
-            "approval_satisfied": (
-                False if approval_resolution is None else approval_resolution.satisfied
-            ),
+            "approval_required": approval_required,
+            "approval_satisfied": approval_satisfied,
             "source": "runtime",
             "reason": governance_preflight.decision.rationale,
         },
