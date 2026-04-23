@@ -211,7 +211,15 @@ def _coerce_refs(raw_value: object) -> tuple[str, ...]:
 
 
 def _request_metadata(task: TaskRecord) -> dict[str, object]:
-    raw_metadata = getattr(task.request, "metadata", None)
-    if isinstance(raw_metadata, dict):
-        return dict(raw_metadata)
+    request = task.request
+
+    raw_input = getattr(request, "input", None)
+    raw_input_metadata = getattr(raw_input, "metadata", None)
+    if isinstance(raw_input_metadata, dict):
+        return dict(raw_input_metadata)
+
+    raw_request_metadata = getattr(request, "metadata", None)
+    if isinstance(raw_request_metadata, dict):
+        return dict(raw_request_metadata)
+
     return {}
