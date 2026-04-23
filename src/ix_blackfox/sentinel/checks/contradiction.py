@@ -192,7 +192,7 @@ class ContradictionCheck(SentinelCheck):
     ) -> tuple[ContradictionAssertion, ...]:
         if not isinstance(raw_assertions, Sequence) or isinstance(
             raw_assertions,
-            (str, bytes, bytearray),
+            str | bytes | bytearray,
         ):
             raise ValueError("Assertions must be a sequence of mappings or assertions.")
 
@@ -219,9 +219,7 @@ def _build_details(
 ) -> str:
     values_text = ", ".join(values)
     if not sources:
-        return (
-            f"Conflicting values for {subject}.{predicate}: {values_text}."
-        )
+        return f"Conflicting values for {subject}.{predicate}: {values_text}."
 
     sources_text = ", ".join(sources)
     return (
