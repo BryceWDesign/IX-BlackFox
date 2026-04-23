@@ -72,12 +72,13 @@ select = [
   "UP",
   "N"
 ]
-ignore = []
+ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["N802", "N803", "N806"]
 
 [tool.mypy]
+files = ["src"]
 python_version = "3.11"
 mypy_path = "src"
 strict = true
