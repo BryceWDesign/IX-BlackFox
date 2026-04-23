@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from enum import StrEnum, auto
 from pathlib import Path
 from uuid import uuid4
-import xml.etree.ElementTree as ET
+from xml.etree import ElementTree
 
 from ix_blackfox.forge.test_runner import TestRunResult
 
@@ -107,7 +107,7 @@ class ForgeRegressionCollector:
 
         try:
             suites = _parse_junit_xml(junit_xml_path)
-        except ET.ParseError as exc:
+        except ElementTree.ParseError as exc:
             notes.append(f"JUnit XML could not be parsed: {exc}.")
             return RegressionReport(
                 report_id=f"regr-{uuid4().hex}",
@@ -155,10 +155,10 @@ class ForgeRegressionCollector:
 
 
 def _parse_junit_xml(path: Path) -> tuple[RegressionSuiteSummary, ...]:
-    tree = ET.parse(path)
+    tree = ElementTree.parse(path)
     root = tree.getroot()
 
-    suite_elements: list[ET.Element]
+    suite_elements: list[ElementTree.Element]
     if root.tag == "testsuite":
         suite_elements = [root]
     else:
@@ -180,19 +180,19 @@ def _parse_junit_xml(path: Path) -> tuple[RegressionSuiteSummary, ...]:
     return tuple(suites)
 
 
-def _suite_name(element: ET.Element) -> str:
+def _suite_name(element: ElementTree.Element) -> str:
     raw_name = element.attrib.get("name", "").strip()
     return raw_name or "unnamed-suite"
 
 
-def _int_attr(element: ET.Element, attribute: str) -> int:
+def _int_attr(element: ElementTree.Element, attribute: str) -> int:
     raw_value = element.attrib.get(attribute, "0").strip()
     if not raw_value:
         return 0
     return int(raw_value)
 
 
-def _float_attr(element: ET.Element, attribute: str) -> float:
+def _float_attr(element: ElementTree.Element, attribute: str) -> float:
     raw_value = element.attrib.get(attribute, "0").strip()
     if not raw_value:
         return 0.0
