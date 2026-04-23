@@ -30,6 +30,7 @@ from ix_blackfox.kernel import (
     TaskPriority,
     TaskRecord,
     TaskRequest,
+    TaskState,
 )
 from ix_blackfox.memory import (
     ArtifactMemoryStore,
@@ -261,7 +262,7 @@ class BlackFoxRuntime:
             "BLACKFOX_STATE_SECRET",
             "blackfox-development-state-secret",
         )
-        state_store = VaultStateStore(secret=state_secret)
+        state_store = VaultStateStore(root_dir=config.paths.state_dir / "vault", secret=state_secret)
         replay_guard = TaskReplayGuard()
         classifier = DeterministicTaskClassifier()
         governance_preflight = RuntimeGovernancePreflightEngine()
@@ -292,6 +293,7 @@ class BlackFoxRuntime:
             approval_resolver=approval_resolver,
             receipt_recorder=receipt_recorder,
         )
+        kernel.initialize()
         runtime._register_default_manifests()
         return runtime
 
@@ -308,23 +310,22 @@ class BlackFoxRuntime:
         Convenience API to create and execute a task in one call.
         """
         task_id = f"task-{uuid4().hex}"
-        request = TaskRequest(
-            task_id=task_id,
-            task_kind=kind,
+        request = TaskRequest.create(
             prompt=prompt,
-            labels=labels,
+            kind=kind,
             priority=priority,
             metadata=metadata or {},
+            labels=labels,
         )
-        task = self._kernel.create_task(request)
+        task = TaskRecord(request=request)
         return self.execute_task(task)
 
     def execute_task(self, task: TaskRecord) -> RuntimeRunReport:
         """
         Execute one task end-to-end through the runtime.
         """
-        replay_observation = self._replay_guard.observe(task)
-        if replay_observation.is_duplicate:
+        replay_observation = self._replay_guard.observe(task.request)
+        if replay_observation.duplicate_detected:
             self._append_trace(
                 correlation_id=task.request.task_id,
                 stage="runtime",
@@ -333,7 +334,12 @@ class BlackFoxRuntime:
                 source="runtime",
             )
 
-        inference = self._classifier.classify(task.request)
+        task = task.mark_ready().mark_running()
+
+        inference = self._classifier.infer(
+            prompt=task.request.input.prompt,
+            labels=task.request.labels,
+        )
         self._append_trace(
             correlation_id=task.request.task_id,
             stage="inference",
@@ -345,12 +351,7 @@ class BlackFoxRuntime:
             source="classifier",
         )
 
-        route = self._switchboard.route(
-            task.request.task_id,
-            labels=task.request.labels,
-            prompt=task.request.prompt,
-            inferred_kind=inference.kind,
-        )
+        route = self._switchboard.route(task.request)
         if route is None:
             raise RuntimeError("No capability route matched the submitted task.")
 
@@ -370,18 +371,18 @@ class BlackFoxRuntime:
             task=task,
             preflight=governance_preflight,
         )
-        governance_receipt_ledger = GovernanceReceiptLedger(intent_id=governance_preflight.intent.intent_id)
+        governance_receipt_ledger = self._receipt_recorder.create_ledger()
 
         self._receipt_recorder.record_preflight(
             ledger=governance_receipt_ledger,
             preflight=governance_preflight,
         )
 
-        if approval_resolution.required and approval_resolution.approvals:
-            self._receipt_recorder.record_approval(
-                ledger=governance_receipt_ledger,
-                approvals=approval_resolution.approvals,
-            )
+        self._receipt_recorder.record_approval_resolution(
+            ledger=governance_receipt_ledger,
+            preflight=governance_preflight,
+            resolution=approval_resolution,
+        )
 
         self._append_trace(
             correlation_id=task.request.task_id,
@@ -528,7 +529,7 @@ class BlackFoxRuntime:
         if manifest is None:
             raise RuntimeError(f"Route target '{route.capability_name}' has no registered manifest.")
 
-        pack = self._load_pack(manifest.pack_name)
+        pack = self._load_pack(manifest)
         self._receipt_recorder.record_execution_started(
             ledger=governance_receipt_ledger,
             preflight=governance_preflight,
@@ -721,16 +722,12 @@ class BlackFoxRuntime:
         )
 
         if verification.status.value == "passed":
-            self._receipt_recorder.record_verification_passed(
-                ledger=governance_receipt_ledger,
-                verifier_name=verification.verifier_name,
-            )
-        else:
-            self._receipt_recorder.record_verification_failed(
-                ledger=governance_receipt_ledger,
-                verifier_name=verification.verifier_name,
-                status=verification.status.value,
-            )
+            self._receipt_recorder.record_verification_outcome(
+            ledger=governance_receipt_ledger,
+            preflight=governance_preflight,
+            verification_status=verification.status.value,
+            issue_count=len(verification.issues),
+        )
 
         governance_receipts = self._persist_governance_receipts(
             task=task,
@@ -747,14 +744,21 @@ class BlackFoxRuntime:
                 produced_artifacts.append(artifact.name)
                 artifact_paths[artifact.name] = str(artifact.path)
                 evidence_record = self._evidence.record(
-                    artifact_name=artifact.name,
-                    artifact_path=artifact.path,
+                    subject_id=task.request.task_id,
+                    evidence_type="artifact",
+                    summary=f"Produced runtime artifact {artifact.name}.",
+                    source="runtime.orchestrator",
+                    artifact_refs=(artifact.name,),
+                    trace_ids=self._task_trace_ids(task.request.task_id),
+                    data={"artifact_path": str(artifact.path)},
                 )
                 evidence_ids.append(evidence_record.evidence_id)
-                self._artifact_memory.store(
-                    name=artifact.name,
+                self._artifact_memory.upsert(
+                    logical_name=artifact.name,
                     path=artifact.path,
-                    metadata={"task_id": task.request.task_id},
+                    artifact_type="runtime_artifact",
+                    source="runtime.orchestrator",
+                    data={"task_id": task.request.task_id},
                 )
 
         if governance_receipts is not None and governance_receipts.artifact_path is not None:
@@ -767,7 +771,7 @@ class BlackFoxRuntime:
             session_id=self._session_id,
             run_id=f"run-{uuid4().hex}",
             task_id=task.request.task_id,
-            task_kind=task.request.task_kind,
+            task_kind=task.request.kind,
             status=status,
             route=route,
             pack_name=pack_name,
@@ -805,17 +809,19 @@ class BlackFoxRuntime:
         approval_resolution: RuntimeApprovalResolution,
         governance_receipt_ledger: GovernanceReceiptLedger,
     ) -> RuntimeGovernanceReceiptReport:
-        receipts_root = self._config.artifacts_dir / "governance"
+        receipts_root = self._config.paths.artifacts_dir / "governance"
         receipt_path = receipts_root / task.request.task_id / "blackfox-governance-receipts.json"
-        receipt_report = self._receipt_recorder.persist(
+        receipt_report = self._receipt_recorder.report_from_ledger(
             ledger=governance_receipt_ledger,
-            path=receipt_path,
-            preflight=governance_preflight,
-            approval_resolution=approval_resolution,
+            intent_id=governance_preflight.intent.intent_id,
+            artifact_path=str(receipt_path),
         )
-        self._artifact_memory.store(
-            name=receipt_path.name,
+        _safe_json_dump(receipt_path, receipt_report.to_dict())
+        self._artifact_memory.upsert(
+            logical_name=receipt_path.name,
             path=receipt_path,
+            artifact_type="governance_receipt",
+            source="runtime.receipts",
             metadata={
                 "task_id": task.request.task_id,
                 "kind": "governance_receipt",
@@ -846,20 +852,20 @@ class BlackFoxRuntime:
     ) -> EvaluationResult:
         findings: list[EvaluationFinding] = []
 
-        if replay_observation.is_duplicate:
+        if replay_observation.duplicate_detected:
             findings.append(
                 EvaluationFinding(
-                    rule_id="replay_guard",
+                    code="replay_guard",
                     severity=EvaluationSeverity.WARNING,
                     message="Replay guard detected a duplicate task fingerprint.",
-                    metadata={"fingerprint": replay_observation.fingerprint},
+                    data={"fingerprint": replay_observation.fingerprint},
                 )
             )
 
         if governance_preflight is not None:
             findings.append(
                 EvaluationFinding(
-                    rule_id="governance_decision",
+                    code="governance_decision",
                     severity=(
                         EvaluationSeverity.ERROR
                         if governance_preflight.blocked
@@ -869,8 +875,8 @@ class BlackFoxRuntime:
                             else EvaluationSeverity.INFO
                         )
                     ),
-                    message=governance_preflight.decision.rationale,
-                    metadata={
+                    summary=governance_preflight.decision.rationale,
+                    data={
                         "policy_decision": governance_preflight.decision.decision.value,
                         "risk_level": governance_preflight.risk.risk_level.value,
                         "ticket_id": governance_preflight.ticket.ticket_id,
@@ -891,7 +897,7 @@ class BlackFoxRuntime:
         if route is None:
             findings.append(
                 EvaluationFinding(
-                    rule_id="routing",
+                    code="routing",
                     severity=EvaluationSeverity.ERROR,
                     message="Runtime did not resolve a capability route.",
                 )
@@ -899,39 +905,39 @@ class BlackFoxRuntime:
         else:
             findings.append(
                 EvaluationFinding(
-                    rule_id="routing",
+                    code="routing",
                     severity=EvaluationSeverity.INFO,
-                    message=(
+                    summary=(
                         f"Task routed to capability '{route.capability_name}' "
                         f"with confidence {route.confidence:.2f}."
                     ),
-                    metadata={
+                    data={
                         "capability_name": route.capability_name,
                         "reason": route.reason.value,
                     },
                 )
             )
 
-        if sentinel_report.highest_severity in {SentinelSeverity.CRITICAL, SentinelSeverity.ERROR}:
+        if sentinel_report.has_severity(SentinelSeverity.CRITICAL) or sentinel_report.has_severity(SentinelSeverity.ERROR):
             findings.append(
                 EvaluationFinding(
-                    rule_id="sentinel",
+                    code="sentinel",
                     severity=EvaluationSeverity.ERROR,
-                    message="Sentinel reported a blocking runtime issue.",
-                    metadata={"highest_severity": sentinel_report.highest_severity.value},
+                    summary="Sentinel reported a blocking runtime issue.",
+                    data={"highest_severity": _sentinel_highest_severity(sentinel_report).value},
                 )
             )
 
-        if task.status.is_failure:
+        if task.state == TaskState.FAILED:
             findings.append(
                 EvaluationFinding(
-                    rule_id="task_outcome",
+                    code="task_outcome",
                     severity=EvaluationSeverity.ERROR,
-                    message=task.error_summary or "Task failed during runtime execution.",
+                    summary=task.error or "Task failed during runtime execution.",
                 )
             )
         elif (
-            task.status.is_completed
+            task.state == TaskState.COMPLETED
             and governance_preflight is not None
             and governance_preflight.requires_review
             and approval_resolution is not None
@@ -939,26 +945,26 @@ class BlackFoxRuntime:
         ):
             findings.append(
                 EvaluationFinding(
-                    rule_id="approval_gate",
+                    code="approval_gate",
                     severity=EvaluationSeverity.WARNING,
-                    message="Execution paused pending governance approval.",
+                    summary="Execution paused pending governance approval.",
                 )
             )
         else:
             findings.append(
                 EvaluationFinding(
-                    rule_id="task_outcome",
+                    code="task_outcome",
                     severity=EvaluationSeverity.INFO,
-                    message="Task completed successfully.",
+                    summary="Task completed successfully.",
                 )
             )
 
         for artifact in artifacts:
             findings.append(
                 EvaluationFinding(
-                    rule_id="artifact",
+                    code="artifact",
                     severity=EvaluationSeverity.INFO,
-                    message=f"Produced artifact '{artifact.name}'.",
+                    summary=f"Produced artifact '{artifact.name}'.",
                 )
             )
 
@@ -976,27 +982,31 @@ class BlackFoxRuntime:
         programming = build_programming_manifest()
         self._manifest_registry.register(architecture)
         self._manifest_registry.register(programming)
-        self._switchboard.register_route(
+        self._switchboard.register(
             CapabilityRoute(
-                capability_name=architecture.capability_name,
-                labels=("architecture", "diagram", "system", "design", "flowchart"),
-                keywords=("architecture", "system", "design", "diagram", "flow"),
+                capability_name=architecture.pack_name,
+                supported_kinds=architecture.supported_kinds,
+                labels=architecture.labels,
+                description=architecture.description,
             )
         )
-        self._switchboard.register_route(
+        self._switchboard.register(
             CapabilityRoute(
-                capability_name=programming.capability_name,
-                labels=("code", "patching", "tests", "programming", "refactor"),
-                keywords=("code", "python", "test", "patch", "refactor", "program"),
+                capability_name=programming.pack_name,
+                supported_kinds=programming.supported_kinds,
+                labels=programming.labels,
+                description=programming.description,
             )
         )
 
-    def _load_pack(self, pack_name: str) -> BasePack:
+    def _load_pack(self, manifest) -> BasePack:
+        pack_name = manifest.pack_name
         if pack_name in self._loaded_packs:
             return self._loaded_packs[pack_name]
 
-        loaded = self._pack_loader.load(pack_name)
-        pack = loaded.pack_factory()
+        loaded = self._pack_loader.load(manifest)
+        implementation = loaded.implementation
+        pack = implementation() if isinstance(implementation, type) else implementation
         self._loaded_packs[pack_name] = pack
         return pack
 
@@ -1018,7 +1028,7 @@ class BlackFoxRuntime:
         )
 
     def _task_traces(self, task_id: str) -> tuple[Any, ...]:
-        return self._trace_memory.list(correlation_id=task_id)
+        return self._trace_memory.snapshot().filter_by_correlation(task_id)
 
     def _task_trace_ids(self, task_id: str) -> tuple[str, ...]:
         return tuple(record.trace_id for record in self._task_traces(task_id))
@@ -1029,7 +1039,7 @@ class BlackFoxRuntime:
         evaluation: EvaluationResult,
         verification: VerificationReport,
     ) -> str:
-        if task.status.is_failure:
+        if task.state == TaskState.FAILED:
             return task.error_summary or "Task failed during runtime execution."
         if verification.status.value == "needs_review":
             return "Run paused pending governance approval."
@@ -1038,7 +1048,7 @@ class BlackFoxRuntime:
         return evaluation.summary
 
     def _write_run_report(self, report: RuntimeRunReport) -> Path:
-        reports_dir = self._config.artifacts_dir / "reports"
+        reports_dir = self._config.paths.artifacts_dir / "reports"
         reports_dir.mkdir(parents=True, exist_ok=True)
         report_path = reports_dir / f"{report.task_id}.json"
         report_path.write_text(
@@ -1054,7 +1064,7 @@ def _status_from_reports(
     verification: VerificationReport,
     sentinel: SentinelReport,
 ) -> RuntimeRunStatus:
-    if sentinel.highest_severity in {SentinelSeverity.CRITICAL, SentinelSeverity.ERROR}:
+    if sentinel.has_severity(SentinelSeverity.CRITICAL) or sentinel.has_severity(SentinelSeverity.ERROR):
         return RuntimeRunStatus.FAILED
     if verification.status.value == "failed":
         return RuntimeRunStatus.FAILED
@@ -1102,43 +1112,45 @@ def _evaluation_to_dict(result: EvaluationResult) -> dict[str, Any]:
     return {
         "evaluator_name": result.evaluator_name,
         "status": result.status.value,
-        "summary": result.summary,
         "score": result.score,
+        "evaluated_at": result.evaluated_at.isoformat(),
         "findings": [
             {
-                "rule_id": finding.rule_id,
+                "code": finding.code,
                 "severity": finding.severity.value,
-                "message": finding.message,
-                "metadata": finding.metadata,
+                "summary": finding.summary,
+                "details": finding.details,
+                "data": finding.data,
             }
             for finding in result.findings
         ],
-        "created_at": result.created_at.isoformat(),
     }
 
 
 def _verification_to_dict(report: VerificationReport) -> dict[str, Any]:
     return {
-        "verifier_name": report.verifier_name,
+        "subject_id": report.subject_id,
         "status": report.status.value,
-        "details": report.details,
-        "required_signals": list(report.required_signals),
-        "observed_signals": list(report.observed_signals),
-        "missing_signals": list(report.missing_signals),
-        "artifact_count": report.artifact_count,
-        "governance_chain_verified": report.governance_chain_verified,
-        "approval_required": report.approval_required,
-        "approval_satisfied": report.approval_satisfied,
         "verified_at": report.verified_at.isoformat(),
+        "issues": [
+            {
+                "code": issue.code,
+                "severity": issue.severity.value,
+                "summary": issue.summary,
+                "details": issue.details,
+            }
+            for issue in report.issues
+        ],
     }
 
 
 def _sentinel_to_dict(report: SentinelReport) -> dict[str, Any]:
+    highest_severity = _sentinel_highest_severity(report)
     return {
-        "runtime_name": report.runtime_name,
-        "issue_count": report.issue_count,
-        "highest_severity": report.highest_severity.value,
-        "issued_at": report.issued_at.isoformat(),
+        "check_count": report.check_count,
+        "issue_count": len(report.issues),
+        "highest_severity": highest_severity.value,
+        "evaluated_at": report.evaluated_at.isoformat(),
         "issues": [
             {
                 "code": issue.code,
