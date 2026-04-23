@@ -10,6 +10,10 @@ from ix_blackfox.sentinel.checks.failure_loop import (
     FailureLoopCheck,
     FailureLoopWindow,
 )
+from ix_blackfox.sentinel.checks.governance_consistency import (
+    GovernanceConsistencyCheck,
+    GovernanceObservation,
+)
 from ix_blackfox.sentinel.checks.policy import (
     PolicyGuardrailCheck,
     PolicyObservation,
@@ -20,6 +24,8 @@ __all__ = [
     "ContradictionCheck",
     "FailureLoopCheck",
     "FailureLoopWindow",
+    "GovernanceConsistencyCheck",
+    "GovernanceObservation",
     "PolicyGuardrailCheck",
     "PolicyObservation",
 ]
