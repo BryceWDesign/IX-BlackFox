@@ -46,11 +46,17 @@ class RuntimeApprovalResolution:
                     "requested_at": state.request.requested_at.isoformat(),
                     "policy_reason": state.request.policy_reason,
                     "evidence_refs": list(state.request.evidence_refs),
-                    "decided_by": None if state.decision is None else state.decision.decided_by,
+                    "decided_by": None
+                    if state.decision is None
+                    else state.decision.decided_by,
                     "decided_at": (
-                        None if state.decision is None else state.decision.decided_at.isoformat()
+                        None
+                        if state.decision is None
+                        else state.decision.decided_at.isoformat()
                     ),
-                    "decision_note": None if state.decision is None else state.decision.note,
+                    "decision_note": None
+                    if state.decision is None
+                    else state.decision.note,
                 }
                 for state in self.approvals
             ],
@@ -89,7 +95,7 @@ class RuntimeApprovalResolver:
         if raw_entries is None:
             raw_entries = ()
 
-        if not isinstance(raw_entries, (list, tuple)):
+        if not isinstance(raw_entries, list | tuple):
             issues.append(
                 "Task metadata field 'governance_approvals' must be a list or tuple of mappings."
             )
@@ -132,7 +138,9 @@ def _build_approval_state(
     raw_entry: dict[str, object],
 ) -> ApprovalState:
     status = _coerce_status(raw_entry.get("status", "approved"))
-    requested_by = _coerce_optional_text(raw_entry.get("requested_by")) or "runtime.approval"
+    requested_by = (
+        _coerce_optional_text(raw_entry.get("requested_by")) or "runtime.approval"
+    )
     decided_by = _coerce_optional_text(raw_entry.get("decided_by")) or requested_by
     note = _coerce_optional_text(raw_entry.get("note")) or (
         "Runtime approval artifact accepted for governed execution."
@@ -193,7 +201,7 @@ def _coerce_refs(raw_value: object) -> tuple[str, ...]:
     if raw_value is None:
         return ()
 
-    if not isinstance(raw_value, (list, tuple)):
+    if not isinstance(raw_value, list | tuple):
         raise ValueError("evidence_refs must be a list or tuple of strings")
 
     normalized: list[str] = []
