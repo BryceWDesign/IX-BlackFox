@@ -2,11 +2,12 @@
 Sentinel subsystem.
 
 Sentinel is the runtime conscience of BlackFox. It detects unstable
-plans, contradictions, repeated failure loops, and policy-boundary
-violations before damage compounds. The initial core establishes a
-stable check protocol, issue model, and evaluation runtime, and the
-first built-in checks target contradictory reasoning signals, repeated
-failure patterns, and guardrail bypasses.
+plans, contradictions, repeated failure loops, governance-consistency
+violations, and policy-boundary violations before damage compounds.
+The initial core establishes a stable check protocol, issue model, and
+evaluation runtime, and the built-in checks target contradictory
+reasoning signals, repeated failure patterns, governance-boundary
+mismatches, and guardrail bypasses.
 """
 
 from ix_blackfox.sentinel.checks import (
@@ -14,6 +15,8 @@ from ix_blackfox.sentinel.checks import (
     ContradictionCheck,
     FailureLoopCheck,
     FailureLoopWindow,
+    GovernanceConsistencyCheck,
+    GovernanceObservation,
     PolicyGuardrailCheck,
     PolicyObservation,
 )
@@ -32,6 +35,8 @@ __all__ = [
     "ContradictionCheck",
     "FailureLoopCheck",
     "FailureLoopWindow",
+    "GovernanceConsistencyCheck",
+    "GovernanceObservation",
     "PolicyGuardrailCheck",
     "PolicyObservation",
     "SentinelCheck",
