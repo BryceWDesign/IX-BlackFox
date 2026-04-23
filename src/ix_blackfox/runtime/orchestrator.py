@@ -45,6 +45,7 @@ from ix_blackfox.sentinel import (
     ContradictionCheck,
     FailureLoopCheck,
     FailureLoopWindow,
+    GovernanceConsistencyCheck,
     PolicyGuardrailCheck,
     PolicyObservation,
     SentinelContext,
@@ -512,6 +513,13 @@ class BlackFoxRuntime:
                 SentinelContext(
                     task=failed_task,
                     trace_records=self._task_traces(task.request.task_id),
+                    metadata={
+                        "governance_observations": _build_governance_observations(
+                            governance_preflight=governance_preflight,
+                            approval_resolution=approval_resolution,
+                            executed=False,
+                        ),
+                    },
                 )
             )
             evaluation = self._evaluate_run(
@@ -554,6 +562,13 @@ class BlackFoxRuntime:
                 SentinelContext(
                     task=paused_task,
                     trace_records=self._task_traces(task.request.task_id),
+                    metadata={
+                        "governance_observations": _build_governance_observations(
+                            governance_preflight=governance_preflight,
+                            approval_resolution=approval_resolution,
+                            executed=False,
+                        ),
+                    },
                 )
             )
             evaluation = self._evaluate_run(
@@ -629,7 +644,17 @@ class BlackFoxRuntime:
             )
             failed_task = task.mark_failed(error=str(exc))
             sentinel_report = self._sentinel.evaluate(
-                SentinelContext(task=failed_task, trace_records=self._task_traces(task.request.task_id))
+                SentinelContext(
+                    task=failed_task,
+                    trace_records=self._task_traces(task.request.task_id),
+                    metadata={
+                        "governance_observations": _build_governance_observations(
+                            governance_preflight=governance_preflight,
+                            approval_resolution=approval_resolution,
+                            executed=True,
+                        ),
+                    },
+                )
             )
             evaluation = self._evaluate_run(
                 task=failed_task,
@@ -689,6 +714,11 @@ class BlackFoxRuntime:
                 metadata={
                     "assertions": self._build_assertions(task=task, route=route, pack_name=pack.pack_name),
                     "policy_observations": policy_observations,
+                    "governance_observations": _build_governance_observations(
+                        governance_preflight=governance_preflight,
+                        approval_resolution=approval_resolution,
+                        executed=True,
+                    ),
                 },
             )
         )
@@ -753,6 +783,7 @@ class BlackFoxRuntime:
                 )
             )
         )
+        self._sentinel.register(GovernanceConsistencyCheck())
         self._sentinel.register(
             PolicyGuardrailCheck(
                 blocked_actions=("destructive-host-mutation",),
@@ -1461,6 +1492,32 @@ def _sentinel_to_dict(report: SentinelReport) -> dict[str, Any]:
             for issue in report.issues
         ],
     }
+
+
+def _build_governance_observations(
+    *,
+    governance_preflight: RuntimeGovernancePreflightResult | None,
+    approval_resolution: RuntimeApprovalResolution | None,
+    executed: bool,
+) -> tuple[dict[str, object], ...]:
+    if governance_preflight is None:
+        return ()
+
+    return (
+        {
+            "action": "runtime_pack_dispatch",
+            "decision": governance_preflight.decision.decision.value,
+            "executed": executed,
+            "approval_required": (
+                False if approval_resolution is None else approval_resolution.required
+            ),
+            "approval_satisfied": (
+                False if approval_resolution is None else approval_resolution.satisfied
+            ),
+            "source": "runtime",
+            "reason": governance_preflight.decision.rationale,
+        },
+    )
 
 
 def _utc_now() -> datetime:
