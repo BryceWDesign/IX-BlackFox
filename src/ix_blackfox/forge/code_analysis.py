@@ -144,7 +144,8 @@ class ForgeCodeAnalyzer:
         """
         if node.suffix != ".py":
             raise ValueError(
-                f"Forge code analysis only supports Python files, got: {node.relative_path}"
+                "Forge code analysis only supports Python files, got: "
+                f"{node.relative_path}"
             )
 
         source_text = node.absolute_path.read_text(encoding="utf-8")
@@ -221,7 +222,7 @@ def _extract_functions(tree: ast.Module) -> tuple[PythonFunctionSymbol, ...]:
     functions: list[PythonFunctionSymbol] = []
 
     for node in tree.body:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             functions.append(
                 PythonFunctionSymbol(
                     name=node.name,
@@ -244,7 +245,7 @@ def _extract_classes(tree: ast.Module) -> tuple[PythonClassSymbol, ...]:
         method_names = tuple(
             child.name
             for child in node.body
-            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef))
+            if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef)
         )
         classes.append(
             PythonClassSymbol(
