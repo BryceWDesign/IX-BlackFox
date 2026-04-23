@@ -84,6 +84,7 @@ __all__ = [
     "ForgeExecutionTicketBuilder",
     "ForgeFileGraphScanner",
     "ForgePatchIntentBridge",
+    "ForgePatchPlanner",
     "ForgeRegressionCollector",
     "ForgeTestRunner",
     "ForgeWorkspaceError",
