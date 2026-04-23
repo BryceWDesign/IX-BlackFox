@@ -6,7 +6,7 @@ import hmac
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,7 +49,7 @@ class SealedPayload:
         Return the decoded payload as a JSON object.
         """
         raw = self.payload_bytes()
-        return json.loads(raw.decode("utf-8"))
+        return cast(dict[str, Any], json.loads(raw.decode("utf-8")))
 
 
 def seal_payload(
