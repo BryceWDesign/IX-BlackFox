@@ -402,12 +402,28 @@ class BlackFoxRuntime:
                 governance_preflight=None,
                 approval_resolution=None,
             )
+            (
+                required_signals,
+                observed_signals,
+                governance_chain_verified,
+                approval_required,
+                approval_satisfied,
+            ) = _verification_signal_state(
+                governance_preflight=None,
+                approval_resolution=None,
+                governance_receipt_ledger=None,
+            )
             verification = self._verifier.verify(
                 VerificationContext(
                     subject_id=task.request.task_id,
                     expected_artifacts=(),
                     produced_artifacts=(),
                     evaluation_results=(evaluation,),
+                    required_signals=required_signals,
+                    observed_signals=observed_signals,
+                    governance_chain_verified=governance_chain_verified,
+                    approval_required=approval_required,
+                    approval_satisfied=approval_satisfied,
                 )
             )
             return self._finalize_run(
@@ -531,12 +547,28 @@ class BlackFoxRuntime:
                 governance_preflight=governance_preflight,
                 approval_resolution=approval_resolution,
             )
+            (
+                required_signals,
+                observed_signals,
+                governance_chain_verified,
+                approval_required,
+                approval_satisfied,
+            ) = _verification_signal_state(
+                governance_preflight=governance_preflight,
+                approval_resolution=approval_resolution,
+                governance_receipt_ledger=governance_receipt_ledger,
+            )
             verification = self._verifier.verify(
                 VerificationContext(
                     subject_id=task.request.task_id,
                     expected_artifacts=(),
                     produced_artifacts=(),
                     evaluation_results=(evaluation,),
+                    required_signals=required_signals,
+                    observed_signals=observed_signals,
+                    governance_chain_verified=governance_chain_verified,
+                    approval_required=approval_required,
+                    approval_satisfied=approval_satisfied,
                 )
             )
             return self._finalize_run(
@@ -580,12 +612,28 @@ class BlackFoxRuntime:
                 governance_preflight=governance_preflight,
                 approval_resolution=approval_resolution,
             )
+            (
+                required_signals,
+                observed_signals,
+                governance_chain_verified,
+                approval_required,
+                approval_satisfied,
+            ) = _verification_signal_state(
+                governance_preflight=governance_preflight,
+                approval_resolution=approval_resolution,
+                governance_receipt_ledger=governance_receipt_ledger,
+            )
             verification = self._verifier.verify(
                 VerificationContext(
                     subject_id=task.request.task_id,
                     expected_artifacts=(),
                     produced_artifacts=(),
                     evaluation_results=(evaluation,),
+                    required_signals=required_signals,
+                    observed_signals=observed_signals,
+                    governance_chain_verified=governance_chain_verified,
+                    approval_required=approval_required,
+                    approval_satisfied=approval_satisfied,
                 )
             )
             return self._finalize_run(
@@ -665,12 +713,28 @@ class BlackFoxRuntime:
                 governance_preflight=governance_preflight,
                 approval_resolution=approval_resolution,
             )
+            (
+                required_signals,
+                observed_signals,
+                governance_chain_verified,
+                approval_required,
+                approval_satisfied,
+            ) = _verification_signal_state(
+                governance_preflight=governance_preflight,
+                approval_resolution=approval_resolution,
+                governance_receipt_ledger=governance_receipt_ledger,
+            )
             verification = self._verifier.verify(
                 VerificationContext(
                     subject_id=task.request.task_id,
                     expected_artifacts=(),
                     produced_artifacts=(),
                     evaluation_results=(evaluation,),
+                    required_signals=required_signals,
+                    observed_signals=observed_signals,
+                    governance_chain_verified=governance_chain_verified,
+                    approval_required=approval_required,
+                    approval_satisfied=approval_satisfied,
                 )
             )
             return self._finalize_run(
@@ -731,12 +795,28 @@ class BlackFoxRuntime:
             governance_preflight=governance_preflight,
             approval_resolution=approval_resolution,
         )
+        (
+            required_signals,
+            observed_signals,
+            governance_chain_verified,
+            approval_required,
+            approval_satisfied,
+        ) = _verification_signal_state(
+            governance_preflight=governance_preflight,
+            approval_resolution=approval_resolution,
+            governance_receipt_ledger=governance_receipt_ledger,
+        )
         verification = self._verifier.verify(
             VerificationContext(
                 subject_id=task.request.task_id,
                 expected_artifacts=pack_result.artifacts,
                 produced_artifacts=pack_result.artifacts,
                 evaluation_results=(evaluation,),
+                required_signals=required_signals,
+                observed_signals=observed_signals,
+                governance_chain_verified=governance_chain_verified,
+                approval_required=approval_required,
+                approval_satisfied=approval_satisfied,
             )
         )
 
@@ -1492,6 +1572,44 @@ def _sentinel_to_dict(report: SentinelReport) -> dict[str, Any]:
             for issue in report.issues
         ],
     }
+
+
+def _verification_signal_state(
+    *,
+    governance_preflight: RuntimeGovernancePreflightResult | None,
+    approval_resolution: RuntimeApprovalResolution | None,
+    governance_receipt_ledger: GovernanceReceiptLedger | None,
+) -> tuple[tuple[str, ...], tuple[str, ...], bool | None, bool, bool]:
+    required_signals: list[str] = []
+    observed_signals: list[str] = []
+    governance_chain_verified: bool | None = None
+    approval_required = False
+    approval_satisfied = False
+
+    if governance_preflight is not None:
+        required_signals.append("governance_preflight")
+        observed_signals.append("governance_preflight")
+
+    if governance_preflight is not None and governance_receipt_ledger is not None:
+        required_signals.append("governance_receipts")
+        observed_signals.append("governance_receipts")
+        governance_chain_verified = governance_receipt_ledger.verify_intent_chain(
+            governance_preflight.intent.intent_id
+        )
+
+    if approval_resolution is not None and approval_resolution.required:
+        required_signals.append("approval_resolution")
+        observed_signals.append("approval_resolution")
+        approval_required = True
+        approval_satisfied = approval_resolution.satisfied
+
+    return (
+        tuple(required_signals),
+        tuple(observed_signals),
+        governance_chain_verified,
+        approval_required,
+        approval_satisfied,
+    )
 
 
 def _build_governance_observations(
