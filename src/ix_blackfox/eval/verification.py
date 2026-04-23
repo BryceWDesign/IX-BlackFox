@@ -67,6 +67,19 @@ class VerificationContext:
         Prior evaluation results relevant to the subject.
     regression_report:
         Optional regression report from forge testing.
+    required_signals:
+        Optional logical verification signals that must be present, such
+        as governance_preflight, approval_resolution, or
+        governance_receipts.
+    observed_signals:
+        Optional logical verification signals actually observed for the
+        run.
+    governance_chain_verified:
+        Optional governance receipt-chain integrity result.
+    approval_required:
+        Whether governed execution required explicit approval.
+    approval_satisfied:
+        Whether approval was actually satisfied when required.
     """
 
     subject_id: str
@@ -74,6 +87,11 @@ class VerificationContext:
     produced_artifacts: tuple[str, ...] = field(default_factory=tuple)
     evaluation_results: tuple[EvaluationResult, ...] = field(default_factory=tuple)
     regression_report: RegressionReport | None = None
+    required_signals: tuple[str, ...] = field(default_factory=tuple)
+    observed_signals: tuple[str, ...] = field(default_factory=tuple)
+    governance_chain_verified: bool | None = None
+    approval_required: bool = False
+    approval_satisfied: bool = False
 
     def __post_init__(self) -> None:
         normalized_subject_id = _normalize_identifier(
@@ -88,10 +106,20 @@ class VerificationContext:
             self.produced_artifacts,
             label="produced artifact",
         )
+        normalized_required_signals = _normalize_strings(
+            self.required_signals,
+            label="required signal",
+        )
+        normalized_observed_signals = _normalize_strings(
+            self.observed_signals,
+            label="observed signal",
+        )
 
         object.__setattr__(self, "subject_id", normalized_subject_id)
         object.__setattr__(self, "expected_artifacts", normalized_expected_artifacts)
         object.__setattr__(self, "produced_artifacts", normalized_produced_artifacts)
+        object.__setattr__(self, "required_signals", normalized_required_signals)
+        object.__setattr__(self, "observed_signals", normalized_observed_signals)
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,8 +153,9 @@ class OutputVerifier:
     """
     Deterministic output-verification layer for BlackFox.
 
-    This verifier combines expected artifacts, evaluation outcomes, and
-    optional regression results into one normalized verification report.
+    This verifier combines expected artifacts, evaluation outcomes,
+    optional regression results, and governed execution signals into one
+    normalized verification report.
     """
 
     def verify(self, context: VerificationContext) -> VerificationReport:
@@ -138,6 +167,8 @@ class OutputVerifier:
         issues.extend(_verify_artifacts(context))
         issues.extend(_verify_evaluations(context))
         issues.extend(_verify_regression(context))
+        issues.extend(_verify_required_signals(context))
+        issues.extend(_verify_governance_controls(context))
 
         status = _status_from_issues(tuple(issues))
 
@@ -240,6 +271,53 @@ def _verify_regression(context: VerificationContext) -> tuple[VerificationIssue,
             details=", ".join(report.notes) if report.notes else None,
         ),
     )
+
+
+def _verify_required_signals(context: VerificationContext) -> tuple[VerificationIssue, ...]:
+    if not context.required_signals:
+        return ()
+
+    observed = set(context.observed_signals)
+    missing = tuple(
+        signal for signal in context.required_signals if signal not in observed
+    )
+    if not missing:
+        return ()
+
+    return (
+        VerificationIssue(
+            code="verification.missing_signal",
+            severity=EvaluationSeverity.ERROR,
+            summary="Required verification signals were not observed.",
+            details="Missing signals: " + ", ".join(missing),
+        ),
+    )
+
+
+def _verify_governance_controls(
+    context: VerificationContext,
+) -> tuple[VerificationIssue, ...]:
+    issues: list[VerificationIssue] = []
+
+    if context.governance_chain_verified is False:
+        issues.append(
+            VerificationIssue(
+                code="verification.governance_chain_invalid",
+                severity=EvaluationSeverity.ERROR,
+                summary="Governance receipt chain failed integrity verification.",
+            )
+        )
+
+    if context.approval_required and not context.approval_satisfied:
+        issues.append(
+            VerificationIssue(
+                code="verification.approval_pending",
+                severity=EvaluationSeverity.WARNING,
+                summary="Governed execution is still waiting on approval.",
+            )
+        )
+
+    return tuple(issues)
 
 
 def _status_from_issues(
