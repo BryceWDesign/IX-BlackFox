@@ -164,3 +164,73 @@ def test_output_verifier_fails_when_regression_report_fails(tmp_path: Path) -> N
 
     assert report.status == VerificationStatus.FAILED
     assert report.issues[0].code == "verification.regression_failed"
+
+
+def test_output_verifier_fails_when_required_signal_is_missing() -> None:
+    evaluation = RuleBasedEvaluator(
+        evaluator_name="artifact_quality",
+        rules=(lambda context: None,),
+    ).evaluate(EvaluationContext())
+
+    report = OutputVerifier().verify(
+        VerificationContext(
+            subject_id="task-006",
+            produced_artifacts=("report.json",),
+            evaluation_results=(evaluation,),
+            required_signals=("governance_preflight", "governance_receipts"),
+            observed_signals=("governance_preflight",),
+        )
+    )
+
+    assert report.status == VerificationStatus.FAILED
+    assert tuple(issue.code for issue in report.issues) == (
+        "verification.missing_signal",
+    )
+
+
+def test_output_verifier_needs_review_when_approval_is_pending() -> None:
+    evaluation = RuleBasedEvaluator(
+        evaluator_name="artifact_quality",
+        rules=(lambda context: None,),
+    ).evaluate(EvaluationContext())
+
+    report = OutputVerifier().verify(
+        VerificationContext(
+            subject_id="task-007",
+            produced_artifacts=("report.json",),
+            evaluation_results=(evaluation,),
+            required_signals=("approval_resolution",),
+            observed_signals=("approval_resolution",),
+            governance_chain_verified=True,
+            approval_required=True,
+            approval_satisfied=False,
+        )
+    )
+
+    assert report.status == VerificationStatus.NEEDS_REVIEW
+    assert tuple(issue.code for issue in report.issues) == (
+        "verification.approval_pending",
+    )
+
+
+def test_output_verifier_fails_when_governance_chain_is_invalid() -> None:
+    evaluation = RuleBasedEvaluator(
+        evaluator_name="artifact_quality",
+        rules=(lambda context: None,),
+    ).evaluate(EvaluationContext())
+
+    report = OutputVerifier().verify(
+        VerificationContext(
+            subject_id="task-008",
+            produced_artifacts=("report.json",),
+            evaluation_results=(evaluation,),
+            required_signals=("governance_preflight", "governance_receipts"),
+            observed_signals=("governance_preflight", "governance_receipts"),
+            governance_chain_verified=False,
+        )
+    )
+
+    assert report.status == VerificationStatus.FAILED
+    assert tuple(issue.code for issue in report.issues) == (
+        "verification.governance_chain_invalid",
+    )
