@@ -9,6 +9,7 @@ from ix_blackfox.forge.command_runner import (
     CommandSpec,
     ForgeCommandRunner,
 )
+from ix_blackfox.forge.workspace import WorkspaceReservation
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,7 +47,9 @@ class TestRunSpec:
         if self.timeout_seconds <= 0:
             raise ValueError("Forge test timeout must be greater than zero.")
         if self.max_failures is not None and self.max_failures < 1:
-            raise ValueError("Forge test max_failures must be greater than or equal to 1.")
+            raise ValueError(
+                "Forge test max_failures must be greater than or equal to 1."
+            )
 
         normalized_targets = tuple(
             _normalize_target_path(path) for path in self.target_paths
@@ -99,7 +102,7 @@ class ForgeTestRunner:
     def run(
         self,
         *,
-        workspace,
+        workspace: WorkspaceReservation,
         spec: TestRunSpec | None = None,
     ) -> TestRunResult:
         """
