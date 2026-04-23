@@ -55,11 +55,16 @@ class VaultStateStore:
     def __init__(
         self,
         *,
-        root_dir: Path,
+        root_dir: Path | None = None,
         secret: str | bytes,
         purpose_namespace: str = "vault-state",
     ) -> None:
-        self._root_dir = root_dir.resolve()
+        resolved_root = (
+            Path.cwd() / ".blackfox" / "state" / "vault"
+            if root_dir is None
+            else root_dir
+        )
+        self._root_dir = resolved_root.resolve()
         self._secret = secret
         self._purpose_namespace = _normalize_text(
             purpose_namespace,
