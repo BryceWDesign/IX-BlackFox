@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from threading import RLock
 from typing import Any
@@ -160,9 +161,7 @@ class VaultStateStore:
         Return all stored keys in sorted order.
         """
         with self._lock:
-            return tuple(
-                sorted(path.stem for path in self._root_dir.glob("*.json"))
-            )
+            return tuple(sorted(path.stem for path in self._root_dir.glob("*.json")))
 
     def clear(self) -> None:
         """
@@ -200,14 +199,10 @@ def _decode_entry(*, raw: dict[str, Any], path: Path) -> VaultStateEntry:
             f"Stored state entry is malformed: missing field {exc!s}."
         ) from exc
     except ValueError as exc:
-        raise VaultStateIntegrityError(
-            f"Stored state entry is invalid: {exc}"
-        ) from exc
+        raise VaultStateIntegrityError(f"Stored state entry is invalid: {exc}") from exc
 
 
-def _parse_datetime(value: str):
-    from datetime import datetime
-
+def _parse_datetime(value: str) -> datetime:
     return datetime.fromisoformat(value)
 
 
