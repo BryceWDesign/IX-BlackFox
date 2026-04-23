@@ -129,7 +129,11 @@ class GovernanceConsistencyCheck(SentinelCheck):
         issues: list[SentinelIssue] = []
 
         for observation in observations:
-            if observation.executed and observation.decision in {"block", "blocked", "denied"}:
+            if observation.executed and observation.decision in {
+                "block",
+                "blocked",
+                "denied",
+            }:
                 issues.append(
                     SentinelIssue(
                         code="governance.blocked_execution",
@@ -165,7 +169,10 @@ class GovernanceConsistencyCheck(SentinelCheck):
                 )
                 continue
 
-            if observation.decision == "require_review" and not observation.approval_required:
+            if (
+                observation.decision == "require_review"
+                and not observation.approval_required
+            ):
                 issues.append(
                     SentinelIssue(
                         code="governance.review_flag_missing",
@@ -220,7 +227,7 @@ class GovernanceConsistencyCheck(SentinelCheck):
     ) -> tuple[GovernanceObservation, ...]:
         if not isinstance(raw_observations, Sequence) or isinstance(
             raw_observations,
-            (str, bytes, bytearray),
+            str | bytes | bytearray,
         ):
             raise ValueError(
                 "Governance observations must be a sequence of mappings or observations."
