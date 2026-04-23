@@ -1,9 +1,13 @@
 """
 Interface subsystem.
 
-BlackFox will expose interfaces in stages: command line first, then
+BlackFox exposes interfaces in stages: command line first, then
 programmatic APIs, then richer operator surfaces once the kernel is
-stable and testable.
+stable, governed, and testable.
 """
 
-__all__: list[str] = []
+from ix_blackfox.interface.cli import main
+
+__all__ = [
+    "main",
+]
