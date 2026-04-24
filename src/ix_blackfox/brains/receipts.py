@@ -18,47 +18,6 @@ from ix_blackfox.brains.contracts import (
 class BrainInvocationReceipt:
     """
     Immutable auditable record for one brain invocation.
-
-    Attributes
-    ----------
-    receipt_id:
-        Stable unique receipt identifier.
-    invocation_id:
-        Stable invocation identifier from the originating request.
-    brain_name:
-        Stable internal brain identifier.
-    provider_name:
-        Stable provider identifier such as ollama or vllm.
-    model_name:
-        Provider-facing model name.
-    status:
-        Terminal invocation status.
-    task_id:
-        Optional originating task identifier.
-    pack_name:
-        Optional originating pack identifier.
-    input_modalities:
-        Modalities carried into the invocation.
-    output_modalities:
-        Modalities emitted by the invocation.
-    started_at:
-        UTC timestamp when invocation work began.
-    completed_at:
-        UTC timestamp when invocation work ended.
-    latency_ms:
-        Invocation latency in milliseconds.
-    input_tokens:
-        Optional observed or estimated input-token count.
-    output_tokens:
-        Optional observed or estimated output-token count.
-    total_tokens:
-        Optional total token count.
-    escalation_reason:
-        Optional explicit reason for routing escalation.
-    safety_labels:
-        Optional normalized semantic-safety labels attached to the invocation.
-    metadata:
-        Optional structured metadata for audit and later analysis.
     """
 
     receipt_id: str
@@ -126,12 +85,12 @@ class BrainInvocationReceipt:
         object.__setattr__(
             self,
             "started_at",
-            _normalize_datetime(self.started_at, label="started_at"),
+            _normalize_datetime(self.started_at),
         )
         object.__setattr__(
             self,
             "completed_at",
-            _normalize_datetime(self.completed_at, label="completed_at"),
+            _normalize_datetime(self.completed_at),
         )
 
         if self.completed_at < self.started_at:
@@ -152,16 +111,15 @@ class BrainInvocationReceipt:
             label="total_tokens",
         )
 
-        if normalized_total_tokens is None and (
-            normalized_input_tokens is not None and normalized_output_tokens is not None
-        ):
-            normalized_total_tokens = normalized_input_tokens + normalized_output_tokens
+        if normalized_total_tokens is None:
+            if normalized_input_tokens is not None and normalized_output_tokens is not None:
+                normalized_total_tokens = normalized_input_tokens + normalized_output_tokens
 
         if (
             normalized_total_tokens is not None
             and normalized_input_tokens is not None
             and normalized_output_tokens is not None
-            and normalized_total_tokens < (normalized_input_tokens + normalized_output_tokens)
+            and normalized_total_tokens < normalized_input_tokens + normalized_output_tokens
         ):
             raise ValueError(
                 "total_tokens must be greater than or equal to input_tokens + output_tokens."
@@ -184,7 +142,7 @@ class BrainInvocationReceipt:
 
     def to_dict(self) -> dict[str, object]:
         """
-        Return a serializable view of the brain invocation receipt.
+        Return a serializable view of the receipt.
         """
         return {
             "receipt_id": self.receipt_id,
@@ -218,9 +176,6 @@ class BrainInvocationReceiptSnapshot:
     receipts: tuple[BrainInvocationReceipt, ...]
 
     def filter_by_task(self, task_id: str) -> tuple[BrainInvocationReceipt, ...]:
-        """
-        Return receipts for one task in append order.
-        """
         normalized_task_id = _normalize_identifier(task_id, label="task_id")
         return tuple(
             receipt for receipt in self.receipts if receipt.task_id == normalized_task_id
@@ -230,9 +185,6 @@ class BrainInvocationReceiptSnapshot:
         self,
         invocation_id: str,
     ) -> tuple[BrainInvocationReceipt, ...]:
-        """
-        Return receipts for one invocation identifier.
-        """
         normalized_invocation_id = _normalize_identifier(
             invocation_id,
             label="invocation_id",
@@ -244,9 +196,6 @@ class BrainInvocationReceiptSnapshot:
         )
 
     def filter_by_brain(self, brain_name: str) -> tuple[BrainInvocationReceipt, ...]:
-        """
-        Return receipts emitted by the given brain.
-        """
         normalized_brain_name = _normalize_identifier(brain_name, label="brain_name")
         return tuple(
             receipt
@@ -282,7 +231,7 @@ class BrainInvocationReceiptLedger:
         metadata: dict[str, Any] | None = None,
     ) -> BrainInvocationReceipt:
         """
-        Append a new invocation receipt to the ledger.
+        Append a new brain invocation receipt.
         """
         if request.invocation_id != result.invocation_id:
             raise ValueError(
@@ -293,13 +242,9 @@ class BrainInvocationReceiptLedger:
                 "Brain invocation request and result must share the same brain_name."
             )
 
-        normalized_started_at = _normalize_datetime(
-            started_at or _utc_now(),
-            label="started_at",
-        )
+        normalized_started_at = _normalize_datetime(started_at or _utc_now())
         normalized_completed_at = _normalize_datetime(
-            completed_at or normalized_started_at,
-            label="completed_at",
+            completed_at or normalized_started_at
         )
 
         computed_latency_ms = (
@@ -344,27 +289,19 @@ class BrainInvocationReceiptLedger:
 
         with self._lock:
             self._receipts.append(receipt)
+
         return receipt
 
     def snapshot(self) -> BrainInvocationReceiptSnapshot:
-        """
-        Return an immutable snapshot of receipt records.
-        """
         with self._lock:
             receipts = tuple(self._receipts)
         return BrainInvocationReceiptSnapshot(receipts=receipts)
 
     def count(self) -> int:
-        """
-        Return the total number of stored brain receipts.
-        """
         with self._lock:
             return len(self._receipts)
 
     def clear(self) -> None:
-        """
-        Remove all stored brain receipts.
-        """
         with self._lock:
             self._receipts.clear()
 
@@ -433,7 +370,7 @@ def _normalize_optional_token_count(value: int | None, *, label: str) -> int | N
     return value
 
 
-def _normalize_datetime(value: datetime, *, label: str) -> datetime:
+def _normalize_datetime(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
