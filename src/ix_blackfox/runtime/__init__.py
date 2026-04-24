@@ -37,6 +37,11 @@ from ix_blackfox.runtime.replay import (
     TaskReplayGuard,
     fingerprint_task_request,
 )
+from ix_blackfox.runtime.safeguard import (
+    SafeguardOutcome,
+    SafeguardPlan,
+    SafeguardRuntime,
+)
 
 __all__ = [
     "BlackFoxRuntime",
@@ -53,6 +58,9 @@ __all__ = [
     "RuntimeGovernanceReceiptReport",
     "RuntimeRunReport",
     "RuntimeRunStatus",
+    "SafeguardOutcome",
+    "SafeguardPlan",
+    "SafeguardRuntime",
     "TaskInference",
     "TaskInferenceReason",
     "TaskReplayGuard",
