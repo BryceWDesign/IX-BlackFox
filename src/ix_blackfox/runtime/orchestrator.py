@@ -10,6 +10,7 @@ from typing import Any, cast
 from uuid import uuid4
 
 from ix_blackfox.bus import InMemoryEventBus
+from ix_blackfox.brains import BrainInvocationReceiptLedger
 from ix_blackfox.config import RuntimeConfig, load_runtime_config
 from ix_blackfox.eval import (
     EvaluationContext,
@@ -41,6 +42,7 @@ from ix_blackfox.memory import (
 from ix_blackfox.observability import JsonlStructuredLogger
 from ix_blackfox.packs import (
     BasePack,
+    PackBrainContext,
     PackContext,
     PackLoader,
     PackManifest,
@@ -56,7 +58,11 @@ from ix_blackfox.runtime.governance import (
     RuntimeGovernancePreflightEngine,
     RuntimeGovernancePreflightResult,
 )
-from ix_blackfox.runtime.inference import DeterministicTaskClassifier, TaskInference
+from ix_blackfox.runtime.inference import (
+    DeterministicTaskClassifier,
+    PrimaryBrainRuntime,
+    TaskInference,
+)
 from ix_blackfox.runtime.receipts import (
     RuntimeGovernanceReceiptRecorder,
     RuntimeGovernanceReceiptReport,
@@ -208,6 +214,7 @@ class BlackFoxRuntime:
         governance_preflight: RuntimeGovernancePreflightEngine,
         approval_resolver: RuntimeApprovalResolver,
         receipt_recorder: RuntimeGovernanceReceiptRecorder,
+        primary_brain: PrimaryBrainRuntime | None = None,
     ) -> None:
         self._config = config
         self._kernel = kernel
@@ -231,6 +238,8 @@ class BlackFoxRuntime:
         self._governance_preflight = governance_preflight
         self._approval_resolver = approval_resolver
         self._receipt_recorder = receipt_recorder
+        self._primary_brain = primary_brain or PrimaryBrainRuntime(config=config)
+        self._brain_providers = self._primary_brain.build_providers()
         self._session_id = f"session-{uuid4().hex}"
         self._loaded_packs: dict[str, BasePack] = {}
 
@@ -380,6 +389,7 @@ class BlackFoxRuntime:
             preflight=governance_preflight,
         )
         governance_receipt_ledger = self._receipt_recorder.create_ledger()
+        brain_receipt_ledger = BrainInvocationReceiptLedger()
 
         self._receipt_recorder.record_preflight(
             ledger=governance_receipt_ledger,
@@ -468,6 +478,7 @@ class BlackFoxRuntime:
                 governance_preflight=governance_preflight,
                 approval_resolution=approval_resolution,
                 governance_receipt_ledger=governance_receipt_ledger,
+                brain_receipt_ledger=brain_receipt_ledger,
             )
 
         if governance_preflight.requires_review and not approval_resolution.satisfied:
@@ -533,6 +544,7 @@ class BlackFoxRuntime:
                 governance_preflight=governance_preflight,
                 approval_resolution=approval_resolution,
                 governance_receipt_ledger=governance_receipt_ledger,
+                brain_receipt_ledger=brain_receipt_ledger,
             )
 
         manifest = self._manifest_registry.get(route.capability_name)
@@ -542,6 +554,51 @@ class BlackFoxRuntime:
             )
 
         pack = self._load_pack(manifest)
+        primary_brain_plan = self._primary_brain.plan(
+            task=task,
+            route=route,
+            pack_name=pack.pack_name,
+        )
+        primary_brain_outcome = self._primary_brain.invoke(
+            plan=primary_brain_plan,
+            providers=self._brain_providers,
+            receipt_ledger=brain_receipt_ledger,
+        )
+
+        if primary_brain_outcome.skipped:
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="brain",
+                message=(
+                    f"Primary brain '{primary_brain_plan.manifest.brain_name}' was planned "
+                    f"but not invoked: {primary_brain_outcome.failure_message}"
+                ),
+                level="warning",
+                source="brain.primary",
+            )
+        elif primary_brain_outcome.succeeded:
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="brain",
+                message=(
+                    f"Primary brain '{primary_brain_plan.manifest.brain_name}' completed "
+                    f"through provider '{primary_brain_outcome.provider_name}'."
+                ),
+                level="info",
+                source="brain.primary",
+            )
+        else:
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="brain",
+                message=(
+                    f"Primary brain '{primary_brain_plan.manifest.brain_name}' invocation failed: "
+                    f"{primary_brain_outcome.failure_message}"
+                ),
+                level="warning",
+                source="brain.primary",
+            )
+
         self._receipt_recorder.record_execution_started(
             ledger=governance_receipt_ledger,
             preflight=governance_preflight,
@@ -552,6 +609,10 @@ class BlackFoxRuntime:
             config=self._config,
             bus=self._bus,
             shared_state=self._shared_state,
+            brain=_pack_brain_context(
+                plan=primary_brain_plan,
+                outcome=primary_brain_outcome,
+            ),
             metadata={
                 "route_confidence": route.confidence,
                 "route_reason": route.reason.value,
@@ -636,6 +697,7 @@ class BlackFoxRuntime:
                 governance_preflight=governance_preflight,
                 approval_resolution=approval_resolution,
                 governance_receipt_ledger=governance_receipt_ledger,
+                brain_receipt_ledger=brain_receipt_ledger,
             )
 
         artifact_materializations = self._materialize_pack_artifacts(
@@ -722,6 +784,7 @@ class BlackFoxRuntime:
             governance_preflight=governance_preflight,
             approval_resolution=approval_resolution,
             governance_receipt_ledger=governance_receipt_ledger,
+            brain_receipt_ledger=brain_receipt_ledger,
         )
 
     def _finalize_run(
@@ -740,6 +803,7 @@ class BlackFoxRuntime:
         governance_preflight: RuntimeGovernancePreflightResult,
         approval_resolution: RuntimeApprovalResolution,
         governance_receipt_ledger: GovernanceReceiptLedger,
+        brain_receipt_ledger: BrainInvocationReceiptLedger,
     ) -> RuntimeRunReport:
         status = _status_from_reports(
             evaluation=evaluation,
@@ -759,6 +823,7 @@ class BlackFoxRuntime:
             governance_preflight=governance_preflight,
             approval_resolution=approval_resolution,
             governance_receipt_ledger=governance_receipt_ledger,
+            brain_receipt_ledger=brain_receipt_ledger,
         )
 
         produced_artifacts: list[str] = []
@@ -866,6 +931,7 @@ class BlackFoxRuntime:
         governance_preflight: RuntimeGovernancePreflightResult,
         approval_resolution: RuntimeApprovalResolution,
         governance_receipt_ledger: GovernanceReceiptLedger,
+        brain_receipt_ledger: BrainInvocationReceiptLedger,
     ) -> RuntimeGovernanceReceiptReport:
         receipts_root = self._config.paths.artifacts_dir / "governance"
         receipt_path = (
@@ -875,6 +941,11 @@ class BlackFoxRuntime:
             ledger=governance_receipt_ledger,
             intent_id=governance_preflight.intent.intent_id,
             artifact_path=str(receipt_path),
+        )
+        receipt_report = self._receipt_recorder.attach_brain_receipts(
+            report=receipt_report,
+            ledger=brain_receipt_ledger,
+            task_id=task.request.task_id,
         )
         _safe_json_dump(receipt_path, receipt_report.to_dict())
         self._artifact_memory.upsert(
@@ -1153,6 +1224,30 @@ class BlackFoxRuntime:
             encoding="utf-8",
         )
         return report_path
+
+
+def _pack_brain_context(
+    *,
+    plan: Any,
+    outcome: Any,
+) -> PackBrainContext:
+    result_status = None
+    output_text = None
+    if outcome.result is not None:
+        result_status = outcome.result.status.value
+        output_text = outcome.result.output_text
+
+    return PackBrainContext(
+        brain_name=plan.manifest.brain_name,
+        provider_name=plan.manifest.provider_name,
+        model_name=plan.manifest.model_name,
+        invocation_id=plan.request.invocation_id,
+        rendered_prompt=plan.rendered_prompt,
+        invoked=outcome.invoked,
+        result_status=result_status,
+        output_text=output_text,
+        failure_message=outcome.failure_message,
+    )
 
 
 def _status_from_reports(
