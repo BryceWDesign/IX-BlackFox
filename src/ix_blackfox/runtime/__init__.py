@@ -33,6 +33,11 @@ from ix_blackfox.runtime.policy_reasoning import (
     PolicyReasoningPlan,
     PolicyReasoningRuntime,
 )
+from ix_blackfox.runtime.reasoning import (
+    EscalatedReasoningOutcome,
+    EscalatedReasoningPlan,
+    EscalatedReasoningRuntime,
+)
 from ix_blackfox.runtime.receipts import (
     RuntimeGovernanceReceiptRecorder,
     RuntimeGovernanceReceiptReport,
@@ -56,6 +61,9 @@ from ix_blackfox.runtime.vision import (
 __all__ = [
     "BlackFoxRuntime",
     "DeterministicTaskClassifier",
+    "EscalatedReasoningOutcome",
+    "EscalatedReasoningPlan",
+    "EscalatedReasoningRuntime",
     "PolicyReasoningOutcome",
     "PolicyReasoningPlan",
     "PolicyReasoningRuntime",
