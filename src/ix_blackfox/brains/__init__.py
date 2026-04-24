@@ -24,7 +24,9 @@ from ix_blackfox.brains.catalog import (
     build_primary_brain_catalog,
     build_primary_gpt_oss_manifest,
     build_safeguard_gpt_oss_manifest,
+    build_vision_qwen_manifest,
     build_wave1_core_brain_catalog,
+    build_wave1_extended_brain_catalog,
 )
 from ix_blackfox.brains.contracts import (
     BrainCapability,
@@ -132,5 +134,7 @@ __all__ = [
     "build_primary_brain_catalog",
     "build_primary_gpt_oss_manifest",
     "build_safeguard_gpt_oss_manifest",
+    "build_vision_qwen_manifest",
     "build_wave1_core_brain_catalog",
+    "build_wave1_extended_brain_catalog",
 ]
