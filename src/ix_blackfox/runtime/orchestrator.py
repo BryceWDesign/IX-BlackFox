@@ -9,8 +9,11 @@ from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
 
-from ix_blackfox.bus import InMemoryEventBus
-from ix_blackfox.brains import BrainInvocationReceiptLedger
+from ix_blackfox.brains import (
+    BrainEscalationDecision,
+    BrainEscalationPolicy,
+    BrainInvocationReceiptLedger,
+)
 from ix_blackfox.config import RuntimeConfig, load_runtime_config
 from ix_blackfox.eval import (
     EvaluationContext,
@@ -114,6 +117,7 @@ class RuntimeRunReport:
     sentinel_report: SentinelReport
     replay_observation: ReplayObservation
     task_inference: TaskInference | None = None
+    escalation_decision: BrainEscalationDecision | None = None
     governance_preflight: RuntimeGovernancePreflightResult | None = None
     approval_resolution: RuntimeApprovalResolution | None = None
     governance_receipts: RuntimeGovernanceReceiptReport | None = None
@@ -144,6 +148,10 @@ class RuntimeRunReport:
                 "matched_labels": self.task_inference.matched_labels,
             }
 
+        escalation = None
+        if self.escalation_decision is not None:
+            escalation = _escalation_to_dict(self.escalation_decision)
+
         governance_preflight = None
         if self.governance_preflight is not None:
             governance_preflight = self.governance_preflight.to_dict()
@@ -170,6 +178,7 @@ class RuntimeRunReport:
             "sentinel_report": _sentinel_to_dict(self.sentinel_report),
             "replay_observation": asdict(self.replay_observation),
             "task_inference": inference,
+            "escalation_decision": escalation,
             "governance_preflight": governance_preflight,
             "approval_resolution": approval_resolution,
             "governance_receipts": governance_receipts,
@@ -215,6 +224,7 @@ class BlackFoxRuntime:
         approval_resolver: RuntimeApprovalResolver,
         receipt_recorder: RuntimeGovernanceReceiptRecorder,
         primary_brain: PrimaryBrainRuntime | None = None,
+        escalation_policy: BrainEscalationPolicy | None = None,
     ) -> None:
         self._config = config
         self._kernel = kernel
@@ -240,6 +250,7 @@ class BlackFoxRuntime:
         self._receipt_recorder = receipt_recorder
         self._primary_brain = primary_brain or PrimaryBrainRuntime(config=config)
         self._brain_providers = self._primary_brain.build_providers()
+        self._escalation_policy = escalation_policy or BrainEscalationPolicy()
         self._session_id = f"session-{uuid4().hex}"
         self._loaded_packs: dict[str, BasePack] = {}
 
@@ -274,13 +285,15 @@ class BlackFoxRuntime:
             "blackfox-development-state-secret",
         )
         state_store = VaultStateStore(
-            root_dir=config.paths.state_dir / "vault", secret=state_secret
+            root_dir=config.paths.state_dir / "vault",
+            secret=state_secret,
         )
         replay_guard = TaskReplayGuard()
         classifier = DeterministicTaskClassifier()
         governance_preflight = RuntimeGovernancePreflightEngine()
         approval_resolver = RuntimeApprovalResolver()
         receipt_recorder = RuntimeGovernanceReceiptRecorder()
+        escalation_policy = BrainEscalationPolicy()
 
         runtime = cls(
             config=config,
@@ -305,6 +318,7 @@ class BlackFoxRuntime:
             governance_preflight=governance_preflight,
             approval_resolver=approval_resolver,
             receipt_recorder=receipt_recorder,
+            escalation_policy=escalation_policy,
         )
         kernel.initialize()
         runtime._register_default_manifests()
@@ -381,9 +395,7 @@ class BlackFoxRuntime:
             source="switchboard",
         )
 
-        governance_preflight = self._governance_preflight.evaluate(
-            task=task, route=route
-        )
+        governance_preflight = self._governance_preflight.evaluate(task=task, route=route)
         approval_resolution = self._approval_resolver.resolve(
             task=task,
             preflight=governance_preflight,
@@ -395,7 +407,6 @@ class BlackFoxRuntime:
             ledger=governance_receipt_ledger,
             preflight=governance_preflight,
         )
-
         self._receipt_recorder.record_approval_resolution(
             ledger=governance_receipt_ledger,
             preflight=governance_preflight,
@@ -416,9 +427,7 @@ class BlackFoxRuntime:
         )
 
         if governance_preflight.blocked:
-            failed_task = task.mark_failed(
-                error=governance_preflight.decision.rationale
-            )
+            failed_task = task.mark_failed(error=governance_preflight.decision.rationale)
             sentinel_report = self._sentinel.evaluate(
                 SentinelContext(
                     task=failed_task,
@@ -465,6 +474,13 @@ class BlackFoxRuntime:
                     approval_satisfied=approval_satisfied,
                 )
             )
+            escalation_decision = self._evaluate_reasoning_escalation(
+                task=failed_task,
+                route=route,
+                sentinel_report=sentinel_report,
+                verification=verification,
+                approval_resolution=approval_resolution,
+            )
             return self._finalize_run(
                 task=failed_task,
                 route=route,
@@ -472,6 +488,7 @@ class BlackFoxRuntime:
                 pack_result=None,
                 replay_observation=replay_observation,
                 task_inference=inference,
+                escalation_decision=escalation_decision,
                 sentinel_report=sentinel_report,
                 evaluation=evaluation,
                 verification=verification,
@@ -531,6 +548,13 @@ class BlackFoxRuntime:
                     approval_satisfied=approval_satisfied,
                 )
             )
+            escalation_decision = self._evaluate_reasoning_escalation(
+                task=paused_task,
+                route=route,
+                sentinel_report=sentinel_report,
+                verification=verification,
+                approval_resolution=approval_resolution,
+            )
             return self._finalize_run(
                 task=paused_task,
                 route=route,
@@ -538,6 +562,7 @@ class BlackFoxRuntime:
                 pack_result=None,
                 replay_observation=replay_observation,
                 task_inference=inference,
+                escalation_decision=escalation_decision,
                 sentinel_report=sentinel_report,
                 evaluation=evaluation,
                 verification=verification,
@@ -609,10 +634,7 @@ class BlackFoxRuntime:
             config=self._config,
             bus=self._bus,
             shared_state=self._shared_state,
-            brain=_pack_brain_context(
-                plan=primary_brain_plan,
-                outcome=primary_brain_outcome,
-            ),
+            brain=_pack_brain_context(plan=primary_brain_plan, outcome=primary_brain_outcome),
             metadata={
                 "route_confidence": route.confidence,
                 "route_reason": route.reason.value,
@@ -684,6 +706,13 @@ class BlackFoxRuntime:
                     approval_satisfied=approval_satisfied,
                 )
             )
+            escalation_decision = self._evaluate_reasoning_escalation(
+                task=failed_task,
+                route=route,
+                sentinel_report=sentinel_report,
+                verification=verification,
+                approval_resolution=approval_resolution,
+            )
             return self._finalize_run(
                 task=failed_task,
                 route=route,
@@ -691,6 +720,7 @@ class BlackFoxRuntime:
                 pack_result=None,
                 replay_observation=replay_observation,
                 task_inference=inference,
+                escalation_decision=escalation_decision,
                 sentinel_report=sentinel_report,
                 evaluation=evaluation,
                 verification=verification,
@@ -770,6 +800,13 @@ class BlackFoxRuntime:
                 approval_satisfied=approval_satisfied,
             )
         )
+        escalation_decision = self._evaluate_reasoning_escalation(
+            task=completed_task,
+            route=route,
+            sentinel_report=sentinel_report,
+            verification=verification,
+            approval_resolution=approval_resolution,
+        )
         return self._finalize_run(
             task=completed_task,
             route=route,
@@ -778,6 +815,7 @@ class BlackFoxRuntime:
             artifact_materializations=artifact_materializations,
             replay_observation=replay_observation,
             task_inference=inference,
+            escalation_decision=escalation_decision,
             sentinel_report=sentinel_report,
             evaluation=evaluation,
             verification=verification,
@@ -797,6 +835,7 @@ class BlackFoxRuntime:
         artifact_materializations: dict[str, Path] | None = None,
         replay_observation: ReplayObservation,
         task_inference: TaskInference,
+        escalation_decision: BrainEscalationDecision | None,
         sentinel_report: SentinelReport,
         evaluation: EvaluationResult,
         verification: VerificationReport,
@@ -880,6 +919,7 @@ class BlackFoxRuntime:
             sentinel_report=sentinel_report,
             replay_observation=replay_observation,
             task_inference=task_inference,
+            escalation_decision=escalation_decision,
             governance_preflight=governance_preflight,
             approval_resolution=approval_resolution,
             governance_receipts=governance_receipts,
@@ -970,6 +1010,64 @@ class BlackFoxRuntime:
         )
         return receipt_report
 
+    def _evaluate_reasoning_escalation(
+        self,
+        *,
+        task: TaskRecord,
+        route: RoutingDecision,
+        sentinel_report: SentinelReport,
+        verification: VerificationReport,
+        approval_resolution: RuntimeApprovalResolution,
+    ) -> BrainEscalationDecision:
+        repeated_failures = 1 if task.state == TaskState.FAILED else 0
+        current_escalation_hops = _coerce_non_negative_int(
+            task.request.metadata.get("reasoning_escalation_hops", 0)
+        )
+        explicit_deep_reasoning = _explicit_deep_reasoning_requested(
+            task.request.input.prompt
+        )
+
+        decision = self._escalation_policy.evaluate(
+            route_confidence=route.confidence,
+            contradiction_detected=sentinel_report.has_contradiction_signal(),
+            verification_failed=verification.failed(),
+            repeated_failures=repeated_failures,
+            explicit_deep_reasoning=explicit_deep_reasoning,
+            approval_required=approval_resolution.required,
+            budget=self._config.brains.execution_profile.budget.escalation,
+            current_escalation_hops=current_escalation_hops,
+        )
+
+        if decision.has_reasons:
+            if decision.should_escalate:
+                level = "warning"
+                message = (
+                    f"Reasoning escalation requested (score={decision.score}, "
+                    f"triggers={', '.join(decision.trigger_codes())})."
+                )
+            elif decision.blocked_by_budget:
+                level = "warning"
+                message = (
+                    f"Reasoning escalation was justified but blocked by budget "
+                    f"(score={decision.score}, blocked_reason={decision.blocked_reason})."
+                )
+            else:
+                level = "info"
+                message = (
+                    f"Reasoning escalation signals were observed but stayed below threshold "
+                    f"(score={decision.score}, triggers={', '.join(decision.trigger_codes())})."
+                )
+
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="escalation",
+                message=message,
+                level=level,
+                source="brain.escalation",
+            )
+
+        return decision
+
     def _evaluate_run(
         self,
         *,
@@ -1055,18 +1153,16 @@ class BlackFoxRuntime:
                 )
             )
 
-        if sentinel_report.has_severity(
-            SentinelSeverity.CRITICAL
-        ) or sentinel_report.has_severity(SentinelSeverity.ERROR):
+        if sentinel_report.has_severity(SentinelSeverity.CRITICAL) or sentinel_report.has_severity(
+            SentinelSeverity.ERROR
+        ):
             findings.append(
                 EvaluationFinding(
                     code="sentinel",
                     severity=EvaluationSeverity.ERROR,
                     summary="Sentinel reported a blocking runtime issue.",
                     data={
-                        "highest_severity": _sentinel_highest_severity(
-                            sentinel_report
-                        ).value
+                        "highest_severity": _sentinel_highest_severity(sentinel_report).value
                     },
                 )
             )
@@ -1361,6 +1457,27 @@ def _sentinel_to_dict(report: SentinelReport) -> dict[str, Any]:
     }
 
 
+def _escalation_to_dict(decision: BrainEscalationDecision) -> dict[str, Any]:
+    return {
+        "should_escalate": decision.should_escalate,
+        "score": decision.score,
+        "trigger_codes": decision.trigger_codes(),
+        "blocked_by_budget": decision.blocked_by_budget,
+        "blocked_reason": decision.blocked_reason,
+        "current_escalation_hops": decision.current_escalation_hops,
+        "remaining_hops": decision.remaining_hops,
+        "reasons": [
+            {
+                "trigger": reason.trigger.value,
+                "score": reason.score,
+                "summary": reason.summary,
+                "metadata": reason.metadata,
+            }
+            for reason in decision.reasons
+        ],
+    }
+
+
 def _evaluation_status_from_findings(
     findings: tuple[EvaluationFinding, ...],
 ) -> EvaluationStatus:
@@ -1381,16 +1498,10 @@ def _evaluation_score_for_status(status: EvaluationStatus) -> float:
 
 
 def _sentinel_highest_severity(report: SentinelReport) -> SentinelSeverity:
-    severity_order = (
-        SentinelSeverity.CRITICAL,
-        SentinelSeverity.ERROR,
-        SentinelSeverity.WARNING,
-        SentinelSeverity.INFO,
-    )
-    for severity in severity_order:
-        if report.has_severity(severity):
-            return severity
-    return SentinelSeverity.INFO
+    highest = report.highest_severity()
+    if highest is None:
+        return SentinelSeverity.INFO
+    return highest
 
 
 def _materialized_artifact_payload(
@@ -1416,24 +1527,9 @@ def _materialized_artifact_payload(
     return payload
 
 
-def _artifact_stem(path: Path) -> str:
-    return path.stem.lower()
-
-
 def _safe_json_dump(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-
-
-def _json_path(base_dir: Path, relative: str) -> Path:
-    normalized = relative.strip("/").replace("\\", "/")
-    if normalized.endswith(".json"):
-        return base_dir / normalized
-    return base_dir / f"{normalized}.json"
-
-
-def _label_set(task: TaskRecord) -> set[str]:
-    return {label.lower() for label in task.request.labels}
 
 
 def _build_governance_observations(
@@ -1466,6 +1562,27 @@ def _build_governance_observations(
             "reason": governance_preflight.decision.rationale,
         },
     )
+
+
+def _explicit_deep_reasoning_requested(prompt: str) -> bool:
+    normalized = prompt.strip().lower()
+    indicators = (
+        "deep reasoning",
+        "reason deeply",
+        "think hard",
+        "step by step",
+        "carefully reason",
+        "heavy reasoning",
+    )
+    return any(indicator in normalized for indicator in indicators)
+
+
+def _coerce_non_negative_int(value: Any) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return 0
+    return max(parsed, 0)
 
 
 def _utc_now() -> datetime:
