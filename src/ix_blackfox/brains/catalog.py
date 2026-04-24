@@ -183,6 +183,66 @@ def build_primary_gpt_oss_manifest(
     )
 
 
+def build_reasoner_gpt_oss_manifest(
+    *,
+    provider_name: str = "openai-compatible",
+    model_name: str = "gpt-oss:120b",
+    version: str = "0.1.0",
+    description: str = "Escalated deep-reasoning coprocessor for hard cases.",
+    preferred_packs: tuple[str, ...] = ("programming", "architecture"),
+    labels: tuple[str, ...] = ("reasoner", "deep-reasoning", "escalation", "remote"),
+    max_input_tokens: int = 65536,
+    max_output_tokens: int = 4096,
+    max_concurrent_invocations: int = 1,
+    timeout_seconds: float = 60.0,
+    max_tool_calls: int = 0,
+) -> BrainManifest:
+    """
+    Build the default `gpt-oss-reasoner-120b` deep-reasoning manifest.
+
+    This is the Wave 1 escalation lane for:
+    - low-confidence routing follow-up
+    - contradiction-heavy reasoning
+    - failed verification review
+    """
+    return BrainManifest(
+        brain_name="gpt-oss-reasoner-120b",
+        provider_name=provider_name,
+        model_name=model_name,
+        version=version,
+        description=description,
+        labels=labels,
+        preferred_packs=preferred_packs,
+        is_default=False,
+        profile=BrainModelProfile(
+            brain_name="gpt-oss-reasoner-120b",
+            roles=(BrainRole.REASONING,),
+            capabilities=(
+                BrainCapability.TEXT_GENERATION,
+                BrainCapability.STRUCTURED_OUTPUT,
+                BrainCapability.LONG_CONTEXT_REASONING,
+            ),
+            context_window=BrainContextWindow(
+                max_input_tokens=max_input_tokens,
+                max_output_tokens=max_output_tokens,
+            ),
+            modalities=BrainModalityProfile(
+                input_modalities=(BrainModality.TEXT,),
+                output_modalities=(BrainModality.TEXT, BrainModality.JSON),
+                supports_streaming=False,
+                supports_structured_output=True,
+                supports_tool_use=False,
+            ),
+            limits=BrainExecutionLimits(
+                max_concurrent_invocations=max_concurrent_invocations,
+                timeout_seconds=timeout_seconds,
+                max_tool_calls=max_tool_calls,
+            ),
+            description=description,
+        ),
+    )
+
+
 def build_policy_gpt_oss_manifest(
     *,
     provider_name: str = "ollama",
@@ -396,6 +456,42 @@ def build_primary_brain_catalog(
         metadata={
             "catalog_name": "wave1-primary",
             "catalog_version": version,
+        },
+    )
+
+
+def build_reasoning_brain_catalog(
+    *,
+    provider_name: str = "openai-compatible",
+    model_name: str = "gpt-oss:120b",
+    version: str = "0.1.0",
+) -> BrainCatalog:
+    """
+    Build the default Wave 1 escalation-reasoning catalog.
+
+    The resulting catalog declares `gpt-oss-reasoner-120b` as the default
+    brain for deep reasoning escalation.
+    """
+    reasoner_manifest = build_reasoner_gpt_oss_manifest(
+        provider_name=provider_name,
+        model_name=model_name,
+        version=version,
+    )
+
+    return BrainCatalog(
+        manifests=(reasoner_manifest,),
+        default_brain_name=reasoner_manifest.brain_name,
+        role_defaults={
+            BrainRole.REASONING: reasoner_manifest.brain_name,
+        },
+        pack_defaults={
+            "programming": reasoner_manifest.brain_name,
+            "architecture": reasoner_manifest.brain_name,
+        },
+        metadata={
+            "catalog_name": "wave1-reasoning",
+            "catalog_version": version,
+            "reasoning_brain_name": reasoner_manifest.brain_name,
         },
     )
 
