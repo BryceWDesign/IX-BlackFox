@@ -6,8 +6,8 @@ Multi-brain runtime contracts for IX-BlackFox.
 This package defines provider-agnostic cognitive-plane primitives that
 sit underneath pack execution and above concrete inference backends.
 
-Only normalized contracts live here. Manifest registration, provider
-adapters, and routing policy arrive in later commits.
+Only normalized contracts, manifests, and registries live here.
+Routing policy and provider adapters arrive in later commits.
 """
 
 from ix_blackfox.brains.contracts import (
@@ -21,12 +21,14 @@ from ix_blackfox.brains.contracts import (
     BrainModality,
     BrainRole,
 )
+from ix_blackfox.brains.manifest import BrainManifest, BrainManifestSnapshot
 from ix_blackfox.brains.models import (
     BrainContextWindow,
     BrainExecutionLimits,
     BrainModelProfile,
     BrainModalityProfile,
 )
+from ix_blackfox.brains.registry import BrainManifestRegistry
 
 __all__ = [
     "BrainCapability",
@@ -37,6 +39,9 @@ __all__ = [
     "BrainInvocationRequest",
     "BrainInvocationResult",
     "BrainInvocationStatus",
+    "BrainManifest",
+    "BrainManifestRegistry",
+    "BrainManifestSnapshot",
     "BrainMessage",
     "BrainModality",
     "BrainModalityProfile",
