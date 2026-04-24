@@ -6,6 +6,8 @@ from enum import StrEnum, auto
 from typing import Any
 from uuid import uuid4
 
+from ix_blackfox.brains import SafeguardDisposition, SafeguardFindingSeverity
+
 
 class ActionKind(StrEnum):
     """
@@ -136,6 +138,65 @@ class RiskFactor:
 
 
 @dataclass(frozen=True, slots=True)
+class GovernanceSafetyMerge:
+    """
+    Immutable record of how safeguard evidence influenced governance risk.
+
+    Attributes
+    ----------
+    advisory_disposition:
+        Advisory semantic-safety disposition emitted by the safeguard lane.
+    finding_count:
+        Number of safeguard findings considered during merge.
+    finding_codes:
+        Stable safeguard finding codes in declaration order.
+    policy_tags:
+        Stable safeguard policy tags in declaration order.
+    highest_severity:
+        Highest safeguard finding severity when present.
+    original_risk_level:
+        Risk level before semantic safety merge.
+    merged_risk_level:
+        Risk level after semantic safety merge.
+    elevated_risk:
+        Whether risk increased because of safeguard evidence.
+    forced_review:
+        Whether semantic evidence forced review semantics.
+    rationale:
+        Human-readable explanation of the merge outcome.
+    """
+
+    advisory_disposition: SafeguardDisposition
+    finding_count: int
+    finding_codes: tuple[str, ...] = field(default_factory=tuple)
+    policy_tags: tuple[str, ...] = field(default_factory=tuple)
+    highest_severity: SafeguardFindingSeverity | None = None
+    original_risk_level: RiskLevel | None = None
+    merged_risk_level: RiskLevel | None = None
+    elevated_risk: bool = False
+    forced_review: bool = False
+    rationale: str = ""
+
+    def __post_init__(self) -> None:
+        if self.finding_count < 0:
+            raise ValueError("finding_count must be zero or greater.")
+        if self.finding_count == 0 and self.advisory_disposition is not SafeguardDisposition.ALLOW:
+            raise ValueError(
+                "Safety merges without findings must use advisory_disposition=ALLOW."
+            )
+
+        object.__setattr__(self, "finding_codes", _normalize_labels(self.finding_codes))
+        object.__setattr__(self, "policy_tags", _normalize_labels(self.policy_tags))
+        object.__setattr__(self, "rationale", _normalize_optional_text(self.rationale) or "")
+
+    def has_findings(self) -> bool:
+        """
+        Return True when this merge carries one or more safeguard findings.
+        """
+        return self.finding_count > 0
+
+
+@dataclass(frozen=True, slots=True)
 class ActionRiskProfile:
     """
     Normalized governance risk view for one action intent.
@@ -153,6 +214,9 @@ class ActionRiskProfile:
         Explicit factors supporting the risk classification.
     tags:
         Optional normalized tags for later policy matching.
+    safety_merge:
+        Optional semantic-safety merge record used to explain how the
+        safeguard lane influenced the final risk view.
     """
 
     intent_id: str
@@ -160,6 +224,7 @@ class ActionRiskProfile:
     requires_approval: bool
     factors: tuple[RiskFactor, ...] = field(default_factory=tuple)
     tags: tuple[str, ...] = field(default_factory=tuple)
+    safety_merge: GovernanceSafetyMerge | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
