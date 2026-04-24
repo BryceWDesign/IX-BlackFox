@@ -6,8 +6,8 @@ Multi-brain runtime contracts for IX-BlackFox.
 This package defines provider-agnostic cognitive-plane primitives that
 sit underneath pack execution and above concrete inference backends.
 
-Only normalized contracts, manifests, registries, routing policy, and
-execution-profile primitives live here. Provider adapters arrive later.
+Normalized contracts, manifests, registries, routing policy, built-in
+catalog helpers, provider adapters, and rendering primitives live here.
 """
 
 from ix_blackfox.brains.budgets import (
@@ -17,6 +17,11 @@ from ix_blackfox.brains.budgets import (
     BrainInferenceBudget,
     BrainLatencyClass,
     BrainLatencyBudget,
+)
+from ix_blackfox.brains.catalog import (
+    BrainCatalog,
+    build_primary_brain_catalog,
+    build_primary_gpt_oss_manifest,
 )
 from ix_blackfox.brains.contracts import (
     BrainCapability,
@@ -59,6 +64,7 @@ from ix_blackfox.brains.router import BrainRouteCandidate, BrainRouter, BrainRou
 
 __all__ = [
     "BrainCapability",
+    "BrainCatalog",
     "BrainContextBudget",
     "BrainContextWindow",
     "BrainCostClass",
@@ -96,4 +102,6 @@ __all__ = [
     "HarmonyRenderer",
     "NormalizedConversation",
     "PlainTranscriptRenderer",
+    "build_primary_brain_catalog",
+    "build_primary_gpt_oss_manifest",
 ]
