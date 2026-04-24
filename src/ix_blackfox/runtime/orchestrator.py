@@ -73,6 +73,7 @@ from ix_blackfox.runtime.receipts import (
 )
 from ix_blackfox.runtime.replay import ReplayObservation, TaskReplayGuard
 from ix_blackfox.runtime.safeguard import SafeguardRuntime
+from ix_blackfox.runtime.vision import VisionOutcome, VisionRuntime
 from ix_blackfox.sentinel import (
     SentinelContext,
     SentinelReport,
@@ -121,6 +122,7 @@ class RuntimeRunReport:
     replay_observation: ReplayObservation
     task_inference: TaskInference | None = None
     escalation_decision: BrainEscalationDecision | None = None
+    vision_outcome: dict[str, Any] | None = None
     safeguard_assessment: SafeguardAssessment | None = None
     governance_preflight: RuntimeGovernancePreflightResult | None = None
     approval_resolution: RuntimeApprovalResolution | None = None
@@ -187,6 +189,7 @@ class RuntimeRunReport:
             "replay_observation": asdict(self.replay_observation),
             "task_inference": inference,
             "escalation_decision": escalation,
+            "vision_outcome": self.vision_outcome,
             "safeguard_assessment": safeguard_assessment,
             "governance_preflight": governance_preflight,
             "approval_resolution": approval_resolution,
@@ -234,6 +237,7 @@ class BlackFoxRuntime:
         receipt_recorder: RuntimeGovernanceReceiptRecorder,
         primary_brain: PrimaryBrainRuntime | None = None,
         safeguard_runtime: SafeguardRuntime | None = None,
+        vision_runtime: VisionRuntime | None = None,
         escalation_policy: BrainEscalationPolicy | None = None,
     ) -> None:
         self._config = config
@@ -260,6 +264,7 @@ class BlackFoxRuntime:
         self._receipt_recorder = receipt_recorder
         self._primary_brain = primary_brain or PrimaryBrainRuntime(config=config)
         self._safeguard_runtime = safeguard_runtime or SafeguardRuntime(config=config)
+        self._vision_runtime = vision_runtime or VisionRuntime(config=config)
         self._brain_providers = self._primary_brain.build_providers()
         self._escalation_policy = escalation_policy or BrainEscalationPolicy()
         self._session_id = f"session-{uuid4().hex}"
@@ -307,6 +312,7 @@ class BlackFoxRuntime:
         receipt_recorder = RuntimeGovernanceReceiptRecorder()
         primary_brain = PrimaryBrainRuntime(config=config)
         safeguard_runtime = SafeguardRuntime(config=config)
+        vision_runtime = VisionRuntime(config=config)
         escalation_policy = BrainEscalationPolicy()
 
         runtime = cls(
@@ -334,6 +340,7 @@ class BlackFoxRuntime:
             receipt_recorder=receipt_recorder,
             primary_brain=primary_brain,
             safeguard_runtime=safeguard_runtime,
+            vision_runtime=vision_runtime,
             escalation_policy=escalation_policy,
         )
         kernel.initialize()
@@ -413,6 +420,12 @@ class BlackFoxRuntime:
 
         governance_receipt_ledger = self._receipt_recorder.create_ledger()
         brain_receipt_ledger = BrainInvocationReceiptLedger()
+
+        vision_outcome = self._run_vision_lane_if_applicable(
+            task=task,
+            route=route,
+            brain_receipt_ledger=brain_receipt_ledger,
+        )
 
         safeguard_plan = self._safeguard_runtime.plan(
             task=task,
@@ -568,6 +581,7 @@ class BlackFoxRuntime:
                 replay_observation=replay_observation,
                 task_inference=inference,
                 escalation_decision=escalation_decision,
+                vision_outcome=vision_outcome,
                 safeguard_assessment=safeguard_outcome.assessment,
                 sentinel_report=sentinel_report,
                 evaluation=evaluation,
@@ -643,6 +657,7 @@ class BlackFoxRuntime:
                 replay_observation=replay_observation,
                 task_inference=inference,
                 escalation_decision=escalation_decision,
+                vision_outcome=vision_outcome,
                 safeguard_assessment=safeguard_outcome.assessment,
                 sentinel_report=sentinel_report,
                 evaluation=evaluation,
@@ -721,6 +736,7 @@ class BlackFoxRuntime:
                 "route_reason": route.reason.value,
                 "session_id": self._session_id,
                 "approval_ids": approval_resolution.approval_ids,
+                "vision_outcome": None if vision_outcome is None else _vision_outcome_to_dict(vision_outcome),
             },
         )
 
@@ -802,6 +818,7 @@ class BlackFoxRuntime:
                 replay_observation=replay_observation,
                 task_inference=inference,
                 escalation_decision=escalation_decision,
+                vision_outcome=vision_outcome,
                 safeguard_assessment=safeguard_outcome.assessment,
                 sentinel_report=sentinel_report,
                 evaluation=evaluation,
@@ -898,6 +915,7 @@ class BlackFoxRuntime:
             replay_observation=replay_observation,
             task_inference=inference,
             escalation_decision=escalation_decision,
+            vision_outcome=vision_outcome,
             safeguard_assessment=safeguard_outcome.assessment,
             sentinel_report=sentinel_report,
             evaluation=evaluation,
@@ -907,6 +925,67 @@ class BlackFoxRuntime:
             governance_receipt_ledger=governance_receipt_ledger,
             brain_receipt_ledger=brain_receipt_ledger,
         )
+
+    def _run_vision_lane_if_applicable(
+        self,
+        *,
+        task: TaskRecord,
+        route: RoutingDecision,
+        brain_receipt_ledger: BrainInvocationReceiptLedger,
+    ) -> VisionOutcome | None:
+        images = _extract_vision_images(task)
+        if not images:
+            return None
+
+        question = _coerce_optional_text(task.request.metadata.get("vision_question"))
+        plan = self._vision_runtime.plan(
+            task=task,
+            route=route,
+            pack_name=route.capability_name,
+            images=images,
+            question=question,
+        )
+        outcome = self._vision_runtime.invoke(
+            plan=plan,
+            providers=self._brain_providers,
+            receipt_ledger=brain_receipt_ledger,
+        )
+
+        if outcome.skipped:
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="vision",
+                message=(
+                    f"Vision brain '{plan.manifest.brain_name}' was planned "
+                    f"but not invoked: {outcome.failure_message}"
+                ),
+                level="warning",
+                source="brain.vision",
+            )
+        elif outcome.succeeded:
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="vision",
+                message=(
+                    f"Vision brain '{plan.manifest.brain_name}' completed through provider "
+                    f"'{outcome.provider_name}' for {plan.image_count} image(s)."
+                ),
+                level="info",
+                source="brain.vision",
+            )
+        else:
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="vision",
+                message=(
+                    f"Vision brain '{plan.manifest.brain_name}' invocation failed: "
+                    f"{outcome.failure_message}"
+                ),
+                level="warning",
+                source="brain.vision",
+            )
+
+        return outcome
 
     def _finalize_run(
         self,
@@ -919,6 +998,7 @@ class BlackFoxRuntime:
         replay_observation: ReplayObservation,
         task_inference: TaskInference,
         escalation_decision: BrainEscalationDecision | None,
+        vision_outcome: VisionOutcome | None,
         safeguard_assessment: SafeguardAssessment | None,
         sentinel_report: SentinelReport,
         evaluation: EvaluationResult,
@@ -1004,6 +1084,7 @@ class BlackFoxRuntime:
             replay_observation=replay_observation,
             task_inference=task_inference,
             escalation_decision=escalation_decision,
+            vision_outcome=None if vision_outcome is None else _vision_outcome_to_dict(vision_outcome),
             safeguard_assessment=safeguard_assessment,
             governance_preflight=governance_preflight,
             approval_resolution=approval_resolution,
@@ -1600,6 +1681,27 @@ def _safeguard_assessment_to_dict(assessment: SafeguardAssessment) -> dict[str, 
     }
 
 
+def _vision_outcome_to_dict(outcome: VisionOutcome) -> dict[str, Any]:
+    status = None
+    if outcome.result is not None:
+        status = outcome.result.status.value
+
+    return {
+        "brain_name": outcome.plan.manifest.brain_name,
+        "provider_name": outcome.provider_name,
+        "model_name": outcome.plan.manifest.model_name,
+        "route_capability_name": outcome.plan.route_capability_name,
+        "source_pack_name": outcome.plan.source_pack_name,
+        "image_count": outcome.plan.image_count,
+        "invoked": outcome.invoked,
+        "succeeded": outcome.succeeded,
+        "skipped": outcome.skipped,
+        "status": status,
+        "observation_text": outcome.observation_text,
+        "failure_message": outcome.failure_message,
+    }
+
+
 def _evaluation_status_from_findings(
     findings: tuple[EvaluationFinding, ...],
 ) -> EvaluationStatus:
@@ -1647,6 +1749,93 @@ def _materialized_artifact_payload(
     payload.setdefault("summary", pack_result.summary)
     payload.setdefault("metrics", pack_result.metrics)
     return payload
+
+
+def _extract_vision_images(task: TaskRecord) -> tuple[str, ...]:
+    candidate_values: list[str] = []
+
+    metadata = task.request.metadata
+    for key in ("vision_images", "image_inputs", "screenshot_refs", "ui_images"):
+        raw_value = metadata.get(key)
+        candidate_values.extend(_coerce_string_sequence(raw_value))
+
+    attachments = getattr(task.request.input, "attachments", ())
+    for attachment in attachments:
+        image_ref = _attachment_to_image_ref(attachment)
+        if image_ref is not None:
+            candidate_values.append(image_ref)
+
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for value in candidate_values:
+        cleaned = value.strip()
+        if not cleaned:
+            continue
+        if cleaned not in seen:
+            normalized.append(cleaned)
+            seen.add(cleaned)
+
+    return tuple(normalized)
+
+
+def _attachment_to_image_ref(attachment: Any) -> str | None:
+    if isinstance(attachment, str):
+        cleaned = attachment.strip()
+        if not cleaned:
+            return None
+        lowered = cleaned.lower()
+        if lowered.startswith(("data:image/", "image:", "img:", "base64-image")):
+            return cleaned
+        if lowered.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp")):
+            return cleaned
+        return None
+
+    if isinstance(attachment, dict):
+        mime_type = _coerce_optional_text(
+            attachment.get("mime_type") or attachment.get("content_type") or attachment.get("type")
+        )
+        if mime_type is not None and "image" not in mime_type.lower():
+            return None
+
+        for key in ("data", "content", "value", "ref", "path", "url", "attachment_id"):
+            value = _coerce_optional_text(attachment.get(key))
+            if value is not None:
+                return value
+        return None
+
+    mime_type = _coerce_optional_text(
+        getattr(attachment, "mime_type", None)
+        or getattr(attachment, "content_type", None)
+        or getattr(attachment, "type", None)
+    )
+    if mime_type is not None and "image" not in mime_type.lower():
+        return None
+
+    for attribute_name in ("data", "content", "value", "ref", "path", "url", "attachment_id"):
+        value = _coerce_optional_text(getattr(attachment, attribute_name, None))
+        if value is not None:
+            return value
+
+    return None
+
+
+def _coerce_string_sequence(value: Any) -> list[str]:
+    if value is None:
+        return []
+
+    if isinstance(value, str):
+        cleaned = value.strip()
+        return [] if not cleaned else [cleaned]
+
+    if isinstance(value, (list, tuple)):
+        result: list[str] = []
+        for item in value:
+            cleaned = _coerce_optional_text(item)
+            if cleaned is not None:
+                result.append(cleaned)
+        return result
+
+    return []
 
 
 def _safe_json_dump(path: Path, payload: dict[str, Any]) -> None:
@@ -1705,6 +1894,13 @@ def _coerce_non_negative_int(value: Any) -> int:
     except (TypeError, ValueError):
         return 0
     return max(parsed, 0)
+
+
+def _coerce_optional_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    cleaned = str(value).strip()
+    return cleaned or None
 
 
 def _utc_now() -> datetime:
