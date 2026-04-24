@@ -8,7 +8,7 @@ manifest-driven so routing and loading decisions can be explicit and
 testable before executable pack logic is introduced.
 """
 
-from ix_blackfox.packs.base import BasePack, PackContext, PackExecutionResult
+from ix_blackfox.packs.base import BasePack, PackBrainContext, PackContext, PackExecutionResult
 from ix_blackfox.packs.loader import EntrypointSpec, LoadedPack, PackLoadError, PackLoader
 from ix_blackfox.packs.manifest import (
     PackCapability,
@@ -24,6 +24,7 @@ __all__ = [
     "LoadedPack",
     "PackCapability",
     "PackCapabilityType",
+    "PackBrainContext",
     "PackContext",
     "PackExecutionResult",
     "PackLoadError",
