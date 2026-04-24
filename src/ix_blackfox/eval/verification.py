@@ -139,6 +139,18 @@ class VerificationReport:
         """
         return self.status == VerificationStatus.PASSED
 
+    def failed(self) -> bool:
+        """
+        Return True when the verification status is FAILED.
+        """
+        return self.status == VerificationStatus.FAILED
+
+    def needs_review(self) -> bool:
+        """
+        Return True when the verification status is NEEDS_REVIEW.
+        """
+        return self.status == VerificationStatus.NEEDS_REVIEW
+
     def filter_by_severity(
         self,
         severity: EvaluationSeverity,
@@ -147,6 +159,20 @@ class VerificationReport:
         Return issues matching one severity level.
         """
         return tuple(issue for issue in self.issues if issue.severity == severity)
+
+    def has_issue_code(self, code: str) -> bool:
+        """
+        Return True when an issue with the exact code is present.
+        """
+        normalized_code = _normalize_identifier(code, label="issue code")
+        return any(issue.code == normalized_code for issue in self.issues)
+
+    def has_issue_code_fragment(self, fragment: str) -> bool:
+        """
+        Return True when any issue code contains the supplied fragment.
+        """
+        normalized_fragment = _normalize_identifier(fragment, label="issue code fragment")
+        return any(normalized_fragment in issue.code for issue in self.issues)
 
 
 class OutputVerifier:
@@ -186,9 +212,7 @@ def _verify_artifacts(context: VerificationContext) -> tuple[VerificationIssue, 
 
     produced = set(context.produced_artifacts)
     missing = tuple(
-        artifact
-        for artifact in context.expected_artifacts
-        if artifact not in produced
+        artifact for artifact in context.expected_artifacts if artifact not in produced
     )
     if not missing:
         return ()
@@ -278,9 +302,7 @@ def _verify_required_signals(context: VerificationContext) -> tuple[Verification
         return ()
 
     observed = set(context.observed_signals)
-    missing = tuple(
-        signal for signal in context.required_signals if signal not in observed
-    )
+    missing = tuple(signal for signal in context.required_signals if signal not in observed)
     if not missing:
         return ()
 
