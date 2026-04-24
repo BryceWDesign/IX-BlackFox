@@ -9,7 +9,9 @@ from ix_blackfox.brains import (
     build_primary_brain_catalog,
     build_primary_gpt_oss_manifest,
     build_safeguard_gpt_oss_manifest,
+    build_vision_qwen_manifest,
     build_wave1_core_brain_catalog,
+    build_wave1_extended_brain_catalog,
 )
 
 
@@ -58,6 +60,34 @@ def test_build_safeguard_gpt_oss_manifest_declares_wave1_safeguard_defaults() ->
     assert manifest.profile.limits.max_tool_calls == 0
 
 
+def test_build_vision_qwen_manifest_declares_wave1_multimodal_defaults() -> None:
+    manifest = build_vision_qwen_manifest()
+
+    assert manifest.brain_name == "qwen-vision"
+    assert manifest.provider_name == "vllm"
+    assert manifest.model_name == "qwen2.5-vl:7b"
+    assert manifest.is_default is False
+    assert manifest.roles == (BrainRole.MULTIMODAL,)
+    assert manifest.capabilities == (
+        BrainCapability.VISION_ANALYSIS,
+        BrainCapability.STRUCTURED_OUTPUT,
+        BrainCapability.TEXT_GENERATION,
+    )
+    assert manifest.prefers_pack(" architecture ") is True
+    assert manifest.prefers_pack("programming") is True
+    assert manifest.labels == ("vision", "multimodal", "ui-review", "local")
+    assert manifest.profile.modalities.input_modalities == (
+        manifest.profile.modalities.input_modalities[0],
+        manifest.profile.modalities.input_modalities[1],
+    )
+    assert tuple(modality.value for modality in manifest.profile.modalities.input_modalities) == (
+        "text",
+        "image",
+    )
+    assert manifest.profile.modalities.supports_structured_output is True
+    assert manifest.profile.modalities.supports_tool_use is False
+
+
 def test_build_primary_gpt_oss_manifest_allows_provider_override() -> None:
     manifest = build_primary_gpt_oss_manifest(
         provider_name=" vLLM ",
@@ -101,6 +131,25 @@ def test_build_wave1_core_brain_catalog_includes_primary_and_safeguard() -> None
     assert catalog.brain_for_pack("programming") == "gpt-oss-20b"
     assert catalog.metadata == {
         "catalog_name": "wave1-core",
+        "catalog_version": "0.1.0",
+    }
+
+
+def test_build_wave1_extended_brain_catalog_includes_multimodal_lane() -> None:
+    catalog = build_wave1_extended_brain_catalog()
+
+    assert tuple(manifest.brain_name for manifest in catalog.manifests) == (
+        "gpt-oss-20b",
+        "gpt-oss-safeguard-20b",
+        "qwen-vision",
+    )
+    assert catalog.default_brain_name == "gpt-oss-20b"
+    assert catalog.brain_for_role(BrainRole.PRIMARY) == "gpt-oss-20b"
+    assert catalog.brain_for_role(BrainRole.SAFETY) == "gpt-oss-safeguard-20b"
+    assert catalog.brain_for_role(BrainRole.MULTIMODAL) == "qwen-vision"
+    assert catalog.brain_for_pack("ui-review") == "qwen-vision"
+    assert catalog.metadata == {
+        "catalog_name": "wave1-extended",
         "catalog_version": "0.1.0",
     }
 
