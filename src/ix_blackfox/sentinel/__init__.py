@@ -1,24 +1,23 @@
 """
 Sentinel subsystem.
 
-Sentinel is the runtime conscience of BlackFox. It detects unstable
-plans, contradictions, repeated failure loops, governance-consistency
-violations, and policy-boundary violations before damage compounds.
-The initial core establishes a stable check protocol, issue model, and
-evaluation runtime, and the built-in checks target contradictory
-reasoning signals, repeated failure patterns, governance-boundary
-mismatches, and guardrail bypasses.
+Sentinel is the runtime consistency and anomaly-detection layer of
+IX-BlackFox. It evaluates trace evidence, governance observations, and
+task outcomes to surface contradictions before they become silent
+runtime drift.
+
+The current layer provides:
+- core sentinel issue and report models
+- a deterministic sentinel runtime
+- built-in contradiction and approval-gate consistency checks
+- a helper to register default checks in one step
 """
 
 from ix_blackfox.sentinel.checks import (
-    ContradictionAssertion,
-    ContradictionCheck,
-    FailureLoopCheck,
-    FailureLoopWindow,
-    GovernanceConsistencyCheck,
-    GovernanceObservation,
-    PolicyGuardrailCheck,
-    PolicyObservation,
+    ApprovalGateConsistencyCheck,
+    GovernanceExecutionContradictionCheck,
+    TaskStateTraceContradictionCheck,
+    register_default_sentinel_checks,
 )
 from ix_blackfox.sentinel.core import (
     SentinelCheck,
@@ -31,14 +30,8 @@ from ix_blackfox.sentinel.core import (
 )
 
 __all__ = [
-    "ContradictionAssertion",
-    "ContradictionCheck",
-    "FailureLoopCheck",
-    "FailureLoopWindow",
-    "GovernanceConsistencyCheck",
-    "GovernanceObservation",
-    "PolicyGuardrailCheck",
-    "PolicyObservation",
+    "ApprovalGateConsistencyCheck",
+    "GovernanceExecutionContradictionCheck",
     "SentinelCheck",
     "SentinelContext",
     "SentinelIssue",
@@ -46,4 +39,6 @@ __all__ = [
     "SentinelRuntime",
     "SentinelSeverity",
     "SentinelSnapshot",
+    "TaskStateTraceContradictionCheck",
+    "register_default_sentinel_checks",
 ]
