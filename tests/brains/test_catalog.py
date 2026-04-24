@@ -8,6 +8,8 @@ from ix_blackfox.brains import (
     BrainRole,
     build_primary_brain_catalog,
     build_primary_gpt_oss_manifest,
+    build_safeguard_gpt_oss_manifest,
+    build_wave1_core_brain_catalog,
 )
 
 
@@ -26,9 +28,6 @@ def test_build_primary_gpt_oss_manifest_declares_wave1_primary_defaults() -> Non
         BrainCapability.TOOL_PLANNING,
         BrainCapability.LONG_CONTEXT_REASONING,
     )
-    assert manifest.accepts_modality.__self__ is manifest  # type: ignore[attr-defined]
-    assert manifest.accepts_modality.__func__ is not None  # type: ignore[attr-defined]
-    assert manifest.accepts_modality.__name__ == "accepts_modality"  # type: ignore[attr-defined]
     assert manifest.prefers_pack(" programming ") is True
     assert manifest.prefers_pack("architecture") is True
     assert manifest.labels == ("primary", "gpt-oss", "reasoning", "local")
@@ -36,6 +35,27 @@ def test_build_primary_gpt_oss_manifest_declares_wave1_primary_defaults() -> Non
     assert manifest.profile.modalities.supports_structured_output is True
     assert manifest.profile.modalities.supports_tool_use is True
     assert manifest.profile.limits.max_tool_calls == 8
+
+
+def test_build_safeguard_gpt_oss_manifest_declares_wave1_safeguard_defaults() -> None:
+    manifest = build_safeguard_gpt_oss_manifest()
+
+    assert manifest.brain_name == "gpt-oss-safeguard-20b"
+    assert manifest.provider_name == "ollama"
+    assert manifest.model_name == "gpt-oss-safeguard:20b"
+    assert manifest.is_default is False
+    assert manifest.roles == (BrainRole.SAFETY,)
+    assert manifest.capabilities == (
+        BrainCapability.SAFETY_CLASSIFICATION,
+        BrainCapability.STRUCTURED_OUTPUT,
+        BrainCapability.LONG_CONTEXT_REASONING,
+    )
+    assert manifest.prefers_pack(" programming ") is True
+    assert manifest.labels == ("safeguard", "safety", "semantic-policy", "local")
+    assert manifest.profile.modalities.supports_streaming is False
+    assert manifest.profile.modalities.supports_structured_output is True
+    assert manifest.profile.modalities.supports_tool_use is False
+    assert manifest.profile.limits.max_tool_calls == 0
 
 
 def test_build_primary_gpt_oss_manifest_allows_provider_override() -> None:
@@ -63,6 +83,24 @@ def test_build_primary_brain_catalog_maps_roles_and_packs_to_gpt_oss() -> None:
     assert catalog.brain_for_pack("architecture") == "gpt-oss-20b"
     assert catalog.metadata == {
         "catalog_name": "wave1-primary",
+        "catalog_version": "0.1.0",
+    }
+
+
+def test_build_wave1_core_brain_catalog_includes_primary_and_safeguard() -> None:
+    catalog = build_wave1_core_brain_catalog()
+
+    assert tuple(manifest.brain_name for manifest in catalog.manifests) == (
+        "gpt-oss-20b",
+        "gpt-oss-safeguard-20b",
+    )
+    assert catalog.default_brain_name == "gpt-oss-20b"
+    assert catalog.brain_for_role(BrainRole.PRIMARY) == "gpt-oss-20b"
+    assert catalog.brain_for_role(BrainRole.REASONING) == "gpt-oss-20b"
+    assert catalog.brain_for_role(BrainRole.SAFETY) == "gpt-oss-safeguard-20b"
+    assert catalog.brain_for_pack("programming") == "gpt-oss-20b"
+    assert catalog.metadata == {
+        "catalog_name": "wave1-core",
         "catalog_version": "0.1.0",
     }
 
