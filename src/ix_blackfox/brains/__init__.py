@@ -7,8 +7,8 @@ This package defines provider-agnostic cognitive-plane primitives that
 sit underneath pack execution and above concrete inference backends.
 
 Normalized contracts, manifests, registries, routing policy, built-in
-catalog helpers, provider adapters, safety evidence models, and
-rendering primitives live here.
+catalog helpers, provider adapters, safety evidence models, escalation
+policy, and rendering primitives live here.
 """
 
 from ix_blackfox.brains.budgets import (
@@ -36,6 +36,12 @@ from ix_blackfox.brains.contracts import (
     BrainMessage,
     BrainModality,
     BrainRole,
+)
+from ix_blackfox.brains.escalation import (
+    BrainEscalationDecision,
+    BrainEscalationPolicy,
+    BrainEscalationReason,
+    BrainEscalationTrigger,
 )
 from ix_blackfox.brains.manifest import BrainManifest, BrainManifestSnapshot
 from ix_blackfox.brains.models import (
@@ -80,6 +86,10 @@ __all__ = [
     "BrainContextWindow",
     "BrainCostClass",
     "BrainEscalationBudget",
+    "BrainEscalationDecision",
+    "BrainEscalationPolicy",
+    "BrainEscalationReason",
+    "BrainEscalationTrigger",
     "BrainExecutionLimits",
     "BrainExecutionMode",
     "BrainExecutionProfile",
