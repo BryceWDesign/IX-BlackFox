@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
+from ix_blackfox.brains.receipts import BrainInvocationReceipt, BrainInvocationReceiptLedger
 from ix_blackfox.governance import (
     ApprovalStatus,
     GovernanceReceiptLedger,
@@ -23,6 +24,8 @@ class RuntimeGovernanceReceiptReport:
     receipt_count: int
     records: tuple[dict[str, object], ...]
     artifact_path: str | None = None
+    brain_receipt_count: int = 0
+    brain_receipts: tuple[dict[str, object], ...] = field(default_factory=tuple)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -31,6 +34,8 @@ class RuntimeGovernanceReceiptReport:
             "receipt_count": self.receipt_count,
             "records": list(self.records),
             "artifact_path": self.artifact_path,
+            "brain_receipt_count": self.brain_receipt_count,
+            "brain_receipts": list(self.brain_receipts),
         }
 
 
@@ -221,6 +226,29 @@ class RuntimeGovernanceReceiptRecorder:
             artifact_path=artifact_path,
         )
 
+    def attach_brain_receipts(
+        self,
+        *,
+        report: RuntimeGovernanceReceiptReport,
+        ledger: BrainInvocationReceiptLedger | None,
+        task_id: str | None,
+    ) -> RuntimeGovernanceReceiptReport:
+        """
+        Attach task-scoped brain invocation receipts to a governance report.
+        """
+        if ledger is None or task_id is None:
+            return report
+
+        snapshot = ledger.snapshot()
+        brain_receipts = snapshot.filter_by_task(task_id)
+        return replace(
+            report,
+            brain_receipt_count=len(brain_receipts),
+            brain_receipts=tuple(
+                _brain_receipt_to_dict(receipt) for receipt in brain_receipts
+            ),
+        )
+
 
 def _map_preflight_event(
     *,
@@ -247,3 +275,7 @@ def _record_to_dict(record: GovernanceReceiptRecord) -> dict[str, object]:
         "actor": record.actor,
         "metadata": dict(record.metadata),
     }
+
+
+def _brain_receipt_to_dict(receipt: BrainInvocationReceipt) -> dict[str, object]:
+    return receipt.to_dict()
