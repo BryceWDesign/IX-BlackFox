@@ -242,6 +242,65 @@ def build_safeguard_gpt_oss_manifest(
     )
 
 
+def build_vision_qwen_manifest(
+    *,
+    provider_name: str = "vllm",
+    model_name: str = "qwen2.5-vl:7b",
+    version: str = "0.1.0",
+    description: str = "Vision coprocessor for screenshots, UI inspection, and multimodal review.",
+    preferred_packs: tuple[str, ...] = ("architecture", "programming"),
+    labels: tuple[str, ...] = ("vision", "multimodal", "ui-review", "local"),
+    max_input_tokens: int = 65536,
+    max_output_tokens: int = 4096,
+    max_concurrent_invocations: int = 2,
+    timeout_seconds: float = 45.0,
+) -> BrainManifest:
+    """
+    Build the default `qwen-vision` multimodal manifest.
+
+    This is the Wave 1 vision lane for:
+    - screenshot inspection
+    - UI state review
+    - multimodal architecture and debugging support
+    """
+    return BrainManifest(
+        brain_name="qwen-vision",
+        provider_name=provider_name,
+        model_name=model_name,
+        version=version,
+        description=description,
+        labels=labels,
+        preferred_packs=preferred_packs,
+        is_default=False,
+        profile=BrainModelProfile(
+            brain_name="qwen-vision",
+            roles=(BrainRole.MULTIMODAL,),
+            capabilities=(
+                BrainCapability.VISION_ANALYSIS,
+                BrainCapability.STRUCTURED_OUTPUT,
+                BrainCapability.TEXT_GENERATION,
+            ),
+            context_window=BrainContextWindow(
+                max_input_tokens=max_input_tokens,
+                max_output_tokens=max_output_tokens,
+            ),
+            modalities=BrainModalityProfile(
+                input_modalities=(BrainModality.TEXT, BrainModality.IMAGE),
+                output_modalities=(BrainModality.TEXT, BrainModality.JSON),
+                supports_streaming=False,
+                supports_structured_output=True,
+                supports_tool_use=False,
+            ),
+            limits=BrainExecutionLimits(
+                max_concurrent_invocations=max_concurrent_invocations,
+                timeout_seconds=timeout_seconds,
+                max_tool_calls=0,
+            ),
+            description=description,
+        ),
+    )
+
+
 def build_primary_brain_catalog(
     *,
     provider_name: str = "ollama",
@@ -322,6 +381,61 @@ def build_wave1_core_brain_catalog(
         },
         metadata={
             "catalog_name": "wave1-core",
+            "catalog_version": version,
+        },
+    )
+
+
+def build_wave1_extended_brain_catalog(
+    *,
+    primary_provider_name: str = "ollama",
+    primary_model_name: str = "gpt-oss:20b",
+    safeguard_provider_name: str = "ollama",
+    safeguard_model_name: str = "gpt-oss-safeguard:20b",
+    vision_provider_name: str = "vllm",
+    vision_model_name: str = "qwen2.5-vl:7b",
+    version: str = "0.1.0",
+) -> BrainCatalog:
+    """
+    Build the default Wave 1 extended multi-brain catalog.
+
+    This catalog includes:
+    - the primary execution lane
+    - the semantic safeguard lane
+    - the multimodal vision lane
+    """
+    primary_manifest = build_primary_gpt_oss_manifest(
+        provider_name=primary_provider_name,
+        model_name=primary_model_name,
+        version=version,
+    )
+    safeguard_manifest = build_safeguard_gpt_oss_manifest(
+        provider_name=safeguard_provider_name,
+        model_name=safeguard_model_name,
+        version=version,
+    )
+    vision_manifest = build_vision_qwen_manifest(
+        provider_name=vision_provider_name,
+        model_name=vision_model_name,
+        version=version,
+    )
+
+    return BrainCatalog(
+        manifests=(primary_manifest, safeguard_manifest, vision_manifest),
+        default_brain_name=primary_manifest.brain_name,
+        role_defaults={
+            BrainRole.PRIMARY: primary_manifest.brain_name,
+            BrainRole.REASONING: primary_manifest.brain_name,
+            BrainRole.SAFETY: safeguard_manifest.brain_name,
+            BrainRole.MULTIMODAL: vision_manifest.brain_name,
+        },
+        pack_defaults={
+            "programming": primary_manifest.brain_name,
+            "architecture": primary_manifest.brain_name,
+            "ui-review": vision_manifest.brain_name,
+        },
+        metadata={
+            "catalog_name": "wave1-extended",
             "catalog_version": version,
         },
     )
