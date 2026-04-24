@@ -9,6 +9,8 @@ from ix_blackfox.brains import (
     build_policy_gpt_oss_manifest,
     build_primary_brain_catalog,
     build_primary_gpt_oss_manifest,
+    build_reasoner_gpt_oss_manifest,
+    build_reasoning_brain_catalog,
     build_safeguard_gpt_oss_manifest,
     build_vision_qwen_manifest,
     build_wave1_core_brain_catalog,
@@ -39,6 +41,27 @@ def test_build_primary_gpt_oss_manifest_declares_wave1_primary_defaults() -> Non
     assert manifest.profile.modalities.supports_structured_output is True
     assert manifest.profile.modalities.supports_tool_use is True
     assert manifest.profile.limits.max_tool_calls == 8
+
+
+def test_build_reasoner_gpt_oss_manifest_declares_wave1_reasoner_defaults() -> None:
+    manifest = build_reasoner_gpt_oss_manifest()
+
+    assert manifest.brain_name == "gpt-oss-reasoner-120b"
+    assert manifest.provider_name == "openai-compatible"
+    assert manifest.model_name == "gpt-oss:120b"
+    assert manifest.is_default is False
+    assert manifest.roles == (BrainRole.REASONING,)
+    assert manifest.capabilities == (
+        BrainCapability.TEXT_GENERATION,
+        BrainCapability.STRUCTURED_OUTPUT,
+        BrainCapability.LONG_CONTEXT_REASONING,
+    )
+    assert manifest.prefers_pack(" programming ") is True
+    assert manifest.labels == ("reasoner", "deep-reasoning", "escalation", "remote")
+    assert manifest.profile.modalities.supports_streaming is False
+    assert manifest.profile.modalities.supports_structured_output is True
+    assert manifest.profile.modalities.supports_tool_use is False
+    assert manifest.profile.limits.max_tool_calls == 0
 
 
 def test_build_policy_gpt_oss_manifest_declares_wave1_policy_defaults() -> None:
@@ -137,6 +160,22 @@ def test_build_primary_brain_catalog_maps_roles_and_packs_to_gpt_oss() -> None:
     assert catalog.metadata == {
         "catalog_name": "wave1-primary",
         "catalog_version": "0.1.0",
+    }
+
+
+def test_build_reasoning_brain_catalog_maps_reasoning_role_to_reasoner() -> None:
+    catalog = build_reasoning_brain_catalog()
+
+    default_manifest = catalog.default_manifest()
+
+    assert default_manifest.brain_name == "gpt-oss-reasoner-120b"
+    assert catalog.default_brain_name == "gpt-oss-reasoner-120b"
+    assert catalog.brain_for_role(BrainRole.REASONING) == "gpt-oss-reasoner-120b"
+    assert catalog.brain_for_pack(" programming ") == "gpt-oss-reasoner-120b"
+    assert catalog.metadata == {
+        "catalog_name": "wave1-reasoning",
+        "catalog_version": "0.1.0",
+        "reasoning_brain_name": "gpt-oss-reasoner-120b",
     }
 
 
