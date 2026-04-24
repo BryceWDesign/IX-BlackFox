@@ -48,6 +48,13 @@ from ix_blackfox.brains.receipts import (
     BrainInvocationReceiptSnapshot,
 )
 from ix_blackfox.brains.registry import BrainManifestRegistry
+from ix_blackfox.brains.renderers import (
+    BrainMessageNormalizer,
+    HarmonyRenderConfig,
+    HarmonyRenderer,
+    NormalizedConversation,
+    PlainTranscriptRenderer,
+)
 from ix_blackfox.brains.router import BrainRouteCandidate, BrainRouter, BrainRoutingDecision
 
 __all__ = [
@@ -74,6 +81,7 @@ __all__ = [
     "BrainManifestRegistry",
     "BrainManifestSnapshot",
     "BrainMessage",
+    "BrainMessageNormalizer",
     "BrainModality",
     "BrainModalityProfile",
     "BrainModelProfile",
@@ -84,4 +92,8 @@ __all__ = [
     "BrainRoutingPolicy",
     "BrainRoutingRequest",
     "BrainScoreBreakdown",
+    "HarmonyRenderConfig",
+    "HarmonyRenderer",
+    "NormalizedConversation",
+    "PlainTranscriptRenderer",
 ]
