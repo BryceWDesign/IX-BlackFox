@@ -4,481 +4,389 @@
 
 # IX-BlackFox
 
-IX-BlackFox is a programming-first intelligence runtime built as **one sovereign codebase**.
+Apache-2.0 licensed, governed AI runtime for auditable multi-brain execution.
 
-Its design center is simple:
+IX-BlackFox is not framed as “just another agent.”
+It is a controlled runtime that routes work, runs deterministic governance before execution, records chained receipts, supports optional multimodal inspection, supports advisory policy reasoning beside execution reasoning, and can escalate to a deeper reasoning lane when the run actually justifies it.
+
+The architectural thesis is simple:
 
 **intelligence should behave like a controlled operating runtime, not like a floating text box.**
 
-That means BlackFox is built around:
-
-- explicit task structures
-- deterministic routing
-- tiered memory
-- governed execution
-- approval-aware control paths
-- chained receipts
-- evaluation and verification before trust
-- audit-ready persistence
-
 ---
 
-## Status
+## What IX-BlackFox is
 
-This repository is now a **governed execution runtime foundation**.
+IX-BlackFox is a measurement-first, governance-first AI operating runtime that currently implements:
 
-It is no longer just a planning scaffold or routing shell.  
-It now has a real internal trust boundary between **intention** and **execution**.
-
-BlackFox currently contains working foundations for:
-
-- kernel lifecycle and typed tasks
-- deterministic task-kind inference for unknown intake
-- internal event bus
-- shared state
-- deterministic capability routing
-- manifest-driven pack loading
-- end-to-end runtime orchestration
-- replay-aware intake observation
-- tiered memory
-- vault integrity and provenance
-- sentinel checks
-- forge workspace, analysis, command, test, and regression tooling
-- governed patch-intent modeling
-- governed command execution
-- runtime governance preflight
-- approval resolution
+- deterministic task intake and routing
+- pack-based execution for architecture and programming work
+- primary execution reasoning
+- advisory policy reasoning beside hard governance
+- semantic safeguard review
+- optional vision review for screenshots and UI evidence
+- optional escalated deep reasoning for hard cases
+- runtime readiness inspection across all major brain lanes
 - chained governance receipts
-- evaluation, evidence, and verification layers
-- materialized run artifacts and persisted run reports
-- structured logging
-- built-in programming and architecture packs
-- CLI execution with optional approval artifacts
-- smoke, contract, governance, and runtime matrix tests
+- replay detection
+- artifact materialization and report persistence
+- verification and sentinel checks around execution
 
-It does **not** claim to be a finished autonomous programming system.
+In practical terms, BlackFox is built to answer a harder question than “did the model generate text?”
 
----
+It is built to answer:
 
-## What BlackFox Is
-
-BlackFox is being built as:
-
-- one kernel
-- many internal specialist packs
-- one controlled forge
-- one explicit memory model
-- one governance layer
-- one verification path
-- one audit surface
-
-BlackFox is **not** being built as:
-
-- a pile of loosely related repos
-- a fake swarm of endpoints
-- a generic chatbot with hidden behavior
-- theatrical autonomy with no proof burden
-- uncontrolled self-modification
+- what lane executed
+- why that lane executed
+- what governance decided before execution
+- what receipts prove it
+- what artifacts were produced
+- whether the run contradicted its own controls
+- whether the runtime itself was actually ready when the run happened
 
 ---
 
-## What Changed in This Evolved Form
+## What IX-BlackFox is not
 
-Earlier BlackFox already had strong structure:
+IX-BlackFox is **not**:
 
-- typed tasks
-- deterministic routing
-- pack execution
-- sentinel checks
-- evaluation
+- an unconstrained autonomous agent
+- a production safety guarantee
+- a claim of secure-by-default deployment
+- a claim that advisory reasoning overrides deterministic governance
+- a finished enterprise orchestration platform
+- a substitute for human review in high-risk workflows
+
+This repo is a governed runtime proof-of-concept with explicit control surfaces, explicit receipts, and explicit degraded-mode behavior.
+
+---
+
+## Highest-form direction this repo is pursuing
+
+The intended direction is for BlackFox to function as an auditable AI operating system that can:
+
+- route work to the right brain
+- escalate only when the run actually justifies escalation
+- inspect screenshots and UI evidence
+- run policy reasoning beside execution reasoning
+- keep deterministic control over all of it
+- tell you whether the runtime itself was ready before you trust the result
+
+That is the point of the current architecture wave.
+
+---
+
+## Current implemented wave
+
+The current codebase already contains the core execution spine for that direction.
+
+### Runtime execution spine
+
+The runtime orchestrator now fuses:
+
+- routing
+- governance preflight
+- approval resolution
+- primary brain execution
+- policy reasoning lane
+- safeguard lane
+- vision lane
+- deep reasoning escalation lane
+- sentinel evaluation
 - verification
-- persisted reports
+- receipt persistence
+- artifact persistence
+- run report persistence
 
-This evolved form adds the missing control boundary.
+### Brain lanes
 
-BlackFox now explicitly models:
+BlackFox currently expects these default lanes:
 
-- **what action is being proposed**
-- **what risk that action has**
-- **what policy decided**
-- **whether review is required**
-- **whether approval was satisfied**
-- **whether execution happened**
-- **what receipt chain proves the path**
+- **primary** → default execution lane
+- **policy** → advisory policy interpretation lane
+- **safeguard** → semantic safety lane
+- **vision** → screenshot / UI inspection lane
+- **reasoning** → escalated deep-reasoning lane
 
-That is the shift from:
+### Default provider expectations
 
-**auditable planning runtime**
+The default manifests currently assume:
 
-to:
+- **ollama** for primary / policy / safeguard
+- **vllm** for vision
+- **openai-compatible** for escalated deep reasoning
 
-**governed execution runtime**
-
----
-
-## Core Runtime Contract
-
-A BlackFox run is governed only when it satisfies the following chain:
-
-1. request intake becomes a typed task
-2. a route is selected explicitly
-3. governance preflight creates an action intent
-4. risk is classified
-5. policy decides allow, require review, or block
-6. approval is resolved when required
-7. receipts record the governance path
-8. execution only happens when governance allows it
-9. verification checks both output quality and governance integrity
-10. the run report and receipt artifact are persisted
-
-If that chain is incomplete, the run may still exist, but it should not be described as full governed execution.
+These are runtime expectations, not guarantees.  
+The doctor and readiness inspector make the current state explicit.
 
 ---
 
-## Core Subsystems
+## Core repo concepts
 
-### `config/`
-Typed runtime configuration and path normalization.
+## 1. Deterministic governance stays sovereign
 
-### `kernel/`
-Lifecycle control, typed tasks, and shared coordination state.
+Policy reasoning and safeguard reasoning are advisory lanes.
 
-### `bus/`
-Typed internal events for subsystem coordination.
+Deterministic governance still owns:
 
-### `switchboard/`
-Deterministic capability routing.
+- allow / review / block semantics
+- approval requirements
+- approval satisfaction state
+- receipt chain integrity
 
-### `packs/`
-Internal specialist packs loaded through manifests and stable execution contracts.
+That split is deliberate.
+Reasoning can explain, classify, and surface nuance.
+Governance still controls execution.
 
-### `memory/`
-Tiered memory:
+## 2. Receipts are first-class
 
-- working
-- episodic
-- semantic
-- artifact
-- trace
+Each run can persist:
 
-### `vault/`
-Integrity sealing, provenance chains, and integrity-checked persisted state.
+- governance receipts
+- brain invocation receipts
+- runtime reports
+- produced artifacts
 
-### `governance/`
-Normalized action intents, risk models, policy decisions, approvals, and chained receipts.
+This pushes the repo away from “trust the model” and toward “inspect the chain.”
 
-### `sentinel/`
-Runtime conscience for contradiction checks, failure-loop detection, policy guardrails, and governance consistency checks.
+## 3. Readiness is explicit
 
-### `forge/`
-Controlled programming workbench for:
+The repo now includes runtime readiness inspection so the runtime can state whether it is:
 
-- workspace isolation
-- file graph scanning
-- static Python analysis
-- patch planning
-- governed patch-intent bridging
-- command execution
-- governed command execution
-- test running
-- regression collection
-- forge execution tickets
+- **ready**
+- **degraded**
+- **unavailable**
 
-### `eval/`
-Evaluation, evidence capture, regression-aware verification, governance-signal verification, and output verification.
+That matters because a multi-brain runtime should not quietly pretend full capability when whole lanes are missing.
 
-### `observability/`
-Append-only JSONL structured logging.
+## 4. Escalation is bounded
 
-### `runtime/`
-End-to-end execution spine that fuses inference, replay observation, routing, governance preflight, approval resolution, receipt capture, pack execution, sentinel checks, evaluation, verification, artifact persistence, provenance, and vault-backed run state.
+Deep reasoning is not always-on.
+It is triggered by explicit signals such as:
 
-### `interface/`
-CLI entrypoint layer.
+- explicit deep-reasoning request
+- contradiction signals
+- failed verification
+- repeated failures
+- low-confidence conditions that cross the escalation policy threshold
+
+That keeps the runtime controlled instead of permanently over-spending reasoning budget.
 
 ---
 
-## Built-In Packs
+## Implemented architecture at a glance
 
-### Programming Pack
+```text
+Task Intake
+   ↓
+Deterministic Classification
+   ↓
+Capability Routing
+   ↓
+Runtime Readiness Inspection
+   ↓
+Optional Vision Lane
+   ↓
+Policy Reasoning Lane
+   ↓
+Safeguard Lane
+   ↓
+Governance Preflight + Approval Resolution
+   ↓
+Primary Brain + Pack Execution
+   ↓
+Sentinel Checks + Verification
+   ↓
+Optional Escalated Reasoning Lane
+   ↓
+Governance Receipts + Run Report + Artifacts
 
-Current behavior:
+Major implemented components
+Runtime
+ix_blackfox.runtime.orchestrator
+ix_blackfox.runtime.governance
+ix_blackfox.runtime.approval
+ix_blackfox.runtime.replay
+ix_blackfox.runtime.receipts
+ix_blackfox.runtime.readiness
+ix_blackfox.runtime.doctor
+Cognitive lanes
+ix_blackfox.runtime.inference
+ix_blackfox.runtime.policy_reasoning
+ix_blackfox.runtime.safeguard
+ix_blackfox.runtime.vision
+ix_blackfox.runtime.reasoning
+Brain contracts and catalogs
+ix_blackfox.brains.catalog
+ix_blackfox.brains.receipts
+ix_blackfox.brains.providers
+ix_blackfox.brains.router
+ix_blackfox.brains.renderers
+Governance
+ix_blackfox.governance.policy
+ix_blackfox.governance.approval
+ix_blackfox.governance.receipt
+ix_blackfox.governance.advisory
+Readiness model
 
-- inspects programming-oriented prompts
-- produces deterministic action steps
-- records pack execution state
-- emits pack events
-- returns structured planning output
+BlackFox now has an explicit readiness model.
 
-Current scope is intentionally bounded.  
-It does **not** pretend to autonomously repair arbitrary code without the forge path being invoked explicitly.
+READY
 
-### Architecture Pack
+All expected lanes are configured and healthy.
 
-Current behavior:
+DEGRADED
 
-- inspects architecture-oriented prompts
-- produces deterministic architecture decisions
-- records pack execution state
-- emits pack events
-- returns structured design output
+Primary execution is available, but one or more non-critical lanes are missing or unhealthy.
 
-Current scope is intentionally bounded.  
-It does **not** claim to generate full architecture proof or implementation automatically.
+Example:
 
----
+no vision provider
+no escalated reasoning provider
+UNAVAILABLE
 
-## Governance Model
+A critical lane is missing or unhealthy.
 
-BlackFox uses three canonical governance decisions.
+Right now the primary lane is treated as critical.
 
-### `allow`
-The runtime may proceed without explicit approval.
+This is important because it prevents the repo from pretending it is fully operational when the runtime graph is only partially present.
 
-### `require_review`
-The runtime may not proceed until approval is satisfied.
+Doctor mode
 
-### `block`
-The runtime must not execute the action.
+The runtime doctor inspects the currently configured runtime and emits a diagnostics report without requiring a task run.
 
-Governance currently operates across both runtime and forge-facing behavior through:
+What it reports
+configured providers
+runtime paths
+lane-by-lane readiness
+issue codes
+recommended corrective actions
 
-- action intent modeling
-- risk classification
-- deterministic policy decisions
-- approval requests and decisions
-- persisted approval state
-- execution tickets
-- chained receipts
-- governance-aware verification
-
----
-
-## Approval Model
-
-When a run requires review, approval artifacts are normalized into explicit approval state.
-
-BlackFox currently supports these approval outcomes:
-
-- `pending`
-- `approved`
-- `rejected`
-- `canceled`
-
-A review-gated action is considered satisfied only when:
-
-- approval is required
-- the approval targets the governed intent
-- at least one approval state is terminally `approved`
-
-Approval does **not** rescue blocked actions.  
-Approval only resolves review-gated paths.
-
----
-
-## Receipt Chain Model
-
-Receipts are not generic logs.
-
-They are chained execution-state records that document:
-
-- governance preflight result
-- approval resolution result
-- execution start
-- execution completion or failure
-- verification result
-
-For governed runtime paths, BlackFox persists a standard governance receipt artifact:
-
-- `blackfox-governance-receipts.json`
-
-That artifact is chain-verified before trust is finalized.
-
----
-
-## Runtime Statuses
-
-BlackFox exposes three final runtime statuses.
-
-### `passed`
-The run completed without blocking verification issues.
-
-### `needs_review`
-The run is not trusted enough to pass yet.  
-Typical reasons include pending approval or review-level issues.
-
-### `failed`
-The run hit a blocking trust boundary.  
-Typical reasons include no route, governance block, execution failure, or verification failure.
-
----
-
-## Current Safety Posture
-
-BlackFox currently emphasizes:
-
-- explicit boundaries
-- deterministic internal contracts
-- no shell-based command execution
-- workspace path containment
-- policy observation checks
-- governance preflight before execution
-- approval-aware review gates
-- receipt-chain auditability
-- provenance and integrity tracking
-- evaluation and verification before trust
-
-BlackFox currently does **not** claim:
-
-- hidden autonomy
-- destructive host mutation by default
-- magical reasoning
-- complete confidentiality guarantees in vault storage
-- finished production readiness
-- unrestricted self-improving behavior
-
----
-
-## Quick Start
-
-### Requirements
-
-- Python **3.11+**
-
-### Install
-
+CLI entrypoint
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
+python -m ix_blackfox.runtime.doctor
 ```
-
-Run tests
+Write a JSON doctor report
 ```bash
-pytest
+python -m ix_blackfox.runtime.doctor --output artifacts/doctor-report.json
 ```
+Exit codes
 
-Run one programming task through the runtime
+0 → ready
+1 → degraded
+2 → unavailable
+
+That makes it useful for local validation, CI gating, or deployment checks.
+Example runtime use
+```python
+from ix_blackfox.kernel import TaskKind
+from ix_blackfox.runtime import BlackFoxRuntime
+runtime = BlackFoxRuntime.create_default()
+report = runtime.run_prompt(
+prompt="Inspect the architecture and summarize the subsystem boundaries.",
+kind=TaskKind.ARCHITECTURE,
+labels=("architecture",),
+)
+print(report.status.value)
+print(report.report_path)
+
+```
+Example doctor use from Python
+```python
+from ix_blackfox.runtime import RuntimeDoctor
+report = RuntimeDoctor.inspect_default()
+print(report.readiness_report.status.value)
+print(report.to_json())
+```
+Artifact behavior
+A successful run can write structured outputs such as:
+
+artifacts/reports/<task_id>.json
+artifacts/governance/<task_id>/blackfox-governance-receipts.json
+artifacts/<task_id>/<artifact_name>.json
+
+Those persisted artifacts are part of the repo's main value proposition: BlackFox tries to leave behind an inspectable trail, not just an answer.
+Testing
+The current wave includes tests around:
+
+provider factory construction
+vision planning and invocation
+policy reasoning planning and invocation
+deep reasoning planning and invocation
+runtime readiness inspection
+doctor diagnostics
+runtime integration of vision, policy, reasoning, and readiness serialization
+
+Run the suite with:
 ```bash
-blackfox run --prompt "Fix the failing tests and patch the code." --kind programming
+python -m pytest
 ```
+Provider notes
+BlackFox does not fabricate provider availability. If a provider is missing:
 
-Emit the full run report as JSON
-```bash
-blackfox run \
-  --prompt "Fix the failing tests and patch the code." \
-  --kind programming \
-  --json
-```
+that lane is marked missing
+readiness reflects it
+doctor mode reflects it
+receipt chains reflect what actually ran
+the runtime degrades instead of pretending full capability
 
-Run a review-gated task with an approval artifact
-```bash
-blackfox run \
-  --prompt "Delete workspace traces and remove source file references after planning." \
-  --kind programming \
-  --label code \
-  --label patching \
-  --approval-file approvals.json
-```
+That is intentional.
+Current strengths
+What this repo now does well:
 
-Example approval file shape:
-```bash
-[
-  {
-    "status": "approved",
-    "requested_by": "maintainer.one",
-    "decided_by": "maintainer.one",
-    "note": "Approved controlled review-gated runtime execution.",
-    "evidence_refs": ["tickets/BF-42", "reviews/BF-42.txt"]
-  }
-]
-```
+makes runtime control explicit
+makes degraded state explicit
+separates policy reasoning from policy authority
+records why escalation happened
+supports multimodal inspection without making it mandatory
+keeps artifacts and receipts inspectable
+supports architecture and programming pack execution under the same runtime spine
 
-Example Governed Runtime Flow
+Current limitations
+What still remains true:
 
-The intended shape of a governed runtime flow is:
+there is no claim of production hardening
+provider wiring is runtime-environment dependent
+readiness is health-oriented, not full deployment validation
+packs are still bounded, not universal
+advisory lanes do not yet represent a full enterprise policy language
+this repo is still a disciplined proof-of-concept, not a finished control plane product
 
-create or infer a typed task
-observe replay status for the normalized task shape
-route it through the switchboard
-run governance preflight
-resolve approval if review is required
-emit governance receipts
-load and execute the selected pack only if governance allows it
-run sentinel checks over the resulting trace window and governance observations
-evaluate and verify the run outcome
-materialize artifacts, run report, governance receipt report, provenance, and sealed run state
-write structured logs
-Repository Layout
+Why this repo matters
+A lot of "agent" projects still behave like this:
 
-src/ix_blackfox/
-├── bus/
-├── config/
-├── eval/
-├── forge/
-├── governance/
-├── interface/
-├── kernel/
-├── memory/
-├── observability/
-├── packs/
-│   ├── architecture/
-│   └── programming/
-├── runtime/
-├── sentinel/
-├── switchboard/
-├── vault/
-└── exceptions.py
+prompt in
+text out
+maybe tools
+maybe logs
+very little proof
 
-tests/
-docs/
+BlackFox is trying to move the conversation toward:
 
-Key Documents
-docs/system-architecture.md — full system architecture and subsystem responsibilities
-docs/governed-execution-contract.md — runtime contract for governed execution
-docs/fusion-audit.md — architecture and subsystem fusion analysis
-What Is Real Right Now
-
-This repository already includes tested implementations for:
-
-runtime config loading
-kernel lifecycle
-deterministic task classification for unknown intake
-replay-aware task observation
-task models
-shared state
-event envelopes and dispatch
-capability manifests and routing
-pack loading and execution contracts
-end-to-end runtime orchestration
-working / episodic / semantic / artifact / trace memory
-persisted artifact and run-report materialization
-governance preflight and approval resolution
-governance receipt persistence and chain verification
-sentinel governance consistency checks
-provenance and sealed run-state persistence
-CLI execution paths including approval-file input
-governed execution matrix tests
-What This Repo Is Trying to Prove
-
-The architectural thesis of BlackFox is:
-
-intelligence should behave like a controlled operating runtime, not like a floating text box.
-
-In BlackFox, that means:
-
-explicit tasks
 explicit routing
 explicit governance
-explicit approval boundaries
-explicit execution tickets
-explicit receipt chains
-explicit evaluation
-explicit verification
-explicit audit trails
+explicit readiness
+explicit receipts
+explicit escalation
+explicit post-run verification
 
-That is the current form of the repo.
+That is a more serious direction for AI runtime engineering.
+Recommended next step after this wave
+The next sensible engineering step is to add a forward-facing operator surface on top of the runtime you now have:
 
-It is not finished.
+one operator-grade CLI entrypoint for task submission and report inspection
+one structured configuration document for providers and lane policy
+one end-to-end demo flow showing degraded vs ready vs escalated runs
+one concise system diagram image in the repo
+one benchmark / validation section showing how the runtime behaves under missing-provider and contradiction scenarios
 
-But it is now materially stronger, more honest, and more useful than a planning-only runtime.
+That would make BlackFox much easier for serious reviewers to assess quickly.
+
+License
+Apache License 2.0.
+See LICENSE.
+
+Final framing
+
+IX-BlackFox should be evaluated as:
+a governed, auditable AI runtime scaffold designed to make multi-brain execution inspectable, controllable, and reviewable — not mystical, not autonomous-by-default, and not trust-me software.
