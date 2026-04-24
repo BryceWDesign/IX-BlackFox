@@ -27,7 +27,7 @@ from ix_blackfox.eval import (
     VerificationContext,
     VerificationReport,
 )
-from ix_blackfox.governance import GovernanceReceiptLedger
+from ix_blackfox.governance import GovernanceReceiptLedger, PolicyAdvisoryAssessment
 from ix_blackfox.kernel import (
     BlackFoxKernel,
     SharedStateStore,
@@ -66,6 +66,10 @@ from ix_blackfox.runtime.inference import (
     DeterministicTaskClassifier,
     PrimaryBrainRuntime,
     TaskInference,
+)
+from ix_blackfox.runtime.policy_reasoning import (
+    PolicyReasoningOutcome,
+    PolicyReasoningRuntime,
 )
 from ix_blackfox.runtime.receipts import (
     RuntimeGovernanceReceiptRecorder,
@@ -123,6 +127,7 @@ class RuntimeRunReport:
     task_inference: TaskInference | None = None
     escalation_decision: BrainEscalationDecision | None = None
     vision_outcome: dict[str, Any] | None = None
+    policy_advisory: PolicyAdvisoryAssessment | None = None
     safeguard_assessment: SafeguardAssessment | None = None
     governance_preflight: RuntimeGovernancePreflightResult | None = None
     approval_resolution: RuntimeApprovalResolution | None = None
@@ -162,6 +167,10 @@ class RuntimeRunReport:
         if self.safeguard_assessment is not None:
             safeguard_assessment = _safeguard_assessment_to_dict(self.safeguard_assessment)
 
+        policy_advisory = None
+        if self.policy_advisory is not None:
+            policy_advisory = _policy_advisory_to_dict(self.policy_advisory)
+
         governance_preflight = None
         if self.governance_preflight is not None:
             governance_preflight = self.governance_preflight.to_dict()
@@ -190,6 +199,7 @@ class RuntimeRunReport:
             "task_inference": inference,
             "escalation_decision": escalation,
             "vision_outcome": self.vision_outcome,
+            "policy_advisory": policy_advisory,
             "safeguard_assessment": safeguard_assessment,
             "governance_preflight": governance_preflight,
             "approval_resolution": approval_resolution,
@@ -238,6 +248,7 @@ class BlackFoxRuntime:
         primary_brain: PrimaryBrainRuntime | None = None,
         safeguard_runtime: SafeguardRuntime | None = None,
         vision_runtime: VisionRuntime | None = None,
+        policy_reasoning_runtime: PolicyReasoningRuntime | None = None,
         escalation_policy: BrainEscalationPolicy | None = None,
     ) -> None:
         self._config = config
@@ -265,6 +276,9 @@ class BlackFoxRuntime:
         self._primary_brain = primary_brain or PrimaryBrainRuntime(config=config)
         self._safeguard_runtime = safeguard_runtime or SafeguardRuntime(config=config)
         self._vision_runtime = vision_runtime or VisionRuntime(config=config)
+        self._policy_reasoning_runtime = (
+            policy_reasoning_runtime or PolicyReasoningRuntime(config=config)
+        )
         self._brain_providers = self._primary_brain.build_providers()
         self._escalation_policy = escalation_policy or BrainEscalationPolicy()
         self._session_id = f"session-{uuid4().hex}"
@@ -313,6 +327,7 @@ class BlackFoxRuntime:
         primary_brain = PrimaryBrainRuntime(config=config)
         safeguard_runtime = SafeguardRuntime(config=config)
         vision_runtime = VisionRuntime(config=config)
+        policy_reasoning_runtime = PolicyReasoningRuntime(config=config)
         escalation_policy = BrainEscalationPolicy()
 
         runtime = cls(
@@ -341,6 +356,7 @@ class BlackFoxRuntime:
             primary_brain=primary_brain,
             safeguard_runtime=safeguard_runtime,
             vision_runtime=vision_runtime,
+            policy_reasoning_runtime=policy_reasoning_runtime,
             escalation_policy=escalation_policy,
         )
         kernel.initialize()
@@ -425,6 +441,12 @@ class BlackFoxRuntime:
             task=task,
             route=route,
             brain_receipt_ledger=brain_receipt_ledger,
+        )
+        policy_outcome = self._run_policy_reasoning_lane(
+            task=task,
+            route=route,
+            brain_receipt_ledger=brain_receipt_ledger,
+            vision_outcome=vision_outcome,
         )
 
         safeguard_plan = self._safeguard_runtime.plan(
@@ -582,6 +604,7 @@ class BlackFoxRuntime:
                 task_inference=inference,
                 escalation_decision=escalation_decision,
                 vision_outcome=vision_outcome,
+                policy_advisory=policy_outcome.assessment if policy_outcome is not None else None,
                 safeguard_assessment=safeguard_outcome.assessment,
                 sentinel_report=sentinel_report,
                 evaluation=evaluation,
@@ -658,6 +681,7 @@ class BlackFoxRuntime:
                 task_inference=inference,
                 escalation_decision=escalation_decision,
                 vision_outcome=vision_outcome,
+                policy_advisory=policy_outcome.assessment if policy_outcome is not None else None,
                 safeguard_assessment=safeguard_outcome.assessment,
                 sentinel_report=sentinel_report,
                 evaluation=evaluation,
@@ -737,6 +761,9 @@ class BlackFoxRuntime:
                 "session_id": self._session_id,
                 "approval_ids": approval_resolution.approval_ids,
                 "vision_outcome": None if vision_outcome is None else _vision_outcome_to_dict(vision_outcome),
+                "policy_advisory": None
+                if policy_outcome is None or policy_outcome.assessment is None
+                else _policy_advisory_to_dict(policy_outcome.assessment),
             },
         )
 
@@ -819,6 +846,7 @@ class BlackFoxRuntime:
                 task_inference=inference,
                 escalation_decision=escalation_decision,
                 vision_outcome=vision_outcome,
+                policy_advisory=policy_outcome.assessment if policy_outcome is not None else None,
                 safeguard_assessment=safeguard_outcome.assessment,
                 sentinel_report=sentinel_report,
                 evaluation=evaluation,
@@ -916,6 +944,7 @@ class BlackFoxRuntime:
             task_inference=inference,
             escalation_decision=escalation_decision,
             vision_outcome=vision_outcome,
+            policy_advisory=policy_outcome.assessment if policy_outcome is not None else None,
             safeguard_assessment=safeguard_outcome.assessment,
             sentinel_report=sentinel_report,
             evaluation=evaluation,
@@ -987,6 +1016,75 @@ class BlackFoxRuntime:
 
         return outcome
 
+    def _run_policy_reasoning_lane(
+        self,
+        *,
+        task: TaskRecord,
+        route: RoutingDecision,
+        brain_receipt_ledger: BrainInvocationReceiptLedger,
+        vision_outcome: VisionOutcome | None,
+    ) -> PolicyReasoningOutcome | None:
+        plan = self._policy_reasoning_runtime.plan(
+            task=task,
+            route=route,
+            pack_name=route.capability_name,
+            vision_observation=None if vision_outcome is None else vision_outcome.observation_text,
+        )
+        outcome = self._policy_reasoning_runtime.invoke(
+            plan=plan,
+            providers=self._brain_providers,
+            receipt_ledger=brain_receipt_ledger,
+        )
+
+        if outcome.skipped:
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="policy",
+                message=(
+                    f"Policy brain '{plan.manifest.brain_name}' was planned "
+                    f"but not invoked: {outcome.failure_message}"
+                ),
+                level="warning",
+                source="brain.policy",
+            )
+        elif outcome.succeeded:
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="policy",
+                message=(
+                    f"Policy brain '{plan.manifest.brain_name}' completed through provider "
+                    f"'{outcome.provider_name}' with advisory disposition "
+                    f"'{outcome.assessment.advisory_disposition.value}'."
+                ),
+                level="info",
+                source="brain.policy",
+            )
+        elif outcome.assessment is not None:
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="policy",
+                message=(
+                    f"Policy brain '{plan.manifest.brain_name}' produced a fallback "
+                    f"advisory disposition '{outcome.assessment.advisory_disposition.value}' "
+                    f"after a non-success provider outcome."
+                ),
+                level="warning",
+                source="brain.policy",
+            )
+        else:
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="policy",
+                message=(
+                    f"Policy brain '{plan.manifest.brain_name}' invocation failed: "
+                    f"{outcome.failure_message}"
+                ),
+                level="warning",
+                source="brain.policy",
+            )
+
+        return outcome
+
     def _finalize_run(
         self,
         *,
@@ -999,6 +1097,7 @@ class BlackFoxRuntime:
         task_inference: TaskInference,
         escalation_decision: BrainEscalationDecision | None,
         vision_outcome: VisionOutcome | None,
+        policy_advisory: PolicyAdvisoryAssessment | None,
         safeguard_assessment: SafeguardAssessment | None,
         sentinel_report: SentinelReport,
         evaluation: EvaluationResult,
@@ -1085,6 +1184,7 @@ class BlackFoxRuntime:
             task_inference=task_inference,
             escalation_decision=escalation_decision,
             vision_outcome=None if vision_outcome is None else _vision_outcome_to_dict(vision_outcome),
+            policy_advisory=policy_advisory,
             safeguard_assessment=safeguard_assessment,
             governance_preflight=governance_preflight,
             approval_resolution=approval_resolution,
@@ -1676,6 +1776,29 @@ def _safeguard_assessment_to_dict(assessment: SafeguardAssessment) -> dict[str, 
                 "metadata": finding.metadata,
             }
             for finding in assessment.findings
+        ],
+        "metadata": assessment.metadata,
+    }
+
+
+def _policy_advisory_to_dict(assessment: PolicyAdvisoryAssessment) -> dict[str, Any]:
+    return {
+        "brain_name": assessment.brain_name,
+        "invocation_id": assessment.invocation_id,
+        "advisory_disposition": assessment.advisory_disposition.value,
+        "rationale": assessment.rationale,
+        "note_codes": assessment.note_codes(),
+        "policy_tags": assessment.policy_tags(),
+        "notes": [
+            {
+                "note_id": note.note_id,
+                "code": note.code,
+                "summary": note.summary,
+                "policy_tags": note.policy_tags,
+                "confidence": note.confidence,
+                "metadata": note.metadata,
+            }
+            for note in assessment.notes
         ],
         "metadata": assessment.metadata,
     }
