@@ -71,6 +71,11 @@ from ix_blackfox.runtime.policy_reasoning import (
     PolicyReasoningOutcome,
     PolicyReasoningRuntime,
 )
+from ix_blackfox.runtime.readiness import (
+    RuntimeReadinessInspector,
+    RuntimeReadinessReport,
+    RuntimeReadinessStatus,
+)
 from ix_blackfox.runtime.reasoning import (
     EscalatedReasoningOutcome,
     EscalatedReasoningRuntime,
@@ -130,6 +135,7 @@ class RuntimeRunReport:
     replay_observation: ReplayObservation
     task_inference: TaskInference | None = None
     escalation_decision: BrainEscalationDecision | None = None
+    readiness_report: RuntimeReadinessReport | None = None
     reasoning_outcome: dict[str, Any] | None = None
     vision_outcome: dict[str, Any] | None = None
     policy_advisory: PolicyAdvisoryAssessment | None = None
@@ -168,6 +174,10 @@ class RuntimeRunReport:
         if self.escalation_decision is not None:
             escalation = _escalation_to_dict(self.escalation_decision)
 
+        readiness_report = None
+        if self.readiness_report is not None:
+            readiness_report = _readiness_to_dict(self.readiness_report)
+
         safeguard_assessment = None
         if self.safeguard_assessment is not None:
             safeguard_assessment = _safeguard_assessment_to_dict(self.safeguard_assessment)
@@ -203,6 +213,7 @@ class RuntimeRunReport:
             "replay_observation": asdict(self.replay_observation),
             "task_inference": inference,
             "escalation_decision": escalation,
+            "readiness_report": readiness_report,
             "reasoning_outcome": self.reasoning_outcome,
             "vision_outcome": self.vision_outcome,
             "policy_advisory": policy_advisory,
@@ -256,6 +267,7 @@ class BlackFoxRuntime:
         vision_runtime: VisionRuntime | None = None,
         policy_reasoning_runtime: PolicyReasoningRuntime | None = None,
         reasoning_runtime: EscalatedReasoningRuntime | None = None,
+        readiness_inspector: RuntimeReadinessInspector | None = None,
         escalation_policy: BrainEscalationPolicy | None = None,
     ) -> None:
         self._config = config
@@ -289,6 +301,7 @@ class BlackFoxRuntime:
         self._reasoning_runtime = reasoning_runtime or EscalatedReasoningRuntime(
             config=config
         )
+        self._readiness_inspector = readiness_inspector or RuntimeReadinessInspector()
         self._brain_providers = self._primary_brain.build_providers()
         self._escalation_policy = escalation_policy or BrainEscalationPolicy()
         self._session_id = f"session-{uuid4().hex}"
@@ -339,6 +352,7 @@ class BlackFoxRuntime:
         vision_runtime = VisionRuntime(config=config)
         policy_reasoning_runtime = PolicyReasoningRuntime(config=config)
         reasoning_runtime = EscalatedReasoningRuntime(config=config)
+        readiness_inspector = RuntimeReadinessInspector()
         escalation_policy = BrainEscalationPolicy()
 
         runtime = cls(
@@ -369,6 +383,7 @@ class BlackFoxRuntime:
             vision_runtime=vision_runtime,
             policy_reasoning_runtime=policy_reasoning_runtime,
             reasoning_runtime=reasoning_runtime,
+            readiness_inspector=readiness_inspector,
             escalation_policy=escalation_policy,
         )
         kernel.initialize()
@@ -444,6 +459,17 @@ class BlackFoxRuntime:
             ),
             level="info",
             source="switchboard",
+        )
+
+        readiness_report = self._readiness_inspector.inspect(
+            providers=self._brain_providers
+        )
+        self._append_trace(
+            correlation_id=task.request.task_id,
+            stage="readiness",
+            message=readiness_report.summary(),
+            level=_readiness_trace_level(readiness_report),
+            source="runtime.readiness",
         )
 
         governance_receipt_ledger = self._receipt_recorder.create_ledger()
@@ -623,6 +649,7 @@ class BlackFoxRuntime:
                 replay_observation=replay_observation,
                 task_inference=inference,
                 escalation_decision=escalation_decision,
+                readiness_report=readiness_report,
                 reasoning_outcome=reasoning_outcome,
                 vision_outcome=vision_outcome,
                 policy_advisory=policy_outcome.assessment if policy_outcome is not None else None,
@@ -709,6 +736,7 @@ class BlackFoxRuntime:
                 replay_observation=replay_observation,
                 task_inference=inference,
                 escalation_decision=escalation_decision,
+                readiness_report=readiness_report,
                 reasoning_outcome=reasoning_outcome,
                 vision_outcome=vision_outcome,
                 policy_advisory=policy_outcome.assessment if policy_outcome is not None else None,
@@ -883,6 +911,7 @@ class BlackFoxRuntime:
                 replay_observation=replay_observation,
                 task_inference=inference,
                 escalation_decision=escalation_decision,
+                readiness_report=readiness_report,
                 reasoning_outcome=reasoning_outcome,
                 vision_outcome=vision_outcome,
                 policy_advisory=policy_outcome.assessment if policy_outcome is not None else None,
@@ -990,6 +1019,7 @@ class BlackFoxRuntime:
             replay_observation=replay_observation,
             task_inference=inference,
             escalation_decision=escalation_decision,
+            readiness_report=readiness_report,
             reasoning_outcome=reasoning_outcome,
             vision_outcome=vision_outcome,
             policy_advisory=policy_outcome.assessment if policy_outcome is not None else None,
@@ -1210,6 +1240,7 @@ class BlackFoxRuntime:
         replay_observation: ReplayObservation,
         task_inference: TaskInference,
         escalation_decision: BrainEscalationDecision | None,
+        readiness_report: RuntimeReadinessReport | None,
         reasoning_outcome: EscalatedReasoningOutcome | None,
         vision_outcome: VisionOutcome | None,
         policy_advisory: PolicyAdvisoryAssessment | None,
@@ -1298,6 +1329,7 @@ class BlackFoxRuntime:
             replay_observation=replay_observation,
             task_inference=task_inference,
             escalation_decision=escalation_decision,
+            readiness_report=readiness_report,
             reasoning_outcome=None if reasoning_outcome is None else _reasoning_outcome_to_dict(reasoning_outcome),
             vision_outcome=None if vision_outcome is None else _vision_outcome_to_dict(vision_outcome),
             policy_advisory=policy_advisory,
@@ -1860,6 +1892,31 @@ def _escalation_to_dict(decision: BrainEscalationDecision) -> dict[str, Any]:
     }
 
 
+def _readiness_to_dict(report: RuntimeReadinessReport) -> dict[str, Any]:
+    return {
+        "status": report.status.value,
+        "available_lane_count": report.available_lane_count,
+        "total_lane_count": report.total_lane_count,
+        "unavailable_lanes": report.unavailable_lanes(),
+        "critical_failures": report.critical_failures(),
+        "issue_codes": report.issue_codes,
+        "summary": report.summary(),
+        "lane_checks": [
+            {
+                "lane_name": lane.lane_name,
+                "brain_name": lane.brain_name,
+                "provider_name": lane.provider_name,
+                "is_critical": lane.is_critical,
+                "provider_present": lane.provider_present,
+                "provider_healthy": lane.provider_healthy,
+                "is_available": lane.is_available,
+                "message": lane.message,
+            }
+            for lane in report.lane_checks
+        ],
+    }
+
+
 def _safeguard_assessment_to_dict(assessment: SafeguardAssessment) -> dict[str, Any]:
     return {
         "brain_name": assessment.brain_name,
@@ -1988,6 +2045,14 @@ def _sentinel_highest_severity(report: SentinelReport) -> SentinelSeverity:
     if highest is None:
         return SentinelSeverity.INFO
     return highest
+
+
+def _readiness_trace_level(report: RuntimeReadinessReport) -> str:
+    if report.status is RuntimeReadinessStatus.READY:
+        return "info"
+    if report.status is RuntimeReadinessStatus.DEGRADED:
+        return "warning"
+    return "error"
 
 
 def _materialized_artifact_payload(
