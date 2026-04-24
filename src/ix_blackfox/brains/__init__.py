@@ -22,6 +22,11 @@ from ix_blackfox.brains.contracts import (
     BrainRole,
 )
 from ix_blackfox.brains.manifest import BrainManifest, BrainManifestSnapshot
+from ix_blackfox.brains.policy import (
+    BrainRoutingPolicy,
+    BrainRoutingRequest,
+    BrainScoreBreakdown,
+)
 from ix_blackfox.brains.models import (
     BrainContextWindow,
     BrainExecutionLimits,
@@ -29,6 +34,7 @@ from ix_blackfox.brains.models import (
     BrainModalityProfile,
 )
 from ix_blackfox.brains.registry import BrainManifestRegistry
+from ix_blackfox.brains.router import BrainRouteCandidate, BrainRouter, BrainRoutingDecision
 
 __all__ = [
     "BrainCapability",
@@ -41,6 +47,12 @@ __all__ = [
     "BrainInvocationStatus",
     "BrainManifest",
     "BrainManifestRegistry",
+    "BrainRouteCandidate",
+    "BrainRouter",
+    "BrainRoutingDecision",
+    "BrainRoutingPolicy",
+    "BrainRoutingRequest",
+    "BrainScoreBreakdown",
     "BrainManifestSnapshot",
     "BrainMessage",
     "BrainModality",
