@@ -7,7 +7,8 @@ This package defines provider-agnostic cognitive-plane primitives that
 sit underneath pack execution and above concrete inference backends.
 
 Normalized contracts, manifests, registries, routing policy, built-in
-catalog helpers, provider adapters, and rendering primitives live here.
+catalog helpers, provider adapters, safety evidence models, and
+rendering primitives live here.
 """
 
 from ix_blackfox.brains.budgets import (
@@ -61,6 +62,14 @@ from ix_blackfox.brains.renderers import (
     PlainTranscriptRenderer,
 )
 from ix_blackfox.brains.router import BrainRouteCandidate, BrainRouter, BrainRoutingDecision
+from ix_blackfox.brains.safety import (
+    SafeguardAssessment,
+    SafeguardDisposition,
+    SafeguardEvidenceKind,
+    SafeguardEvidenceRef,
+    SafeguardFinding,
+    SafeguardFindingSeverity,
+)
 
 __all__ = [
     "BrainCapability",
@@ -102,6 +111,12 @@ __all__ = [
     "HarmonyRenderer",
     "NormalizedConversation",
     "PlainTranscriptRenderer",
+    "SafeguardAssessment",
+    "SafeguardDisposition",
+    "SafeguardEvidenceKind",
+    "SafeguardEvidenceRef",
+    "SafeguardFinding",
+    "SafeguardFindingSeverity",
     "build_primary_brain_catalog",
     "build_primary_gpt_oss_manifest",
 ]
