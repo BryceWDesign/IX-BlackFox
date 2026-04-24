@@ -23,6 +23,8 @@ from ix_blackfox.brains.catalog import (
     BrainCatalog,
     build_primary_brain_catalog,
     build_primary_gpt_oss_manifest,
+    build_safeguard_gpt_oss_manifest,
+    build_wave1_core_brain_catalog,
 )
 from ix_blackfox.brains.contracts import (
     BrainCapability,
@@ -119,4 +121,6 @@ __all__ = [
     "SafeguardFindingSeverity",
     "build_primary_brain_catalog",
     "build_primary_gpt_oss_manifest",
+    "build_safeguard_gpt_oss_manifest",
+    "build_wave1_core_brain_catalog",
 ]
