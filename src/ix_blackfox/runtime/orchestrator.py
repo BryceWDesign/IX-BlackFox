@@ -13,6 +13,7 @@ from ix_blackfox.brains import (
     BrainEscalationDecision,
     BrainEscalationPolicy,
     BrainInvocationReceiptLedger,
+    SafeguardAssessment,
 )
 from ix_blackfox.config import RuntimeConfig, load_runtime_config
 from ix_blackfox.eval import (
@@ -71,6 +72,7 @@ from ix_blackfox.runtime.receipts import (
     RuntimeGovernanceReceiptReport,
 )
 from ix_blackfox.runtime.replay import ReplayObservation, TaskReplayGuard
+from ix_blackfox.runtime.safeguard import SafeguardRuntime
 from ix_blackfox.sentinel import (
     SentinelContext,
     SentinelReport,
@@ -118,6 +120,7 @@ class RuntimeRunReport:
     replay_observation: ReplayObservation
     task_inference: TaskInference | None = None
     escalation_decision: BrainEscalationDecision | None = None
+    safeguard_assessment: SafeguardAssessment | None = None
     governance_preflight: RuntimeGovernancePreflightResult | None = None
     approval_resolution: RuntimeApprovalResolution | None = None
     governance_receipts: RuntimeGovernanceReceiptReport | None = None
@@ -152,6 +155,10 @@ class RuntimeRunReport:
         if self.escalation_decision is not None:
             escalation = _escalation_to_dict(self.escalation_decision)
 
+        safeguard_assessment = None
+        if self.safeguard_assessment is not None:
+            safeguard_assessment = _safeguard_assessment_to_dict(self.safeguard_assessment)
+
         governance_preflight = None
         if self.governance_preflight is not None:
             governance_preflight = self.governance_preflight.to_dict()
@@ -179,6 +186,7 @@ class RuntimeRunReport:
             "replay_observation": asdict(self.replay_observation),
             "task_inference": inference,
             "escalation_decision": escalation,
+            "safeguard_assessment": safeguard_assessment,
             "governance_preflight": governance_preflight,
             "approval_resolution": approval_resolution,
             "governance_receipts": governance_receipts,
@@ -224,6 +232,7 @@ class BlackFoxRuntime:
         approval_resolver: RuntimeApprovalResolver,
         receipt_recorder: RuntimeGovernanceReceiptRecorder,
         primary_brain: PrimaryBrainRuntime | None = None,
+        safeguard_runtime: SafeguardRuntime | None = None,
         escalation_policy: BrainEscalationPolicy | None = None,
     ) -> None:
         self._config = config
@@ -249,6 +258,7 @@ class BlackFoxRuntime:
         self._approval_resolver = approval_resolver
         self._receipt_recorder = receipt_recorder
         self._primary_brain = primary_brain or PrimaryBrainRuntime(config=config)
+        self._safeguard_runtime = safeguard_runtime or SafeguardRuntime(config=config)
         self._brain_providers = self._primary_brain.build_providers()
         self._escalation_policy = escalation_policy or BrainEscalationPolicy()
         self._session_id = f"session-{uuid4().hex}"
@@ -293,6 +303,8 @@ class BlackFoxRuntime:
         governance_preflight = RuntimeGovernancePreflightEngine()
         approval_resolver = RuntimeApprovalResolver()
         receipt_recorder = RuntimeGovernanceReceiptRecorder()
+        primary_brain = PrimaryBrainRuntime(config=config)
+        safeguard_runtime = SafeguardRuntime(config=config)
         escalation_policy = BrainEscalationPolicy()
 
         runtime = cls(
@@ -318,6 +330,8 @@ class BlackFoxRuntime:
             governance_preflight=governance_preflight,
             approval_resolver=approval_resolver,
             receipt_recorder=receipt_recorder,
+            primary_brain=primary_brain,
+            safeguard_runtime=safeguard_runtime,
             escalation_policy=escalation_policy,
         )
         kernel.initialize()
@@ -395,13 +409,76 @@ class BlackFoxRuntime:
             source="switchboard",
         )
 
-        governance_preflight = self._governance_preflight.evaluate(task=task, route=route)
+        governance_receipt_ledger = self._receipt_recorder.create_ledger()
+        brain_receipt_ledger = BrainInvocationReceiptLedger()
+
+        safeguard_plan = self._safeguard_runtime.plan(
+            task=task,
+            route=route,
+            pack_name=route.capability_name,
+        )
+        safeguard_outcome = self._safeguard_runtime.invoke(
+            plan=safeguard_plan,
+            providers=self._brain_providers,
+            receipt_ledger=brain_receipt_ledger,
+        )
+
+        if safeguard_outcome.skipped:
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="safeguard",
+                message=(
+                    f"Safeguard brain '{safeguard_plan.manifest.brain_name}' was planned "
+                    f"but not invoked: {safeguard_outcome.failure_message}"
+                ),
+                level="warning",
+                source="brain.safeguard",
+            )
+        elif safeguard_outcome.succeeded:
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="safeguard",
+                message=(
+                    f"Safeguard brain '{safeguard_plan.manifest.brain_name}' completed "
+                    f"through provider '{safeguard_outcome.provider_name}' with advisory "
+                    f"disposition '{safeguard_outcome.assessment.advisory_disposition.value}'."
+                ),
+                level="info",
+                source="brain.safeguard",
+            )
+        elif safeguard_outcome.assessment is not None:
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="safeguard",
+                message=(
+                    f"Safeguard brain '{safeguard_plan.manifest.brain_name}' produced a "
+                    f"fallback advisory disposition '{safeguard_outcome.assessment.advisory_disposition.value}' "
+                    f"after a non-success provider outcome."
+                ),
+                level="warning",
+                source="brain.safeguard",
+            )
+        else:
+            self._append_trace(
+                correlation_id=task.request.task_id,
+                stage="safeguard",
+                message=(
+                    f"Safeguard brain '{safeguard_plan.manifest.brain_name}' invocation failed: "
+                    f"{safeguard_outcome.failure_message}"
+                ),
+                level="warning",
+                source="brain.safeguard",
+            )
+
+        governance_preflight = self._governance_preflight.evaluate(
+            task=task,
+            route=route,
+            safeguard_assessment=safeguard_outcome.assessment,
+        )
         approval_resolution = self._approval_resolver.resolve(
             task=task,
             preflight=governance_preflight,
         )
-        governance_receipt_ledger = self._receipt_recorder.create_ledger()
-        brain_receipt_ledger = BrainInvocationReceiptLedger()
 
         self._receipt_recorder.record_preflight(
             ledger=governance_receipt_ledger,
@@ -489,6 +566,7 @@ class BlackFoxRuntime:
                 replay_observation=replay_observation,
                 task_inference=inference,
                 escalation_decision=escalation_decision,
+                safeguard_assessment=safeguard_outcome.assessment,
                 sentinel_report=sentinel_report,
                 evaluation=evaluation,
                 verification=verification,
@@ -563,6 +641,7 @@ class BlackFoxRuntime:
                 replay_observation=replay_observation,
                 task_inference=inference,
                 escalation_decision=escalation_decision,
+                safeguard_assessment=safeguard_outcome.assessment,
                 sentinel_report=sentinel_report,
                 evaluation=evaluation,
                 verification=verification,
@@ -721,6 +800,7 @@ class BlackFoxRuntime:
                 replay_observation=replay_observation,
                 task_inference=inference,
                 escalation_decision=escalation_decision,
+                safeguard_assessment=safeguard_outcome.assessment,
                 sentinel_report=sentinel_report,
                 evaluation=evaluation,
                 verification=verification,
@@ -816,6 +896,7 @@ class BlackFoxRuntime:
             replay_observation=replay_observation,
             task_inference=inference,
             escalation_decision=escalation_decision,
+            safeguard_assessment=safeguard_outcome.assessment,
             sentinel_report=sentinel_report,
             evaluation=evaluation,
             verification=verification,
@@ -836,6 +917,7 @@ class BlackFoxRuntime:
         replay_observation: ReplayObservation,
         task_inference: TaskInference,
         escalation_decision: BrainEscalationDecision | None,
+        safeguard_assessment: SafeguardAssessment | None,
         sentinel_report: SentinelReport,
         evaluation: EvaluationResult,
         verification: VerificationReport,
@@ -920,6 +1002,7 @@ class BlackFoxRuntime:
             replay_observation=replay_observation,
             task_inference=task_inference,
             escalation_decision=escalation_decision,
+            safeguard_assessment=safeguard_assessment,
             governance_preflight=governance_preflight,
             approval_resolution=approval_resolution,
             governance_receipts=governance_receipts,
@@ -1475,6 +1558,43 @@ def _escalation_to_dict(decision: BrainEscalationDecision) -> dict[str, Any]:
             }
             for reason in decision.reasons
         ],
+    }
+
+
+def _safeguard_assessment_to_dict(assessment: SafeguardAssessment) -> dict[str, Any]:
+    return {
+        "brain_name": assessment.brain_name,
+        "invocation_id": assessment.invocation_id,
+        "advisory_disposition": assessment.advisory_disposition.value,
+        "highest_severity": None
+        if assessment.highest_severity is None
+        else assessment.highest_severity.value,
+        "finding_codes": assessment.finding_codes(),
+        "policy_tags": assessment.policy_tags(),
+        "findings": [
+            {
+                "finding_id": finding.finding_id,
+                "code": finding.code,
+                "severity": finding.severity.value,
+                "summary": finding.summary,
+                "policy_tags": finding.policy_tags,
+                "confidence": finding.confidence,
+                "uncertainty": finding.uncertainty,
+                "evidence": [
+                    {
+                        "kind": evidence.kind.value,
+                        "value": evidence.value,
+                        "locator": evidence.locator,
+                        "excerpt": evidence.excerpt,
+                        "metadata": evidence.metadata,
+                    }
+                    for evidence in finding.evidence
+                ],
+                "metadata": finding.metadata,
+            }
+            for finding in assessment.findings
+        ],
+        "metadata": assessment.metadata,
     }
 
 
