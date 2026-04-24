@@ -11,6 +11,11 @@ from ix_blackfox.runtime.approval import (
     RuntimeApprovalResolution,
     RuntimeApprovalResolver,
 )
+from ix_blackfox.runtime.doctor import (
+    RuntimeDoctor,
+    RuntimeDoctorReport,
+    main as runtime_doctor_main,
+)
 from ix_blackfox.runtime.governance import (
     RuntimeGovernancePreflightEngine,
     RuntimeGovernancePreflightResult,
@@ -79,6 +84,8 @@ __all__ = [
     "ReplayObservation",
     "RuntimeApprovalResolution",
     "RuntimeApprovalResolver",
+    "RuntimeDoctor",
+    "RuntimeDoctorReport",
     "RuntimeGovernancePreflightEngine",
     "RuntimeGovernancePreflightResult",
     "RuntimeGovernanceReceiptRecorder",
@@ -99,4 +106,5 @@ __all__ = [
     "VisionPlan",
     "VisionRuntime",
     "fingerprint_task_request",
+    "runtime_doctor_main",
 ]
