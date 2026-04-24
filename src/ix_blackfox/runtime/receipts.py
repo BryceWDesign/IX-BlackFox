@@ -239,8 +239,7 @@ class RuntimeGovernanceReceiptRecorder:
         if ledger is None or task_id is None:
             return report
 
-        snapshot = ledger.snapshot()
-        brain_receipts = snapshot.filter_by_task(task_id)
+        brain_receipts = ledger.snapshot().filter_by_task(task_id)
         return replace(
             report,
             brain_receipt_count=len(brain_receipts),
