@@ -5,7 +5,7 @@ Provider abstraction layer for IX-BlackFox brains.
 
 This package defines the stable provider interface that concrete
 adapters such as Ollama, vLLM, and OpenAI-compatible backends will
-implement in later commits.
+implement.
 """
 
 from ix_blackfox.brains.providers.base import (
@@ -23,6 +23,7 @@ from ix_blackfox.brains.providers.errors import (
     BrainProviderTimeoutError,
     BrainProviderUnavailableError,
 )
+from ix_blackfox.brains.providers.ollama import OllamaProvider
 from ix_blackfox.brains.providers.openai_compatible import OpenAICompatibleProvider
 
 __all__ = [
@@ -37,5 +38,6 @@ __all__ = [
     "BrainProviderTimeoutError",
     "BrainProviderUnavailableError",
     "BrainProviderUsage",
+    "OllamaProvider",
     "OpenAICompatibleProvider",
 ]
