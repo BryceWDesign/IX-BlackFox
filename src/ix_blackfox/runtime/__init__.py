@@ -28,6 +28,11 @@ from ix_blackfox.runtime.orchestrator import (
     RuntimeRunReport,
     RuntimeRunStatus,
 )
+from ix_blackfox.runtime.policy_reasoning import (
+    PolicyReasoningOutcome,
+    PolicyReasoningPlan,
+    PolicyReasoningRuntime,
+)
 from ix_blackfox.runtime.receipts import (
     RuntimeGovernanceReceiptRecorder,
     RuntimeGovernanceReceiptReport,
@@ -51,6 +56,9 @@ from ix_blackfox.runtime.vision import (
 __all__ = [
     "BlackFoxRuntime",
     "DeterministicTaskClassifier",
+    "PolicyReasoningOutcome",
+    "PolicyReasoningPlan",
+    "PolicyReasoningRuntime",
     "PrimaryBrainOutcome",
     "PrimaryBrainPlan",
     "PrimaryBrainRuntime",
