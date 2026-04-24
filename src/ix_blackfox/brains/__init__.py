@@ -42,6 +42,11 @@ from ix_blackfox.brains.policy import (
     BrainScoreBreakdown,
 )
 from ix_blackfox.brains.profiles import BrainExecutionMode, BrainExecutionProfile
+from ix_blackfox.brains.receipts import (
+    BrainInvocationReceipt,
+    BrainInvocationReceiptLedger,
+    BrainInvocationReceiptSnapshot,
+)
 from ix_blackfox.brains.registry import BrainManifestRegistry
 from ix_blackfox.brains.router import BrainRouteCandidate, BrainRouter, BrainRoutingDecision
 
@@ -57,6 +62,9 @@ __all__ = [
     "BrainFailure",
     "BrainFailureKind",
     "BrainInferenceBudget",
+    "BrainInvocationReceipt",
+    "BrainInvocationReceiptLedger",
+    "BrainInvocationReceiptSnapshot",
     "BrainInvocationRequest",
     "BrainInvocationResult",
     "BrainInvocationStatus",
