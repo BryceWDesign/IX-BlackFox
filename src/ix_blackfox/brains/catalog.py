@@ -183,6 +183,65 @@ def build_primary_gpt_oss_manifest(
     )
 
 
+def build_safeguard_gpt_oss_manifest(
+    *,
+    provider_name: str = "ollama",
+    model_name: str = "gpt-oss-safeguard:20b",
+    version: str = "0.1.0",
+    description: str = "Semantic safety coprocessor for advisory policy findings.",
+    preferred_packs: tuple[str, ...] = ("programming", "architecture"),
+    labels: tuple[str, ...] = ("safeguard", "safety", "semantic-policy", "local"),
+    max_input_tokens: int = 32768,
+    max_output_tokens: int = 2048,
+    max_concurrent_invocations: int = 2,
+    timeout_seconds: float = 30.0,
+) -> BrainManifest:
+    """
+    Build the default `gpt-oss-safeguard-20b` safeguard manifest.
+
+    This is the Wave 1 semantic safety lane for:
+    - advisory safety classification
+    - structured safety findings
+    - review/block recommendations under deterministic governance
+    """
+    return BrainManifest(
+        brain_name="gpt-oss-safeguard-20b",
+        provider_name=provider_name,
+        model_name=model_name,
+        version=version,
+        description=description,
+        labels=labels,
+        preferred_packs=preferred_packs,
+        is_default=False,
+        profile=BrainModelProfile(
+            brain_name="gpt-oss-safeguard-20b",
+            roles=(BrainRole.SAFETY,),
+            capabilities=(
+                BrainCapability.SAFETY_CLASSIFICATION,
+                BrainCapability.STRUCTURED_OUTPUT,
+                BrainCapability.LONG_CONTEXT_REASONING,
+            ),
+            context_window=BrainContextWindow(
+                max_input_tokens=max_input_tokens,
+                max_output_tokens=max_output_tokens,
+            ),
+            modalities=BrainModalityProfile(
+                input_modalities=(BrainModality.TEXT,),
+                output_modalities=(BrainModality.TEXT, BrainModality.JSON),
+                supports_streaming=False,
+                supports_structured_output=True,
+                supports_tool_use=False,
+            ),
+            limits=BrainExecutionLimits(
+                max_concurrent_invocations=max_concurrent_invocations,
+                timeout_seconds=timeout_seconds,
+                max_tool_calls=0,
+            ),
+            description=description,
+        ),
+    )
+
+
 def build_primary_brain_catalog(
     *,
     provider_name: str = "ollama",
@@ -218,6 +277,51 @@ def build_primary_brain_catalog(
         },
         metadata={
             "catalog_name": "wave1-primary",
+            "catalog_version": version,
+        },
+    )
+
+
+def build_wave1_core_brain_catalog(
+    *,
+    primary_provider_name: str = "ollama",
+    primary_model_name: str = "gpt-oss:20b",
+    safeguard_provider_name: str = "ollama",
+    safeguard_model_name: str = "gpt-oss-safeguard:20b",
+    version: str = "0.1.0",
+) -> BrainCatalog:
+    """
+    Build the default Wave 1 core multi-brain catalog.
+
+    This catalog includes:
+    - the primary `gpt-oss-20b` execution lane
+    - the `gpt-oss-safeguard-20b` semantic safety lane
+    """
+    primary_manifest = build_primary_gpt_oss_manifest(
+        provider_name=primary_provider_name,
+        model_name=primary_model_name,
+        version=version,
+    )
+    safeguard_manifest = build_safeguard_gpt_oss_manifest(
+        provider_name=safeguard_provider_name,
+        model_name=safeguard_model_name,
+        version=version,
+    )
+
+    return BrainCatalog(
+        manifests=(primary_manifest, safeguard_manifest),
+        default_brain_name=primary_manifest.brain_name,
+        role_defaults={
+            BrainRole.PRIMARY: primary_manifest.brain_name,
+            BrainRole.REASONING: primary_manifest.brain_name,
+            BrainRole.SAFETY: safeguard_manifest.brain_name,
+        },
+        pack_defaults={
+            "programming": primary_manifest.brain_name,
+            "architecture": primary_manifest.brain_name,
+        },
+        metadata={
+            "catalog_name": "wave1-core",
             "catalog_version": version,
         },
     )
