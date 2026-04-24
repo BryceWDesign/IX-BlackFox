@@ -6,6 +6,7 @@ from typing import Mapping
 
 from ix_blackfox.brains import (
     BrainManifest,
+    BrainRole,
     build_primary_brain_catalog,
     build_reasoning_brain_catalog,
     build_wave1_operating_catalog,
@@ -232,18 +233,14 @@ class RuntimeReadinessInspector:
         if policy_manifest is None:  # pragma: no cover
             raise RuntimeError("Operating catalog policy manifest is missing.")
 
-        safeguard_brain_name = operating_catalog.brain_for_role(
-            operating_catalog.default_manifest().roles[0].SAFETY
-        )
+        safeguard_brain_name = operating_catalog.brain_for_role(BrainRole.SAFETY)
         if safeguard_brain_name is None:  # pragma: no cover
             raise RuntimeError("Operating catalog safeguard manifest is missing.")
         safeguard_manifest = operating_catalog.get_manifest(safeguard_brain_name)
         if safeguard_manifest is None:  # pragma: no cover
             raise RuntimeError("Operating catalog safeguard manifest is missing.")
 
-        vision_brain_name = operating_catalog.brain_for_role(
-            operating_catalog.default_manifest().roles[0].MULTIMODAL
-        )
+        vision_brain_name = operating_catalog.brain_for_role(BrainRole.MULTIMODAL)
         if vision_brain_name is None:  # pragma: no cover
             raise RuntimeError("Operating catalog vision manifest is missing.")
         vision_manifest = operating_catalog.get_manifest(vision_brain_name)
