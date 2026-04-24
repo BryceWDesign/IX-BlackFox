@@ -78,6 +78,7 @@ from ix_blackfox.sentinel import (
     SentinelReport,
     SentinelRuntime,
     SentinelSeverity,
+    register_default_sentinel_checks,
 )
 from ix_blackfox.switchboard import (
     CapabilityRoute,
@@ -286,6 +287,7 @@ class BlackFoxRuntime:
         episodic_memory = EpisodicMemoryStore()
         semantic_memory = SemanticMemoryStore()
         sentinel = SentinelRuntime()
+        register_default_sentinel_checks(sentinel)
         evidence = EvidenceRecorder()
         verifier = OutputVerifier()
         logger = JsonlStructuredLogger(config)
