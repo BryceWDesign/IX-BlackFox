@@ -60,6 +60,7 @@ class SentinelIssue:
         object.__setattr__(self, "summary", normalized_summary)
         object.__setattr__(self, "source", normalized_source)
         object.__setattr__(self, "details", normalized_details)
+        object.__setattr__(self, "data", dict(self.data))
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +107,48 @@ class SentinelReport:
         Return all issues matching one severity level.
         """
         return tuple(issue for issue in self.issues if issue.severity == severity)
+
+    def highest_severity(self) -> SentinelSeverity | None:
+        """
+        Return the highest sentinel severity observed, if any.
+        """
+        order = (
+            SentinelSeverity.CRITICAL,
+            SentinelSeverity.ERROR,
+            SentinelSeverity.WARNING,
+            SentinelSeverity.INFO,
+        )
+        for severity in order:
+            if self.has_severity(severity):
+                return severity
+        return None
+
+    def has_issue_code(self, code: str) -> bool:
+        """
+        Return True when an issue with the exact code is present.
+        """
+        normalized_code = _normalize_identifier(code, label="issue code")
+        return any(issue.code == normalized_code for issue in self.issues)
+
+    def has_issue_code_fragment(self, fragment: str) -> bool:
+        """
+        Return True when any issue code contains the supplied fragment.
+        """
+        normalized_fragment = _normalize_identifier(fragment, label="issue code fragment")
+        return any(normalized_fragment in issue.code for issue in self.issues)
+
+    def has_contradiction_signal(self) -> bool:
+        """
+        Return True when one or more issues indicate contradiction signals.
+        """
+        return any(
+            "contradiction" in issue.code
+            or (
+                issue.source is not None
+                and "contradiction" in issue.source.strip().lower()
+            )
+            for issue in self.issues
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -186,10 +229,7 @@ class SentinelRuntime:
         Return an immutable snapshot of registered sentinel checks.
         """
         with self._lock:
-            names = tuple(
-                check.check_name.strip().lower()
-                for check in self._checks
-            )
+            names = tuple(check.check_name.strip().lower() for check in self._checks)
         return SentinelSnapshot(check_names=names)
 
     def evaluate(self, context: SentinelContext) -> SentinelReport:
