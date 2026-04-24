@@ -17,6 +17,9 @@ from ix_blackfox.runtime.governance import (
 )
 from ix_blackfox.runtime.inference import (
     DeterministicTaskClassifier,
+    PrimaryBrainOutcome,
+    PrimaryBrainPlan,
+    PrimaryBrainRuntime,
     TaskInference,
     TaskInferenceReason,
 )
@@ -38,6 +41,9 @@ from ix_blackfox.runtime.replay import (
 __all__ = [
     "BlackFoxRuntime",
     "DeterministicTaskClassifier",
+    "PrimaryBrainOutcome",
+    "PrimaryBrainPlan",
+    "PrimaryBrainRuntime",
     "ReplayObservation",
     "RuntimeApprovalResolution",
     "RuntimeApprovalResolver",
