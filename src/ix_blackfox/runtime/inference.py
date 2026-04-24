@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from enum import StrEnum, auto
 from typing import Any, Mapping
@@ -25,6 +26,7 @@ from ix_blackfox.brains import (
 from ix_blackfox.brains.providers import (
     BrainProvider,
     BrainProviderConfigurationError,
+    BrainProviderFactory,
     BrainProviderInvocation,
     BrainProviderTimeoutError,
     BrainProviderUnavailableError,
@@ -499,19 +501,17 @@ class PrimaryBrainRuntime:
 
     def build_providers(self) -> dict[str, BrainProvider]:
         """
-        Build provider instances for brain-enabled runtime execution.
+        Build concrete provider instances from typed runtime config.
 
-        Wave 1 intentionally keeps this registry conservative. Providers
-        are only instantiated from typed config. No secret resolution or
-        transport wiring happens here yet, so unavailable providers remain
-        visibly absent instead of being faked.
+        Providers are instantiated with standard-library JSON HTTP
+        transports and real environment-based secret resolution. Disabled
+        providers are skipped instead of being fabricated.
         """
-        providers: dict[str, BrainProvider] = {}
-        for provider_config in self._config.brains.providers:
-            if not provider_config.enabled:
-                continue
-            _ = provider_config
-        return providers
+        if not self._config.brains.providers:
+            return {}
+
+        factory = BrainProviderFactory(env=os.environ)
+        return factory.build_many(self._config.brains.providers)
 
 
 def _required_capabilities_for_pack(pack_name: str) -> tuple[BrainCapability, ...]:
