@@ -25,6 +25,7 @@ from ix_blackfox.brains.providers.errors import (
 )
 from ix_blackfox.brains.providers.ollama import OllamaProvider
 from ix_blackfox.brains.providers.openai_compatible import OpenAICompatibleProvider
+from ix_blackfox.brains.providers.vllm import VLLMProvider
 
 __all__ = [
     "BrainProvider",
@@ -40,4 +41,5 @@ __all__ = [
     "BrainProviderUsage",
     "OllamaProvider",
     "OpenAICompatibleProvider",
+    "VLLMProvider",
 ]
