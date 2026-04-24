@@ -42,6 +42,11 @@ from ix_blackfox.runtime.safeguard import (
     SafeguardPlan,
     SafeguardRuntime,
 )
+from ix_blackfox.runtime.vision import (
+    VisionOutcome,
+    VisionPlan,
+    VisionRuntime,
+)
 
 __all__ = [
     "BlackFoxRuntime",
@@ -64,5 +69,8 @@ __all__ = [
     "TaskInference",
     "TaskInferenceReason",
     "TaskReplayGuard",
+    "VisionOutcome",
+    "VisionPlan",
+    "VisionRuntime",
     "fingerprint_task_request",
 ]
