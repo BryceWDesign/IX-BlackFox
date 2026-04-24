@@ -23,6 +23,7 @@ from ix_blackfox.brains.providers.errors import (
     BrainProviderTimeoutError,
     BrainProviderUnavailableError,
 )
+from ix_blackfox.brains.providers.openai_compatible import OpenAICompatibleProvider
 
 __all__ = [
     "BrainProvider",
@@ -36,4 +37,5 @@ __all__ = [
     "BrainProviderTimeoutError",
     "BrainProviderUnavailableError",
     "BrainProviderUsage",
+    "OpenAICompatibleProvider",
 ]
