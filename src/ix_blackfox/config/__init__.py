@@ -7,10 +7,21 @@ to override without scattering environment lookups throughout the codebase.
 """
 
 from ix_blackfox.config.loader import load_runtime_config
-from ix_blackfox.config.models import AppPaths, RuntimeConfig
+from ix_blackfox.config.models import (
+    AppPaths,
+    BrainDefaultRouting,
+    BrainProviderConfig,
+    BrainProviderKind,
+    BrainRuntimeConfig,
+    RuntimeConfig,
+)
 
 __all__ = [
     "AppPaths",
+    "BrainDefaultRouting",
+    "BrainProviderConfig",
+    "BrainProviderKind",
+    "BrainRuntimeConfig",
     "RuntimeConfig",
     "load_runtime_config",
 ]
