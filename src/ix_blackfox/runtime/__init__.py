@@ -78,6 +78,13 @@ from ix_blackfox.runtime.replay import (
     TaskReplayGuard,
     fingerprint_task_request,
 )
+from ix_blackfox.runtime.run_bundle import (
+    RunBundleArtifact,
+    RunBundleArtifactKind,
+    RunBundleLayout,
+    RunBundleManifest,
+    RunBundleWriter,
+)
 from ix_blackfox.runtime.safeguard import (
     SafeguardOutcome,
     SafeguardPlan,
@@ -116,6 +123,11 @@ __all__ = [
     "RepairLoopStatus",
     "RepairLoopTerminalReason",
     "ReplayObservation",
+    "RunBundleArtifact",
+    "RunBundleArtifactKind",
+    "RunBundleLayout",
+    "RunBundleManifest",
+    "RunBundleWriter",
     "RuntimeApprovalResolution",
     "RuntimeApprovalResolver",
     "RuntimeDoctor",
