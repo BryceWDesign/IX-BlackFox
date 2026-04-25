@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from ix_blackfox.tools.artifacts import ToolArtifactStore
 from ix_blackfox.tools.contracts import (
     ToolFailure,
     ToolFailureKind,
@@ -26,6 +27,7 @@ from ix_blackfox.tools.patch import (
     PatchFileChange,
     PatchFileChangeKind,
 )
+from ix_blackfox.tools.receipts import ToolInvocationReceiptLedger
 from ix_blackfox.tools.workspace import WorkspacePathResolver, WorkspacePathViolation
 
 
@@ -78,6 +80,8 @@ class PatchApplyTool:
     require_workspace_marker: bool = True
     workspace_marker_name: str = ".blackfox-workspace"
     encoding: str = "utf-8"
+    artifact_store: ToolArtifactStore | None = None
+    receipt_ledger: ToolInvocationReceiptLedger | None = None
 
     tool_id: str = "blackfox.workspace.apply_patch"
 
@@ -111,13 +115,15 @@ class PatchApplyTool:
                 message="PatchApplyTool only supports PATCH_APPLY capability.",
             )
 
+        self._record_started(request)
+
         try:
             workspace_root = self._validated_workspace_root()
             patch_diff = _patch_from_arguments(request.arguments)
             validation = patch_diff.validate()
 
             if not validation.is_valid:
-                return _failed_result(
+                result = _failed_result(
                     request=request,
                     status=ToolInvocationStatus.BLOCKED,
                     kind=ToolFailureKind.INVALID_REQUEST,
@@ -127,6 +133,8 @@ class PatchApplyTool:
                         "validation": validation.to_dict(),
                     },
                 )
+                self._record_result(request=request, result=result)
+                return result
 
             resolver = WorkspacePathResolver(
                 workspace_root=workspace_root,
@@ -138,21 +146,13 @@ class PatchApplyTool:
             )
             unified_diff = patch_diff.to_unified_diff()
             diff_digest = hashlib.sha256(unified_diff.encode(self.encoding)).hexdigest()
-
-            artifact = ToolOutputArtifact.create(
-                name=f"{patch_diff.patch_id}.diff",
-                uri=f"patches/{patch_diff.patch_id}.diff",
-                media_type="text/x-diff",
-                sha256=diff_digest,
-                metadata={
-                    "patch_id": patch_diff.patch_id,
-                    "changed_paths": list(patch_diff.changed_paths),
-                    "file_count": patch_diff.file_count,
-                    "source_tool": self.tool_id,
-                },
+            persisted_artifacts = self._persist_patch_artifacts(
+                patch_diff=patch_diff,
+                unified_diff=unified_diff,
+                applied_results=applied_results,
             )
 
-            return ToolInvocationResult.succeeded(
+            result = ToolInvocationResult.succeeded(
                 request=request,
                 output={
                     "patch_id": patch_diff.patch_id,
@@ -167,36 +167,48 @@ class PatchApplyTool:
                         for applied_result in applied_results
                     ],
                     "unified_diff_sha256": diff_digest,
+                    "artifact_uris": [
+                        artifact.uri for artifact in persisted_artifacts
+                    ],
                 },
-                artifacts=(artifact,),
+                artifacts=persisted_artifacts,
                 metadata={
                     "workspace_root": str(workspace_root),
                     "workspace_marker": self.workspace_marker_name,
                     "tool_id": self.tool_id,
                 },
             )
+            self._record_result(request=request, result=result)
+            self._record_artifacts(result=result)
+            return result
 
         except WorkspacePathViolation as exc:
-            return _failed_result(
+            result = _failed_result(
                 request=request,
                 status=ToolInvocationStatus.BLOCKED,
                 kind=ToolFailureKind.PATH_VIOLATION,
                 message=str(exc),
             )
+            self._record_result(request=request, result=result)
+            return result
         except PatchApplyWorkspaceError as exc:
-            return _failed_result(
+            result = _failed_result(
                 request=request,
                 status=ToolInvocationStatus.BLOCKED,
                 kind=ToolFailureKind.EXECUTION_ERROR,
                 message=str(exc),
             )
+            self._record_result(request=request, result=result)
+            return result
         except Exception as exc:
-            return _failed_result(
+            result = _failed_result(
                 request=request,
                 status=ToolInvocationStatus.FAILED,
                 kind=ToolFailureKind.EXECUTION_ERROR,
                 message=f"Patch application failed: {exc}",
             )
+            self._record_result(request=request, result=result)
+            return result
 
     def _validated_workspace_root(self) -> Path:
         root = self.workspace_root.expanduser().resolve()
@@ -374,6 +386,116 @@ class PatchApplyTool:
             status="deleted",
         )
 
+    def _persist_patch_artifacts(
+        self,
+        *,
+        patch_diff: PatchDiff,
+        unified_diff: str,
+        applied_results: tuple[PatchApplyFileResult, ...],
+    ) -> tuple[ToolOutputArtifact, ...]:
+        store = self.artifact_store
+        if store is None:
+            diff_digest = hashlib.sha256(unified_diff.encode(self.encoding)).hexdigest()
+            return (
+                ToolOutputArtifact.create(
+                    name=f"{patch_diff.patch_id}.diff",
+                    uri=f"patches/{patch_diff.patch_id}.diff",
+                    media_type="text/x-diff",
+                    sha256=diff_digest,
+                    metadata={
+                        "patch_id": patch_diff.patch_id,
+                        "changed_paths": list(patch_diff.changed_paths),
+                        "file_count": patch_diff.file_count,
+                        "source_tool": self.tool_id,
+                        "persisted": False,
+                    },
+                ),
+            )
+
+        patch_directory = f"patches/{patch_diff.patch_id}"
+        patch_payload = patch_diff.to_dict()
+        apply_payload = {
+            "patch_id": patch_diff.patch_id,
+            "patch_digest": patch_diff.digest,
+            "applied_files": [
+                applied_result.to_dict()
+                for applied_result in applied_results
+            ],
+        }
+
+        diff_artifact = store.write_text(
+            relative_path=f"{patch_directory}/patch.diff",
+            text=unified_diff,
+            media_type="text/x-diff",
+            metadata={
+                "patch_id": patch_diff.patch_id,
+                "source_tool": self.tool_id,
+                "artifact_kind": "unified_diff",
+                "persisted": True,
+            },
+        )
+        patch_json_artifact = store.write_json(
+            relative_path=f"{patch_directory}/patch.json",
+            payload=patch_payload,
+            metadata={
+                "patch_id": patch_diff.patch_id,
+                "source_tool": self.tool_id,
+                "artifact_kind": "patch_model",
+                "persisted": True,
+            },
+        )
+        apply_json_artifact = store.write_json(
+            relative_path=f"{patch_directory}/apply-result.json",
+            payload=apply_payload,
+            metadata={
+                "patch_id": patch_diff.patch_id,
+                "source_tool": self.tool_id,
+                "artifact_kind": "apply_result",
+                "persisted": True,
+            },
+        )
+
+        return (diff_artifact, patch_json_artifact, apply_json_artifact)
+
+    def _record_started(self, request: ToolInvocationRequest) -> None:
+        if self.receipt_ledger is None:
+            return
+        self.receipt_ledger.record_invocation_started(
+            request=request,
+            actor="tools.patch_apply",
+        )
+
+    def _record_result(
+        self,
+        *,
+        request: ToolInvocationRequest,
+        result: ToolInvocationResult,
+    ) -> None:
+        if self.receipt_ledger is None:
+            return
+        self.receipt_ledger.record_invocation_result(
+            result=result,
+            request=request,
+            actor="tools.patch_apply",
+        )
+
+    def _record_artifacts(self, *, result: ToolInvocationResult) -> None:
+        if self.receipt_ledger is None:
+            return
+
+        for artifact in result.artifacts:
+            self.receipt_ledger.record_artifact_emitted(
+                result=result,
+                artifact_name=artifact.name,
+                artifact_uri=artifact.uri,
+                actor="tools.patch_apply",
+                metadata={
+                    "artifact_id": artifact.artifact_id,
+                    "sha256": artifact.sha256,
+                    "media_type": artifact.media_type,
+                },
+            )
+
 
 def build_patch_apply_manifest(
     *,
@@ -410,6 +532,7 @@ def build_patch_apply_manifest(
                 "validation",
                 "applied_files",
                 "unified_diff_sha256",
+                "artifact_uris",
             ],
         },
         default_timeout_seconds=30.0,
