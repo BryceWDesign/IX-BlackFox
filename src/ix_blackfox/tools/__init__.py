@@ -16,6 +16,12 @@ from ix_blackfox.tools.manifest import (
     ToolPathPolicy,
     ToolSideEffect,
 )
+from ix_blackfox.tools.risk import (
+    ToolRiskAssessment,
+    ToolRiskClassifier,
+    ToolRiskLevel,
+    ToolRiskSignal,
+)
 
 __all__ = [
     "ToolApprovalMode",
@@ -29,5 +35,9 @@ __all__ = [
     "ToolManifestRegistry",
     "ToolOutputArtifact",
     "ToolPathPolicy",
+    "ToolRiskAssessment",
+    "ToolRiskClassifier",
+    "ToolRiskLevel",
+    "ToolRiskSignal",
     "ToolSideEffect",
 ]
