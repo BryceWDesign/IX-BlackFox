@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from ix_blackfox.tools.artifacts import (
+    ToolArtifactPersistenceError,
+    ToolArtifactStore,
+)
 from ix_blackfox.tools.contracts import (
     ToolFailure,
     ToolFailureKind,
@@ -70,6 +74,8 @@ __all__ = [
     "PatchValidationReport",
     "PatchValidationSeverity",
     "ToolApprovalMode",
+    "ToolArtifactPersistenceError",
+    "ToolArtifactStore",
     "ToolCapability",
     "ToolFailure",
     "ToolFailureKind",
