@@ -16,6 +16,14 @@ from ix_blackfox.tools.manifest import (
     ToolPathPolicy,
     ToolSideEffect,
 )
+from ix_blackfox.tools.patch import (
+    PatchDiff,
+    PatchFileChange,
+    PatchFileChangeKind,
+    PatchValidationFinding,
+    PatchValidationReport,
+    PatchValidationSeverity,
+)
 from ix_blackfox.tools.policy import (
     ToolPolicyDecision,
     ToolPolicyEvaluation,
@@ -46,6 +54,12 @@ from ix_blackfox.tools.workspace import (
 )
 
 __all__ = [
+    "PatchDiff",
+    "PatchFileChange",
+    "PatchFileChangeKind",
+    "PatchValidationFinding",
+    "PatchValidationReport",
+    "PatchValidationSeverity",
     "ToolApprovalMode",
     "ToolCapability",
     "ToolFailure",
