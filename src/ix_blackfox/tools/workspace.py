@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -61,6 +61,9 @@ class WorkspacePathResolver:
     - path traversal outside the workspace root
     - blocked root prefixes such as .git, .env, secrets, or credentials
     - paths outside the manifest allowed roots when allowed roots are declared
+
+    The workspace root itself is allowed for directory-listing and test-runner
+    entrypoints. Child entries are still filtered by allowed/blocked roots.
     """
 
     workspace_root: Path
@@ -100,6 +103,9 @@ class WorkspacePathResolver:
         relative_path = normalized_candidate.relative_to(self.workspace_root)
         normalized_relative = relative_path.as_posix()
 
+        if normalized_relative == ".":
+            return normalized_candidate
+
         if self._matches_blocked_root(normalized_relative):
             raise WorkspacePathViolation(
                 f"Path is blocked by workspace policy: {normalized_relative}"
@@ -124,11 +130,22 @@ class WorkspacePathResolver:
             )
         return resolved.relative_to(self.workspace_root).as_posix()
 
+    def is_allowed_relative_path(self, relative_path: str) -> bool:
+        try:
+            self.resolve(relative_path)
+        except WorkspacePathViolation:
+            return False
+        return True
+
     def _matches_allowed_root(self, normalized_relative: str) -> bool:
         parts = tuple(Path(normalized_relative).parts)
 
         for allowed_root in self.path_policy.allowed_roots:
-            allowed_parts = tuple(Path(allowed_root).parts)
+            cleaned_allowed_root = allowed_root.strip().replace("\\", "/")
+            if cleaned_allowed_root in {"", "."}:
+                return True
+
+            allowed_parts = tuple(Path(cleaned_allowed_root).parts)
             if _path_parts_start_with(parts, allowed_parts):
                 return True
 
@@ -138,7 +155,11 @@ class WorkspacePathResolver:
         parts = tuple(Path(normalized_relative).parts)
 
         for blocked_root in self.path_policy.blocked_roots:
-            blocked_parts = tuple(Path(blocked_root).parts)
+            cleaned_blocked_root = blocked_root.strip().replace("\\", "/")
+            if cleaned_blocked_root in {"", "."}:
+                continue
+
+            blocked_parts = tuple(Path(cleaned_blocked_root).parts)
             if _path_parts_start_with(parts, blocked_parts):
                 return True
 
@@ -427,11 +448,22 @@ class WorkspaceDirectoryListTool:
             if len(collected) >= max_entries:
                 break
 
-            relative_path = resolver.relative_path(path)
+            try:
+                relative_path = resolver.relative_path(path)
+            except WorkspacePathViolation:
+                continue
+
+            if not resolver.is_allowed_relative_path(relative_path):
+                continue
+
             if not include_hidden and _contains_hidden_part(relative_path):
                 continue
 
-            stat = path.stat()
+            try:
+                stat = path.stat()
+            except OSError:
+                continue
+
             if path.is_dir():
                 entry_type = "directory"
                 size_bytes = None
