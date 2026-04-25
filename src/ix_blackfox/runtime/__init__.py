@@ -38,6 +38,10 @@ from ix_blackfox.runtime.policy_reasoning import (
     PolicyReasoningPlan,
     PolicyReasoningRuntime,
 )
+from ix_blackfox.runtime.programming_repair import (
+    ProgrammingRepairRunReport,
+    ProgrammingRepairRuntime,
+)
 from ix_blackfox.runtime.readiness import (
     RuntimeLaneReadiness,
     RuntimeReadinessInspector,
@@ -91,6 +95,8 @@ __all__ = [
     "PrimaryBrainOutcome",
     "PrimaryBrainPlan",
     "PrimaryBrainRuntime",
+    "ProgrammingRepairRunReport",
+    "ProgrammingRepairRuntime",
     "RepairLoopAttempt",
     "RepairLoopAttemptStatus",
     "RepairLoopConfig",
