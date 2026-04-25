@@ -92,6 +92,12 @@ from ix_blackfox.runtime.run_bundle import (
     RunBundleManifest,
     RunBundleWriter,
 )
+from ix_blackfox.runtime.run_bundle_export import (
+    RunBundleExportFormat,
+    RunBundleExportRequest,
+    RunBundleExportResult,
+    RunBundleExporter,
+)
 from ix_blackfox.runtime.safeguard import (
     SafeguardOutcome,
     SafeguardPlan,
@@ -146,6 +152,10 @@ __all__ = [
     "ReplayObservation",
     "RunBundleArtifact",
     "RunBundleArtifactKind",
+    "RunBundleExportFormat",
+    "RunBundleExportRequest",
+    "RunBundleExportResult",
+    "RunBundleExporter",
     "RunBundleLayout",
     "RunBundleManifest",
     "RunBundleWriter",
