@@ -8,6 +8,7 @@ from ix_blackfox.runtime.repair_loop import (
     RepairLoopConfig,
     RepairLoopState,
 )
+from ix_blackfox.runtime.repair_receipts import RepairLoopReceiptLedger
 from ix_blackfox.tools import (
     ParsedTestRun,
     ParsedTestRunStatus,
@@ -38,12 +39,14 @@ class ProgrammingRepairRunReport:
     patch_results: tuple[ToolInvocationResult, ...] = field(default_factory=tuple)
     test_results: tuple[ToolInvocationResult, ...] = field(default_factory=tuple)
     parsed_test_runs: tuple[ParsedTestRun, ...] = field(default_factory=tuple)
+    repair_receipts: tuple[dict[str, Any], ...] = field(default_factory=tuple)
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "patch_results", tuple(self.patch_results))
         object.__setattr__(self, "test_results", tuple(self.test_results))
         object.__setattr__(self, "parsed_test_runs", tuple(self.parsed_test_runs))
+        object.__setattr__(self, "repair_receipts", tuple(self.repair_receipts))
         object.__setattr__(self, "metadata", dict(self.metadata))
 
     @property
@@ -83,6 +86,7 @@ class ProgrammingRepairRunReport:
                 parsed_test_run.to_dict()
                 for parsed_test_run in self.parsed_test_runs
             ],
+            "repair_receipts": list(self.repair_receipts),
             "metadata": dict(self.metadata),
         }
 
@@ -98,6 +102,7 @@ class ProgrammingRepairRuntime:
     - TestRunnerTool
     - PytestTextResultParser
     - RepairLoopState
+    - RepairLoopReceiptLedger
 
     It does not invent patches and it does not bypass approval policy. It
     executes already-supplied patch candidates through governed tool wrappers,
@@ -111,6 +116,7 @@ class ProgrammingRepairRuntime:
         default_factory=PytestTextResultParser
     )
     config: RepairLoopConfig = field(default_factory=RepairLoopConfig)
+    repair_receipt_ledger: RepairLoopReceiptLedger | None = None
 
     def run(
         self,
@@ -144,6 +150,7 @@ class ProgrammingRepairRuntime:
         metadata:
             Optional report metadata.
         """
+        patch_candidates = tuple(candidate_patches)
         loop_state = RepairLoopState.create(
             task_id=task_id,
             run_id=run_id,
@@ -155,7 +162,9 @@ class ProgrammingRepairRuntime:
         test_results: list[ToolInvocationResult] = []
         parsed_test_runs: list[ParsedTestRun] = []
 
-        for patch_diff in candidate_patches:
+        self._record_loop_started(loop_state)
+
+        for patch_diff in patch_candidates:
             if not loop_state.can_start_attempt:
                 break
 
@@ -163,6 +172,8 @@ class ProgrammingRepairRuntime:
                 patch_diff=patch_diff,
                 notes=("Candidate patch entered governed repair loop.",),
             )
+            self._record_attempt_started(loop_state, patch_diff)
+
             attempt = loop_state.latest_attempt
             if attempt is None:
                 raise RuntimeError("Repair loop failed to create an attempt.")
@@ -188,8 +199,10 @@ class ProgrammingRepairRuntime:
                 attempt_id=attempt.attempt_id,
                 result=patch_result,
             )
+            self._record_patch_result(loop_state, patch_result)
 
             if loop_state.is_terminal:
+                self._record_loop_terminated(loop_state)
                 break
 
             if patch_result.status is not ToolInvocationStatus.SUCCEEDED:
@@ -223,8 +236,10 @@ class ProgrammingRepairRuntime:
                 result=test_result,
                 parsed_test_run=parsed_test_run,
             )
+            self._record_test_result(loop_state, test_result, parsed_test_run)
 
             if loop_state.is_terminal:
+                self._record_loop_terminated(loop_state)
                 break
 
         if not loop_state.is_terminal and not loop_state.should_continue:
@@ -234,17 +249,17 @@ class ProgrammingRepairRuntime:
                     "candidate patches were available."
                 )
             )
+            self._record_loop_terminated(loop_state)
 
         return ProgrammingRepairRunReport(
             loop_state=loop_state,
             patch_results=tuple(patch_results),
             test_results=tuple(test_results),
             parsed_test_runs=tuple(parsed_test_runs),
+            repair_receipts=self._receipt_payloads(loop_state.loop_id),
             metadata={
                 "runtime": "programming_repair",
-                "candidate_patch_count": len(tuple(candidate_patches))
-                if isinstance(candidate_patches, tuple)
-                else None,
+                "candidate_patch_count": len(patch_candidates),
                 **dict(metadata or {}),
             },
         )
@@ -314,6 +329,64 @@ class ProgrammingRepairRuntime:
             return_code=0,
             timed_out=False,
             metadata={"source": "successful_tool_result_without_command_output"},
+        )
+
+    def _record_loop_started(self, state: RepairLoopState) -> None:
+        if self.repair_receipt_ledger is None:
+            return
+        self.repair_receipt_ledger.record_loop_started(state=state)
+
+    def _record_attempt_started(
+        self,
+        state: RepairLoopState,
+        patch_diff: PatchDiff,
+    ) -> None:
+        if self.repair_receipt_ledger is None:
+            return
+        self.repair_receipt_ledger.record_attempt_started(
+            state=state,
+            patch_diff=patch_diff,
+        )
+
+    def _record_patch_result(
+        self,
+        state: RepairLoopState,
+        result: ToolInvocationResult,
+    ) -> None:
+        if self.repair_receipt_ledger is None:
+            return
+        self.repair_receipt_ledger.record_patch_result(
+            state=state,
+            result=result,
+        )
+
+    def _record_test_result(
+        self,
+        state: RepairLoopState,
+        result: ToolInvocationResult,
+        parsed_test_run: ParsedTestRun,
+    ) -> None:
+        if self.repair_receipt_ledger is None:
+            return
+        self.repair_receipt_ledger.record_test_result(
+            state=state,
+            result=result,
+            parsed_test_run=parsed_test_run,
+        )
+
+    def _record_loop_terminated(self, state: RepairLoopState) -> None:
+        if self.repair_receipt_ledger is None:
+            return
+        self.repair_receipt_ledger.record_loop_terminated(state=state)
+
+    def _receipt_payloads(self, loop_id: str) -> tuple[dict[str, Any], ...]:
+        if self.repair_receipt_ledger is None:
+            return ()
+
+        snapshot = self.repair_receipt_ledger.snapshot()
+        return tuple(
+            receipt.to_dict()
+            for receipt in snapshot.filter_by_loop(loop_id)
         )
 
 
