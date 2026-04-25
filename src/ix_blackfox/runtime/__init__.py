@@ -16,6 +16,12 @@ from ix_blackfox.runtime.control_plane import (
     EngineeringControlPlaneConfig,
     EngineeringControlPlaneReport,
 )
+from ix_blackfox.runtime.control_plane_cli import (
+    ControlPlaneCliError,
+    ControlPlaneCliResult,
+    main as control_plane_cli_main,
+    run_control_plane_cli,
+)
 from ix_blackfox.runtime.doctor import (
     RuntimeDoctor,
     RuntimeDoctorReport,
@@ -125,6 +131,8 @@ from ix_blackfox.runtime.vision import (
 
 __all__ = [
     "BlackFoxRuntime",
+    "ControlPlaneCliError",
+    "ControlPlaneCliResult",
     "DeterministicTaskClassifier",
     "EngineeringControlPlane",
     "EngineeringControlPlaneConfig",
@@ -197,6 +205,8 @@ __all__ = [
     "VisionOutcome",
     "VisionPlan",
     "VisionRuntime",
+    "control_plane_cli_main",
     "fingerprint_task_request",
+    "run_control_plane_cli",
     "runtime_doctor_main",
 ]
