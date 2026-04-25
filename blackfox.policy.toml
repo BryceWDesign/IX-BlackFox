@@ -1,0 +1,46 @@
+[execution]
+allow_file_read = true
+allow_file_write = true
+allow_process_execution = true
+allow_network = false
+allow_system_mutation = false
+allow_absolute_paths = false
+max_repair_attempts = 3
+max_tool_timeout_seconds = 900
+
+[approval]
+require_for_delete = true
+require_for_network = true
+require_for_secret_access = true
+require_for_workspace_write = true
+require_for_process_execution = true
+review_high_risk = true
+block_critical_risk = true
+
+[paths]
+allowed_roots = [
+  "src",
+  "tests",
+  "docs",
+  "scripts",
+  "examples",
+  "artifacts",
+]
+blocked_roots = [
+  ".git",
+  ".env",
+  ".ssh",
+  "secrets",
+  "credentials",
+  "__pycache__",
+  ".pytest_cache",
+  ".mypy_cache",
+  ".ruff_cache",
+  "dist",
+  "build",
+]
+allow_absolute_paths = false
+
+[metadata]
+policy_name = "IX-BlackFox default governed engineering policy"
+policy_version = "0.1.0"
