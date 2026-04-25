@@ -23,6 +23,12 @@ from ix_blackfox.tools.policy import (
     ToolPolicyEvaluatorConfig,
     ToolPolicyReason,
 )
+from ix_blackfox.tools.receipts import (
+    ToolInvocationReceipt,
+    ToolInvocationReceiptLedger,
+    ToolInvocationReceiptSnapshot,
+    ToolReceiptEventType,
+)
 from ix_blackfox.tools.risk import (
     ToolRiskAssessment,
     ToolRiskClassifier,
@@ -35,6 +41,9 @@ __all__ = [
     "ToolCapability",
     "ToolFailure",
     "ToolFailureKind",
+    "ToolInvocationReceipt",
+    "ToolInvocationReceiptLedger",
+    "ToolInvocationReceiptSnapshot",
     "ToolInvocationRequest",
     "ToolInvocationResult",
     "ToolInvocationStatus",
@@ -47,6 +56,7 @@ __all__ = [
     "ToolPolicyEvaluator",
     "ToolPolicyEvaluatorConfig",
     "ToolPolicyReason",
+    "ToolReceiptEventType",
     "ToolRiskAssessment",
     "ToolRiskClassifier",
     "ToolRiskLevel",
