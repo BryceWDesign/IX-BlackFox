@@ -16,6 +16,13 @@ from ix_blackfox.tools.manifest import (
     ToolPathPolicy,
     ToolSideEffect,
 )
+from ix_blackfox.tools.policy import (
+    ToolPolicyDecision,
+    ToolPolicyEvaluation,
+    ToolPolicyEvaluator,
+    ToolPolicyEvaluatorConfig,
+    ToolPolicyReason,
+)
 from ix_blackfox.tools.risk import (
     ToolRiskAssessment,
     ToolRiskClassifier,
@@ -35,6 +42,11 @@ __all__ = [
     "ToolManifestRegistry",
     "ToolOutputArtifact",
     "ToolPathPolicy",
+    "ToolPolicyDecision",
+    "ToolPolicyEvaluation",
+    "ToolPolicyEvaluator",
+    "ToolPolicyEvaluatorConfig",
+    "ToolPolicyReason",
     "ToolRiskAssessment",
     "ToolRiskClassifier",
     "ToolRiskLevel",
