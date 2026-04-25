@@ -41,6 +41,13 @@ from ix_blackfox.tools.policy import (
     ToolPolicyEvaluatorConfig,
     ToolPolicyReason,
 )
+from ix_blackfox.tools.policy_file import (
+    ToolPolicyApprovalConfig,
+    ToolPolicyDocument,
+    ToolPolicyDocumentError,
+    ToolPolicyExecutionConfig,
+    ToolPolicyPathConfig,
+)
 from ix_blackfox.tools.receipts import (
     ToolInvocationReceipt,
     ToolInvocationReceiptLedger,
@@ -112,10 +119,15 @@ __all__ = [
     "ToolManifestRegistry",
     "ToolOutputArtifact",
     "ToolPathPolicy",
+    "ToolPolicyApprovalConfig",
     "ToolPolicyDecision",
+    "ToolPolicyDocument",
+    "ToolPolicyDocumentError",
     "ToolPolicyEvaluation",
     "ToolPolicyEvaluator",
     "ToolPolicyEvaluatorConfig",
+    "ToolPolicyExecutionConfig",
+    "ToolPolicyPathConfig",
     "ToolPolicyReason",
     "ToolReceiptEventType",
     "ToolRiskAssessment",
