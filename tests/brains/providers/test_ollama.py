@@ -228,7 +228,7 @@ def test_ollama_provider_rejects_missing_image_payload_or_wrong_modality() -> No
         metadata={"images": ["base64-image-1"]},
     )
     wrong_modality_invocation = BrainProviderInvocation(
-        manifest=_make_manifest(),
+        manifest=manifest,
         request=wrong_modality_request,
     )
 
