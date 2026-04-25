@@ -24,6 +24,12 @@ from ix_blackfox.tools.patch import (
     PatchValidationReport,
     PatchValidationSeverity,
 )
+from ix_blackfox.tools.patch_apply import (
+    PatchApplyFileResult,
+    PatchApplyTool,
+    PatchApplyWorkspaceError,
+    build_patch_apply_manifest,
+)
 from ix_blackfox.tools.policy import (
     ToolPolicyDecision,
     ToolPolicyEvaluation,
@@ -54,6 +60,9 @@ from ix_blackfox.tools.workspace import (
 )
 
 __all__ = [
+    "PatchApplyFileResult",
+    "PatchApplyTool",
+    "PatchApplyWorkspaceError",
     "PatchDiff",
     "PatchFileChange",
     "PatchFileChangeKind",
@@ -90,6 +99,7 @@ __all__ = [
     "WorkspaceFileReadTool",
     "WorkspacePathResolver",
     "WorkspacePathViolation",
+    "build_patch_apply_manifest",
     "build_workspace_directory_list_manifest",
     "build_workspace_file_read_manifest",
 ]
