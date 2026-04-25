@@ -53,6 +53,16 @@ from ix_blackfox.runtime.receipts import (
     RuntimeGovernanceReceiptRecorder,
     RuntimeGovernanceReceiptReport,
 )
+from ix_blackfox.runtime.repair_loop import (
+    RepairLoopAttempt,
+    RepairLoopAttemptStatus,
+    RepairLoopConfig,
+    RepairLoopFinding,
+    RepairLoopFindingSeverity,
+    RepairLoopState,
+    RepairLoopStatus,
+    RepairLoopTerminalReason,
+)
 from ix_blackfox.runtime.replay import (
     ReplayObservation,
     TaskReplayGuard,
@@ -81,6 +91,14 @@ __all__ = [
     "PrimaryBrainOutcome",
     "PrimaryBrainPlan",
     "PrimaryBrainRuntime",
+    "RepairLoopAttempt",
+    "RepairLoopAttemptStatus",
+    "RepairLoopConfig",
+    "RepairLoopFinding",
+    "RepairLoopFindingSeverity",
+    "RepairLoopState",
+    "RepairLoopStatus",
+    "RepairLoopTerminalReason",
     "ReplayObservation",
     "RuntimeApprovalResolution",
     "RuntimeApprovalResolver",
