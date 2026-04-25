@@ -97,6 +97,15 @@ from ix_blackfox.runtime.safeguard import (
     SafeguardPlan,
     SafeguardRuntime,
 )
+from ix_blackfox.runtime.verification_summary import (
+    VerificationEvidence,
+    VerificationEvidenceKind,
+    VerificationFinding,
+    VerificationFindingSeverity,
+    VerificationSummary,
+    VerificationSummaryRenderer,
+    VerificationSummaryStatus,
+)
 from ix_blackfox.runtime.vision import (
     VisionOutcome,
     VisionPlan,
@@ -160,6 +169,13 @@ __all__ = [
     "TaskInference",
     "TaskInferenceReason",
     "TaskReplayGuard",
+    "VerificationEvidence",
+    "VerificationEvidenceKind",
+    "VerificationFinding",
+    "VerificationFindingSeverity",
+    "VerificationSummary",
+    "VerificationSummaryRenderer",
+    "VerificationSummaryStatus",
     "VisionOutcome",
     "VisionPlan",
     "VisionRuntime",
