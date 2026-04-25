@@ -35,6 +35,15 @@ from ix_blackfox.tools.risk import (
     ToolRiskLevel,
     ToolRiskSignal,
 )
+from ix_blackfox.tools.workspace import (
+    WorkspaceDirectoryEntry,
+    WorkspaceDirectoryListTool,
+    WorkspaceFileReadTool,
+    WorkspacePathResolver,
+    WorkspacePathViolation,
+    build_workspace_directory_list_manifest,
+    build_workspace_file_read_manifest,
+)
 
 __all__ = [
     "ToolApprovalMode",
@@ -62,4 +71,11 @@ __all__ = [
     "ToolRiskLevel",
     "ToolRiskSignal",
     "ToolSideEffect",
+    "WorkspaceDirectoryEntry",
+    "WorkspaceDirectoryListTool",
+    "WorkspaceFileReadTool",
+    "WorkspacePathResolver",
+    "WorkspacePathViolation",
+    "build_workspace_directory_list_manifest",
+    "build_workspace_file_read_manifest",
 ]
