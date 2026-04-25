@@ -102,6 +102,35 @@ class TaskRequest:
     created_at: datetime
     labels: tuple[str, ...] = field(default_factory=tuple)
 
+    @property
+    def prompt(self) -> str:
+        """
+        Compatibility alias for the normalized task prompt.
+
+        Runtime layers should prefer ``request.input.prompt`` in new code, but
+        this read-only alias keeps existing orchestration, governance, and
+        receipt code aligned with the canonical ``TaskInput`` payload.
+        """
+        return self.input.prompt
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """
+        Compatibility alias for task intake metadata.
+
+        ``TaskRequest`` stores metadata on ``input.metadata``. Returning a copy
+        prevents callers from mutating the frozen task request through the
+        nested dictionary while preserving legacy ``request.metadata`` access.
+        """
+        return dict(self.input.metadata)
+
+    @property
+    def attachments(self) -> tuple[str, ...]:
+        """
+        Compatibility alias for logical task attachment references.
+        """
+        return self.input.attachments
+
     @classmethod
     def create(
         cls,
