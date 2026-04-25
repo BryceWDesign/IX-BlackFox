@@ -37,6 +37,44 @@ def test_workspace_path_resolver_allows_paths_inside_allowed_roots(tmp_path: Pat
     assert resolver.relative_path(resolved) == "src/ix_blackfox/runtime/orchestrator.py"
 
 
+def test_workspace_path_resolver_allows_workspace_root_as_control_entrypoint(
+    tmp_path: Path,
+) -> None:
+    workspace = _make_workspace(tmp_path)
+    resolver = WorkspacePathResolver(
+        workspace_root=workspace,
+        path_policy=ToolPathPolicy(
+            allowed_roots=("src", "tests"),
+            blocked_roots=(".git", "secrets"),
+            allow_absolute_paths=False,
+        ),
+    )
+
+    resolved = resolver.resolve(".")
+
+    assert resolved == workspace
+    assert resolver.relative_path(resolved) == "."
+
+
+def test_workspace_path_resolver_treats_dot_allowed_root_as_full_workspace_scope(
+    tmp_path: Path,
+) -> None:
+    workspace = _make_workspace(tmp_path)
+    resolver = WorkspacePathResolver(
+        workspace_root=workspace,
+        path_policy=ToolPathPolicy(
+            allowed_roots=(".",),
+            blocked_roots=(".git", "secrets"),
+            allow_absolute_paths=False,
+        ),
+    )
+
+    resolved = resolver.resolve("docs/notes.md")
+
+    assert resolved == workspace / "docs/notes.md"
+    assert resolver.relative_path(resolved) == "docs/notes.md"
+
+
 def test_workspace_path_resolver_rejects_path_traversal(tmp_path: Path) -> None:
     workspace = _make_workspace(tmp_path)
     resolver = WorkspacePathResolver(
@@ -296,6 +334,33 @@ def test_workspace_directory_list_tool_lists_non_hidden_entries_by_default(
     assert ".git" not in entries
     assert "secrets" not in entries
     assert entries["src"]["entry_type"] == "directory"
+
+
+def test_workspace_directory_list_tool_filters_disallowed_root_entries(
+    tmp_path: Path,
+) -> None:
+    workspace = _make_workspace(tmp_path)
+    tool = WorkspaceDirectoryListTool(
+        workspace_root=workspace,
+        path_policy=ToolPathPolicy(
+            allowed_roots=("src",),
+            blocked_roots=(".git", "secrets"),
+            allow_absolute_paths=False,
+        ),
+    )
+    request = ToolInvocationRequest.create(
+        tool_id="blackfox.workspace.list_directory",
+        capability=ToolCapability.DIRECTORY_LIST,
+        arguments={"path": ".", "recursive": False},
+    )
+
+    result = tool.invoke(request)
+
+    assert result.status is ToolInvocationStatus.SUCCEEDED
+
+    entries = {entry["path"]: entry for entry in result.output["entries"]}
+
+    assert set(entries) == {"src"}
 
 
 def test_workspace_directory_list_tool_lists_recursive_entries_and_hashes_files(
