@@ -11,6 +11,11 @@ from ix_blackfox.runtime.approval import (
     RuntimeApprovalResolution,
     RuntimeApprovalResolver,
 )
+from ix_blackfox.runtime.control_plane import (
+    EngineeringControlPlane,
+    EngineeringControlPlaneConfig,
+    EngineeringControlPlaneReport,
+)
 from ix_blackfox.runtime.doctor import (
     RuntimeDoctor,
     RuntimeDoctorReport,
@@ -121,6 +126,9 @@ from ix_blackfox.runtime.vision import (
 __all__ = [
     "BlackFoxRuntime",
     "DeterministicTaskClassifier",
+    "EngineeringControlPlane",
+    "EngineeringControlPlaneConfig",
+    "EngineeringControlPlaneReport",
     "EscalatedReasoningOutcome",
     "EscalatedReasoningPlan",
     "EscalatedReasoningRuntime",
