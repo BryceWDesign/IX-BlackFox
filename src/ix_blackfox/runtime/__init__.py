@@ -67,6 +67,12 @@ from ix_blackfox.runtime.repair_loop import (
     RepairLoopStatus,
     RepairLoopTerminalReason,
 )
+from ix_blackfox.runtime.repair_receipts import (
+    RepairLoopReceipt,
+    RepairLoopReceiptEventType,
+    RepairLoopReceiptLedger,
+    RepairLoopReceiptSnapshot,
+)
 from ix_blackfox.runtime.replay import (
     ReplayObservation,
     TaskReplayGuard,
@@ -102,6 +108,10 @@ __all__ = [
     "RepairLoopConfig",
     "RepairLoopFinding",
     "RepairLoopFindingSeverity",
+    "RepairLoopReceipt",
+    "RepairLoopReceiptEventType",
+    "RepairLoopReceiptLedger",
+    "RepairLoopReceiptSnapshot",
     "RepairLoopState",
     "RepairLoopStatus",
     "RepairLoopTerminalReason",
