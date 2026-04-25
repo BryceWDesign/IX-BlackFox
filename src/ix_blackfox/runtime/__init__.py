@@ -28,6 +28,13 @@ from ix_blackfox.runtime.inference import (
     TaskInference,
     TaskInferenceReason,
 )
+from ix_blackfox.runtime.operator_summary import (
+    OperatorSummaryDocument,
+    OperatorSummaryFinding,
+    OperatorSummaryFindingSeverity,
+    OperatorSummaryRenderer,
+    OperatorSummarySection,
+)
 from ix_blackfox.runtime.orchestrator import (
     BlackFoxRuntime,
     RuntimeRunReport,
@@ -102,6 +109,11 @@ __all__ = [
     "EscalatedReasoningOutcome",
     "EscalatedReasoningPlan",
     "EscalatedReasoningRuntime",
+    "OperatorSummaryDocument",
+    "OperatorSummaryFinding",
+    "OperatorSummaryFindingSeverity",
+    "OperatorSummaryRenderer",
+    "OperatorSummarySection",
     "PolicyReasoningOutcome",
     "PolicyReasoningPlan",
     "PolicyReasoningRuntime",
