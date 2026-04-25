@@ -53,6 +53,14 @@ from ix_blackfox.tools.risk import (
     ToolRiskLevel,
     ToolRiskSignal,
 )
+from ix_blackfox.tools.test_results import (
+    ParsedTestCase,
+    ParsedTestFinding,
+    ParsedTestFindingSeverity,
+    ParsedTestRun,
+    ParsedTestRunStatus,
+    PytestTextResultParser,
+)
 from ix_blackfox.tools.test_runner import (
     TestCommandResult,
     TestRunnerTool,
@@ -70,6 +78,11 @@ from ix_blackfox.tools.workspace import (
 )
 
 __all__ = [
+    "ParsedTestCase",
+    "ParsedTestFinding",
+    "ParsedTestFindingSeverity",
+    "ParsedTestRun",
+    "ParsedTestRunStatus",
     "PatchApplyFileResult",
     "PatchApplyTool",
     "PatchApplyWorkspaceError",
@@ -79,6 +92,7 @@ __all__ = [
     "PatchValidationFinding",
     "PatchValidationReport",
     "PatchValidationSeverity",
+    "PytestTextResultParser",
     "TestCommandResult",
     "TestRunnerTool",
     "TestRunnerWorkspaceError",
