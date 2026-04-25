@@ -53,6 +53,12 @@ from ix_blackfox.tools.risk import (
     ToolRiskLevel,
     ToolRiskSignal,
 )
+from ix_blackfox.tools.test_runner import (
+    TestCommandResult,
+    TestRunnerTool,
+    TestRunnerWorkspaceError,
+    build_test_runner_manifest,
+)
 from ix_blackfox.tools.workspace import (
     WorkspaceDirectoryEntry,
     WorkspaceDirectoryListTool,
@@ -73,6 +79,9 @@ __all__ = [
     "PatchValidationFinding",
     "PatchValidationReport",
     "PatchValidationSeverity",
+    "TestCommandResult",
+    "TestRunnerTool",
+    "TestRunnerWorkspaceError",
     "ToolApprovalMode",
     "ToolArtifactPersistenceError",
     "ToolArtifactStore",
@@ -106,6 +115,7 @@ __all__ = [
     "WorkspacePathResolver",
     "WorkspacePathViolation",
     "build_patch_apply_manifest",
+    "build_test_runner_manifest",
     "build_workspace_directory_list_manifest",
     "build_workspace_file_read_manifest",
 ]
