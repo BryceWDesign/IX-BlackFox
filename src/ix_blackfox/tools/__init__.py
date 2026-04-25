@@ -12,6 +12,12 @@ from ix_blackfox.tools.contracts import (
     ToolInvocationStatus,
     ToolOutputArtifact,
 )
+from ix_blackfox.tools.gateway import (
+    GovernedToolGateway,
+    ToolGatewayError,
+    ToolGatewayInvocationReport,
+    ToolInvoker,
+)
 from ix_blackfox.tools.manifest import (
     ToolApprovalMode,
     ToolCapability,
@@ -85,6 +91,7 @@ from ix_blackfox.tools.workspace import (
 )
 
 __all__ = [
+    "GovernedToolGateway",
     "ParsedTestCase",
     "ParsedTestFinding",
     "ParsedTestFindingSeverity",
@@ -109,12 +116,15 @@ __all__ = [
     "ToolCapability",
     "ToolFailure",
     "ToolFailureKind",
+    "ToolGatewayError",
+    "ToolGatewayInvocationReport",
     "ToolInvocationReceipt",
     "ToolInvocationReceiptLedger",
     "ToolInvocationReceiptSnapshot",
     "ToolInvocationRequest",
     "ToolInvocationResult",
     "ToolInvocationStatus",
+    "ToolInvoker",
     "ToolManifest",
     "ToolManifestRegistry",
     "ToolOutputArtifact",
