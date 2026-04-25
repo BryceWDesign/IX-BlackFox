@@ -7,6 +7,13 @@ artifact persistence, replay observation, and audit capture into one
 explicit execution spine.
 """
 
+from ix_blackfox.runtime.acceptance import (
+    Wave2AcceptanceFinding,
+    Wave2AcceptanceFindingSeverity,
+    Wave2AcceptanceReport,
+    Wave2AcceptanceStatus,
+    Wave2AcceptanceValidator,
+)
 from ix_blackfox.runtime.approval import (
     RuntimeApprovalResolution,
     RuntimeApprovalResolver,
@@ -205,6 +212,11 @@ __all__ = [
     "VisionOutcome",
     "VisionPlan",
     "VisionRuntime",
+    "Wave2AcceptanceFinding",
+    "Wave2AcceptanceFindingSeverity",
+    "Wave2AcceptanceReport",
+    "Wave2AcceptanceStatus",
+    "Wave2AcceptanceValidator",
     "control_plane_cli_main",
     "fingerprint_task_request",
     "run_control_plane_cli",
