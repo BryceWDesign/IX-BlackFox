@@ -81,13 +81,16 @@ def run_control_plane_cli(argv: Sequence[str] | None = None) -> ControlPlaneCliR
     candidates through the same controlled patch/test/receipt/bundle path as the
     Python API.
     """
-    args = _build_parser().parse_args(list(argv) if argv is not None else None)
+    raw_argv = list(argv) if argv is not None else None
+    args = _build_parser().parse_args(
+        _normalize_test_command_argv(raw_argv) if raw_argv is not None else None
+    )
 
     workspace_root = Path(args.workspace_root)
     artifact_root = Path(args.artifact_root) if args.artifact_root else workspace_root
     policy_path = Path(args.policy) if args.policy else None
     candidate_patches = _load_patch_candidates(args.patch)
-    test_command = tuple(args.test_command) if args.test_command else None
+    test_command = tuple(json.loads(args.test_command)) if args.test_command else None
     allowed_executables = tuple(args.allowed_executable) if args.allowed_executable else (
         "python",
         "python3",
@@ -208,6 +211,58 @@ def main(argv: Sequence[str] | None = None) -> int:
     return 0 if result.succeeded else 1
 
 
+def _normalize_test_command_argv(argv: Sequence[str]) -> list[str]:
+    normalized: list[str] = []
+    index = 0
+
+    while index < len(argv):
+        token = argv[index]
+        if token != "--test-command":
+            normalized.append(token)
+            index += 1
+            continue
+
+        normalized.append(token)
+        index += 1
+        command: list[str] = []
+        while index < len(argv):
+            candidate = argv[index]
+            if candidate.startswith("--") and candidate in _KNOWN_OPTION_NAMES:
+                break
+            command.append(candidate)
+            index += 1
+
+        if not command:
+            raise ControlPlaneCliError("--test-command requires at least one argument.")
+
+        normalized.append(json.dumps(command))
+
+    return normalized
+
+
+_KNOWN_OPTION_NAMES = {
+    "--workspace-root",
+    "--artifact-root",
+    "--policy",
+    "--task-id",
+    "--run-id",
+    "--objective",
+    "--patch",
+    "--test-command",
+    "--test-working-directory",
+    "--test-timeout-seconds",
+    "--allowed-executable",
+    "--workspace-marker-name",
+    "--no-workspace-marker",
+    "--output-json",
+    "--export",
+    "--export-dir",
+    "--export-format",
+    "--export-name",
+    "--overwrite-export",
+}
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="blackfox-control-plane",
@@ -253,7 +308,6 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--test-command",
-        nargs="+",
         help="Allowlisted argv-style test command. Example: --test-command python -m pytest -q",
     )
     parser.add_argument(
