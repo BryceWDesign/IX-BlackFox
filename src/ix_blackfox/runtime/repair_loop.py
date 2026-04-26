@@ -7,13 +7,9 @@ from enum import StrEnum, auto
 from typing import Any, Self
 from uuid import uuid4
 
-from ix_blackfox.tools import (
-    ParsedTestRun,
-    ParsedTestRunStatus,
-    PatchDiff,
-    ToolInvocationResult,
-    ToolInvocationStatus,
-)
+from ix_blackfox.tools.contracts import ToolInvocationResult, ToolInvocationStatus
+from ix_blackfox.tools.patch import PatchDiff
+from ix_blackfox.tools.test_results import ParsedTestRun, ParsedTestRunStatus
 
 
 class RepairLoopStatus(StrEnum):
