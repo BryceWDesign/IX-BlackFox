@@ -214,13 +214,12 @@ class BrainRuntimeConfig:
         if len(manifest_names) != len(set(manifest_names)):
             raise ValueError("BrainRuntimeConfig manifest names must be unique.")
 
-        if self.providers:
-            known_providers = {provider.provider_name for provider in self.providers}
-            for manifest in self.manifests:
-                if manifest.provider_name not in known_providers:
-                    raise ValueError(
-                        "Every configured brain manifest must reference a configured provider."
-                    )
+        known_providers = {provider.provider_name for provider in self.providers}
+        for manifest in self.manifests:
+            if manifest.provider_name not in known_providers:
+                raise ValueError(
+                    "Every configured brain manifest must reference a configured provider."
+                )
 
         if self.manifests:
             known_brains = {manifest.brain_name for manifest in self.manifests}
