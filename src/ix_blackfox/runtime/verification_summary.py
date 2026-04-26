@@ -10,7 +10,7 @@ from typing import Any, Self
 
 from ix_blackfox.runtime.programming_repair import ProgrammingRepairRunReport
 from ix_blackfox.runtime.run_bundle import RunBundleManifest
-from ix_blackfox.tools import ParsedTestRunStatus
+from ix_blackfox.tools.test_results import ParsedTestRunStatus
 
 
 class VerificationSummaryStatus(StrEnum):
