@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Self
 
-from ix_blackfox.runtime.repair_loop import RepairLoopConfig
 from ix_blackfox.tools.manifest import (
     ToolCapability,
     ToolPathPolicy,
@@ -120,7 +119,9 @@ class ToolPolicyExecutionConfig:
             "max_tool_timeout_seconds": self.max_tool_timeout_seconds,
         }
 
-    def to_repair_loop_config(self) -> RepairLoopConfig:
+    def to_repair_loop_config(self):
+        from ix_blackfox.runtime.repair_loop import RepairLoopConfig
+
         return RepairLoopConfig(max_attempts=self.max_repair_attempts)
 
 
@@ -482,7 +483,7 @@ class ToolPolicyDocument:
             review_side_effects=tuple(_dedupe(review_side_effects)),
         )
 
-    def to_repair_loop_config(self) -> RepairLoopConfig:
+    def to_repair_loop_config(self):
         return self.execution.to_repair_loop_config()
 
     def to_tool_path_policy(self) -> ToolPathPolicy:
