@@ -26,15 +26,13 @@ from ix_blackfox.runtime.verification_summary import (
     VerificationSummary,
     VerificationSummaryRenderer,
 )
-from ix_blackfox.tools import (
-    PatchApplyTool,
-    PatchDiff,
-    TestRunnerTool,
-    ToolArtifactStore,
-    ToolInvocationReceiptLedger,
-    ToolPathPolicy,
-    ToolPolicyDocument,
-)
+from ix_blackfox.tools.artifacts import ToolArtifactStore
+from ix_blackfox.tools.manifest import ToolPathPolicy
+from ix_blackfox.tools.patch import PatchDiff
+from ix_blackfox.tools.patch_apply import PatchApplyTool
+from ix_blackfox.tools.policy_file import ToolPolicyDocument
+from ix_blackfox.tools.receipts import ToolInvocationReceiptLedger
+from ix_blackfox.tools.test_runner import TestRunnerTool
 
 
 @dataclass(frozen=True, slots=True)
