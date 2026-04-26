@@ -416,15 +416,28 @@ def _find_final_summary_line(lines: Iterable[str]) -> str | None:
         stripped = line.strip()
         if not stripped:
             continue
+
+        lower = stripped.lower()
         if stripped.startswith("=") and stripped.endswith("="):
-            lower = stripped.lower()
             if any(token in lower for token in _SUMMARY_TOKENS):
                 candidates.append(stripped)
+            continue
+
+        if _looks_like_compact_pytest_summary(lower):
+            candidates.append(stripped)
 
     if not candidates:
         return None
 
     return candidates[-1]
+
+
+def _looks_like_compact_pytest_summary(line: str) -> bool:
+    if " in " not in line or not line.endswith("s"):
+        return False
+    if not any(token in line for token in _SUMMARY_TOKENS):
+        return False
+    return re.search(r"\b\d+\s+(passed|failed|errors?|skipped|xfailed|xpassed|warnings?|deselected|selected)\b", line) is not None
 
 
 def _parse_summary_counts(summary_line: str | None) -> Counter[str]:
