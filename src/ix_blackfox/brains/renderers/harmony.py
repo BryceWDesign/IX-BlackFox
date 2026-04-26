@@ -98,6 +98,7 @@ class HarmonyRenderer:
             request,
             system_prompt=system_prompt,
             developer_prompt=developer_prompt,
+            coalesce_adjacent=False,
         )
         return self.render_conversation(conversation, config=config)
 
