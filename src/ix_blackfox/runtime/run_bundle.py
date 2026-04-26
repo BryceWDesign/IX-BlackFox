@@ -396,10 +396,7 @@ class RunBundleWriter:
             filename=filename,
             payload=text.encode("utf-8"),
             media_type=media_type,
-            metadata={
-                "encoding": "utf-8",
-                **dict(metadata or {}),
-            },
+            metadata=metadata,
         )
 
     def write_bytes(
