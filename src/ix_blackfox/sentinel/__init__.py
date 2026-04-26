@@ -15,7 +15,15 @@ The current layer provides:
 
 from ix_blackfox.sentinel.checks import (
     ApprovalGateConsistencyCheck,
+    ContradictionAssertion,
+    ContradictionCheck,
+    FailureLoopCheck,
+    FailureLoopWindow,
+    GovernanceConsistencyCheck,
     GovernanceExecutionContradictionCheck,
+    GovernanceObservation,
+    PolicyGuardrailCheck,
+    PolicyObservation,
     TaskStateTraceContradictionCheck,
     register_default_sentinel_checks,
 )
@@ -31,7 +39,15 @@ from ix_blackfox.sentinel.core import (
 
 __all__ = [
     "ApprovalGateConsistencyCheck",
+    "ContradictionAssertion",
+    "ContradictionCheck",
+    "FailureLoopCheck",
+    "FailureLoopWindow",
+    "GovernanceConsistencyCheck",
     "GovernanceExecutionContradictionCheck",
+    "GovernanceObservation",
+    "PolicyGuardrailCheck",
+    "PolicyObservation",
     "SentinelCheck",
     "SentinelContext",
     "SentinelIssue",
