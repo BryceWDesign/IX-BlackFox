@@ -243,6 +243,20 @@ class PolicyReasoningRuntime:
                 skipped=False,
             )
 
+        if _looks_like_safeguard_schema(response.result.output_text):
+            return PolicyReasoningOutcome(
+                plan=plan,
+                provider_name=response.provider_name,
+                result=response.result,
+                receipt=None,
+                assessment=None,
+                failure_message=(
+                    "Policy reasoning provider returned safeguard-lane schema, "
+                    "so the policy advisory lane was treated as skipped."
+                ),
+                skipped=True,
+            )
+
         assessment = _normalize_assessment(plan=plan, result=response.result)
 
         receipt = None
@@ -407,6 +421,15 @@ def _normalize_assessment(
         notes=notes,
         metadata=metadata,
     )
+
+
+def _looks_like_safeguard_schema(value: str | None) -> bool:
+    payload = _parse_json_object(value)
+    if payload is None:
+        return False
+    if "notes" in payload or "rationale" in payload:
+        return False
+    return "findings" in payload
 
 
 def _parse_json_object(value: str | None) -> dict[str, Any] | None:
