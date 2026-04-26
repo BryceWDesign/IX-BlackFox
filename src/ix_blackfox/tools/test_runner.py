@@ -310,6 +310,10 @@ class TestRunnerTool:
             "SYSTEMROOT": os.environ.get("SYSTEMROOT", ""),
             "WINDIR": os.environ.get("WINDIR", ""),
             "PYTHONPATH": os.environ.get("PYTHONPATH", ""),
+            "PYTEST_DISABLE_PLUGIN_AUTOLOAD": os.environ.get(
+                "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+                "1",
+            ),
             "PYTHONNOUSERSITE": "1",
             "PYTHONDONTWRITEBYTECODE": "1",
         }
