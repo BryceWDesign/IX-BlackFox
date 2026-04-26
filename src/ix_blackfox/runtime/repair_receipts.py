@@ -15,7 +15,9 @@ from ix_blackfox.runtime.repair_loop import (
     RepairLoopStatus,
     RepairLoopTerminalReason,
 )
-from ix_blackfox.tools import ParsedTestRun, PatchDiff, ToolInvocationResult
+from ix_blackfox.tools.contracts import ToolInvocationResult
+from ix_blackfox.tools.patch import PatchDiff
+from ix_blackfox.tools.test_results import ParsedTestRun
 
 
 class RepairLoopReceiptEventType(StrEnum):
