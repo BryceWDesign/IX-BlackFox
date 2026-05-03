@@ -4,695 +4,490 @@
 
 # IX-BlackFox
 
-**IX-BlackFox is a governed AI engineering control plane proof-of-concept.**
-
-It is not a chatbot wrapper.  
-It is not an autonomous swarm.  
-It is not a claim of magic AI coding.
-
-BlackFox is built around one hard rule:
-
-> AI-generated engineering work should not be trusted until it can be routed, gated, executed, tested, verified, receipted, packaged, and reviewed.
-
-Wave 2 upgrades BlackFox from a governed multi-brain runtime scaffold into a controlled local engineering runtime that can apply explicit patch candidates, run allowlisted tests, parse test evidence, produce receipt chains, generate operator summaries, produce verification summaries, and package reviewable run bundles.
-
----
-
-## What BlackFox Does
-
-BlackFox provides a controlled runtime path for engineering work:
-
-1. Receive an explicit task objective.
-2. Accept one or more explicit `PatchDiff` candidates.
-3. Apply patches only inside a reserved workspace.
-4. Enforce workspace path policy.
-5. Run allowlisted local test commands.
-6. Parse pytest output into structured evidence.
-7. Record tool invocation receipts.
-8. Record repair-loop decision receipts.
-9. Generate an operator-readable summary.
-10. Generate a machine-readable verification summary.
-11. Package the run into a reviewable artifact bundle.
-12. Validate the bundle against Wave 2 acceptance criteria.
-
-The core idea is simple:
-
-> Intelligence should behave like a controlled operating runtime, not like a floating text box.
-
----
-
-## What BlackFox Is Not
-
-BlackFox does **not** currently claim:
-
-- autonomous patch generation
-- autonomous repo refactoring without explicit patch candidates
-- production sandbox isolation
-- remote execution security
-- cloud orchestration
-- formal verification
-- global code correctness
-- permission to mutate arbitrary directories
-- permission to access secrets
-- permission to access networks by default
-- flight, medical, financial, legal, or safety-critical readiness
+IX-BlackFox is a governed AI engineering control-plane project.
+
+The goal is not to build an uncontrolled “AI writes code and deploys itself” system. The goal is a bounded, auditable engineering runtime that can propose repairs, compile them into governed patch candidates, route them through policy gates, execute them through a controlled patch-test-verify loop, preserve receipts, and make the result reviewable.
+
+Wave 3 adds governed patch authoring and repair intelligence on top of the existing Wave 2 patch-test-verify control plane.
+
+## Current position
+
+IX-BlackFox is now structured around three implemented layers:
+
+| Wave | Meaning | Current role |
+|---|---|---|
+| Wave 1 | Governed multi-brain runtime scaffold | Base runtime, reasoning lanes, governance preflight, readiness, replay, and operator-facing structure |
+| Wave 2 | Governed local patch-test-verify control plane | Controlled patch application, test execution, receipts, verification summaries, and run bundles |
+| Wave 3 | Governed patch authoring and repair intelligence | Structured repair proposal generation, parsing, compilation, policy gating, ranking, Wave 2 handoff, acceptance validation, CLI, and evidence packaging |
 
-The Wave 2 runtime verifies only the captured objective, patch candidates, workspace state, policy configuration, test command, receipts, and artifacts for a specific run.
+Wave 3 does not replace Wave 2. Wave 3 creates selected `PatchDiff` candidates. Wave 2 remains the execution authority.
 
----
+## What Wave 3 adds
 
-## Wave 2 Architecture
+Wave 3 introduces the authored-repair path:
 
-Wave 2 adds a governed engineering control plane around the original runtime.
+1. Build bounded repository context.
+2. Extract or normalize failure evidence.
+3. Decompose the repair objective into bounded subtasks.
+4. Generate deterministic repair hypotheses.
+5. Render a strict model-side patch-authoring prompt contract.
+6. Accept raw proposal JSON from a provider or manual import.
+7. Parse the proposal as hostile input.
+8. Reject malformed, unsafe, command-like, or path-escaping responses.
+9. Compile valid proposal mutations into governed `PatchDiff` candidates.
+10. Run authoring policy gates before execution.
+11. Rank candidate patches deterministically.
+12. Select at most one candidate for Wave 2.
+13. Preserve authoring receipts.
+14. Execute selected candidates only through Wave 2.
+15. Validate Wave 3 acceptance after Wave 2 execution.
+16. Package Wave 3 evidence for review.
 
-Major components:
+## What Wave 3 does not do
 
-- `PatchDiff` and `PatchFileChange`
-- `PatchApplyTool`
-- `WorkspaceFileReadTool`
-- `WorkspaceDirectoryListTool`
-- `TestRunnerTool`
-- `PytestTextResultParser`
-- `RepairLoopState`
-- `ProgrammingRepairRuntime`
-- `RepairLoopReceiptLedger`
-- `ToolInvocationReceiptLedger`
-- `RunBundleWriter`
-- `RunBundleExporter`
-- `OperatorSummaryRenderer`
-- `VerificationSummaryRenderer`
-- `EngineeringControlPlane`
-- `Wave2AcceptanceValidator`
+IX-BlackFox Wave 3 does not:
 
-Together, these form the control path:
+- silently edit files outside the governed patch path
+- run tests from the authoring layer
+- approve its own review
+- bypass policy
+- weaken tests to force success
+- claim deployment readiness
+- claim that a repair is proven without Wave 2 evidence
+- call a remote model by default
+- remove human authority from high-consequence engineering decisions
 
-```
-explicit patch candidate
-        |
-        v
-governed patch tool
-        |
-        v
-allowlisted test runner
-        |
-        v
-pytest result parser
-        |
-        v
-repair-loop state machine
-        |
-        v
-tool receipts + repair receipts
-        |
-        v
-operator summary + verification summary
-        |
-        v
-run bundle
-        |
-        v
-Wave 2 acceptance validation
-```
+The current Wave 3 implementation supports manual/static proposal import and provider-interface wiring. A production model provider can be added later, but the trust boundary is already explicit: model output is untrusted input.
 
----
+## Core trust boundary
 
-## Repository Safety Model
+The most important design rule is:
 
-BlackFox uses several local safety boundaries.
+> Wave 3 may propose. Wave 2 must execute. Acceptance must verify. Humans retain authority.
 
-### Reserved Workspace Marker
+That means an authored repair is not accepted merely because a model produced JSON. It must survive parsing, compilation, policy, candidate selection, Wave 2 execution, and Wave 3 acceptance validation.
 
-Patch and test execution require a reserved workspace marker by default:
+## Repository layout
 
-```
-.blackfox-workspace
-```
+Important runtime and authoring modules include:
 
-This prevents the control plane from silently mutating an arbitrary folder passed by mistake.
-
-### Path Policy
+| Path | Purpose |
+|---|---|
+| `src/ix_blackfox/authoring/models.py` | Core authoring models: requests, objectives, evidence, context, findings, subtasks |
+| `src/ix_blackfox/authoring/context.py` | Bounded repository context collection |
+| `src/ix_blackfox/authoring/failure_evidence.py` | Failure evidence extraction from pytest output or objective-only reports |
+| `src/ix_blackfox/authoring/decomposition.py` | Deterministic task decomposition |
+| `src/ix_blackfox/authoring/hypotheses.py` | Repair hypothesis generation |
+| `src/ix_blackfox/authoring/prompt_contract.py` | Strict model-side patch-authoring contract |
+| `src/ix_blackfox/authoring/response_parser.py` | Strict parser for untrusted model proposal JSON |
+| `src/ix_blackfox/authoring/patch_compiler.py` | Proposal-to-`PatchDiff` compiler |
+| `src/ix_blackfox/authoring/policy.py` | Authoring policy gate |
+| `src/ix_blackfox/authoring/receipts.py` | Wave 3 authoring receipt ledger |
+| `src/ix_blackfox/authoring/candidates.py` | Candidate scoring, ranking, and selection |
+| `src/ix_blackfox/runtime/authoring_repair.py` | Wave 3 authored repair runtime |
+| `src/ix_blackfox/runtime/control_plane.py` | Wave 2 control plane plus Wave 3 handoff integration |
+| `src/ix_blackfox/runtime/wave3_acceptance.py` | Wave 3 acceptance validator |
+| `src/ix_blackfox/runtime/wave3_cli.py` | Manual Wave 3 CLI entrypoint |
+| `src/ix_blackfox/runtime/wave3_bundle.py` | Wave 3 evidence package writer |
 
-Workspace tools reject:
+## Wave 3 proposal schema
 
-- absolute paths unless explicitly allowed
-- path traversal outside the workspace
-- blocked roots such as `.git`, `.env`, `.ssh`, `secrets`, and `credentials`
-- paths outside configured allowed roots
+Wave 3 proposals are JSON only. Markdown-wrapped JSON is rejected by default.
 
-Default policy lives in:
+A proposal must include:
 
-```
-blackfox.policy.toml
-```
+- `schema_version`
+- `proposal_id`
+- `objective_summary`
+- `reasoning_summary`
+- `confidence`
+- `assumptions`
+- `risk_notes`
+- `expected_tests`
+- `mutations`
 
-### No Shell Execution
+Supported mutation types:
 
-The test runner uses argv-style subprocess execution with `shell=False`.
+| Mutation type | Meaning |
+|---|---|
+| `replace_text` | Replace exact text in an existing file |
+| `create_file` | Create a new file with supplied text |
 
-Commands must be passed as lists, not shell strings.
+Example proposal:
 
-Example:
-
-```
-python -m pytest -q
-```
-
-Not:
-
-```
-python -m pytest -q && rm -rf something
-```
-
-### Approval-Oriented Policy
-
-The policy file distinguishes between:
-
-- allowed execution
-- blocked execution
-- review-required execution
-
-Workspace writes and process execution are review-sensitive by default.
-
----
-
-## Policy File
-
-Default policy file:
-
-```
-blackfox.policy.toml
-```
-
-Example policy shape:
-
-```toml
-[execution]
-allow_file_read = true
-allow_file_write = true
-allow_process_execution = true
-allow_network = false
-allow_system_mutation = false
-allow_absolute_paths = false
-max_repair_attempts = 3
-max_tool_timeout_seconds = 900
-
-[approval]
-require_for_delete = true
-require_for_network = true
-require_for_secret_access = true
-require_for_workspace_write = true
-require_for_process_execution = true
-review_high_risk = true
-block_critical_risk = true
-
-[paths]
-allowed_roots = [
-  "src",
-  "tests",
-  "docs",
-  "scripts",
-  "examples",
-  "artifacts",
-]
-blocked_roots = [
-  ".git",
-  ".env",
-  ".ssh",
-  "secrets",
-  "credentials",
-  "__pycache__",
-  ".pytest_cache",
-  ".mypy_cache",
-  ".ruff_cache",
-  "dist",
-  "build",
-]
-allow_absolute_paths = false
-```
-
----
-
-## Core Runtime Modules
-
-### Tools
-
-```
-src/ix_blackfox/tools/
-```
-
-Important modules:
-
-```
-contracts.py
-manifest.py
-policy.py
-policy_file.py
-gateway.py
-risk.py
-receipts.py
-artifacts.py
-workspace.py
-patch.py
-patch_apply.py
-test_runner.py
-test_results.py
-```
-
-### Runtime
-
-```
-src/ix_blackfox/runtime/
-```
-
-Important Wave 2 modules:
-
-```
-repair_loop.py
-programming_repair.py
-repair_receipts.py
-run_bundle.py
-run_bundle_export.py
-operator_summary.py
-verification_summary.py
-control_plane.py
-control_plane_cli.py
-acceptance.py
-```
-
----
-
-## Basic Verification
-
-From the repository root, run:
-
-```bash
-python -m pytest -q
-```
-
-For stricter local checking, run the full test directory:
-
-```bash
-python -m pytest tests -q
-```
-
-I cannot honestly claim your local checkout is green until you run the tests in your environment after uploading every commit. The expected verification path is the pytest suite included in the repo.
-
----
-
-## Running the Engineering Control Plane from Python
-
-A minimal local example looks like this:
-
-```python
-from pathlib import Path
-
-from ix_blackfox.runtime import EngineeringControlPlane
-from ix_blackfox.tools import PatchDiff, PatchFileChange
-
-workspace = Path(".").resolve()
-
-patch = PatchDiff.create(
-    summary="Repair a failing smoke test.",
-    file_changes=(
-        PatchFileChange.modify(
-            path="tests/test_smoke.py",
-            before_text="def test_smoke() -> None:\n    assert False\n",
-            after_text="def test_smoke() -> None:\n    assert True\n",
-        ),
-    ),
-    created_by="operator",
-)
-
-control_plane = EngineeringControlPlane.from_workspace(
-    workspace_root=workspace,
-    artifact_root=workspace,
-    policy_path=workspace / "blackfox.policy.toml",
-    test_command=("python", "-m", "pytest", "tests/test_smoke.py", "-q"),
-)
-
-report = control_plane.run_programming_repair(
-    task_id="task-demo",
-    run_id="run-demo",
-    objective="Repair the failing smoke test and capture evidence.",
-    candidate_patches=(patch,),
-)
-
-print(report.succeeded)
-print(report.verification_status)
-print(report.bundle_root)
-```
-
-The run writes a bundle under:
-
-```
-artifacts/runs/<run_id>/
-```
-
----
-
-## Running the Engineering Control Plane from CLI
-
-The CLI adapter accepts explicit `PatchDiff` JSON files.
-
-Example:
-
-```bash
-python -m ix_blackfox.runtime.control_plane_cli \
-  --workspace-root . \
-  --artifact-root . \
-  --policy blackfox.policy.toml \
-  --task-id task-demo \
-  --run-id run-demo \
-  --objective "Repair failing tests and capture evidence." \
-  --patch patch.json \
-  --test-command python -m pytest -q \
-  --allowed-executable python \
-  --output-json artifacts/run-demo-result.json
-```
-
-Optional bundle export:
-
-```bash
-python -m ix_blackfox.runtime.control_plane_cli \
-  --workspace-root . \
-  --artifact-root . \
-  --policy blackfox.policy.toml \
-  --task-id task-demo \
-  --run-id run-demo \
-  --objective "Repair failing tests and capture evidence." \
-  --patch patch.json \
-  --test-command python -m pytest -q \
-  --allowed-executable python \
-  --export \
-  --export-dir exports \
-  --export-name run-demo-review-pack
-```
-
-This produces a ZIP export such as:
-
-```
-exports/run-demo-review-pack.zip
-```
-
----
-
-## PatchDiff JSON Shape
-
-Patch candidates are explicit before/after models.
-
-Example JSON shape:
-
-```json
+~~~
 {
-  "patch_id": "patch-example",
-  "summary": "Repair failing smoke test.",
-  "created_by": "operator",
-  "file_changes": [
-    {
-      "path": "tests/test_smoke.py",
-      "change_kind": "modify",
-      "before_text": "def test_smoke() -> None:\n    assert False\n",
-      "after_text": "def test_smoke() -> None:\n    assert True\n",
-      "metadata": {}
-    }
+  "schema_version": "wave3.patch_authoring_response.v1",
+  "proposal_id": "proposal-1",
+  "objective_summary": "Repair the failing addition behavior.",
+  "reasoning_summary": "The proposed source change aligns with the failing assertion evidence.",
+  "confidence": 0.72,
+  "assumptions": [
+    "The compiler must verify before_text against the current workspace."
   ],
-  "metadata": {}
+  "risk_notes": [
+    "The patch must still pass policy and Wave 2 execution."
+  ],
+  "expected_tests": [
+    "The targeted behavior test should pass after governed execution."
+  ],
+  "mutations": [
+    {
+      "mutation_id": "mutation-1",
+      "mutation_type": "replace_text",
+      "path": "src/example.py",
+      "before_text": "return a - b",
+      "after_text": "return a + b",
+      "rationale": "The failing assertion expects addition behavior."
+    }
+  ]
 }
-```
+~~~
 
-Patch operations support:
+## Parser restrictions
 
-```
-add
-modify
-delete
-```
+The parser treats model output as hostile input.
 
-Deletes are flagged as review-sensitive.
+It rejects:
 
----
+- empty responses
+- malformed JSON
+- markdown-wrapped JSON
+- unknown top-level fields
+- unknown mutation fields
+- unsafe paths
+- absolute paths
+- drive-prefixed paths
+- path traversal
+- hidden root paths such as `.env`
+- shell-command-like text
+- network/download instructions
+- success claims such as “all tests passed”
+- no-op replacements
+- duplicate mutation IDs
+- duplicate create-file paths
+- invalid confidence values
 
-## Run Bundle Layout
+## Compiler behavior
 
-Each control-plane run writes a reviewable bundle:
+The compiler converts a validated `PatchAuthoringProposal` into a Wave 2 `PatchDiff`.
 
-```
-artifacts/runs/<run_id>/
-  manifest.json
-  reports/
-    programming-repair-report.json
-    operator-summary.md
-  verification/
-    verification-summary.json
-  receipts/
-    tool-receipts.json
-    repair-receipts.json
-  traces/
-    control-plane-trace.json
-```
+For `replace_text`, it:
 
-The manifest records artifact metadata:
+1. Resolves the target path through the workspace path policy.
+2. Reads the current workspace file.
+3. Verifies that `before_text` is present.
+4. Rejects stale `before_text`.
+5. Rejects ambiguous replacements by default.
+6. Expands the mutation into a whole-file `PatchFileChange`.
+7. Validates the resulting patch diff.
 
-- artifact kind
-- relative path
-- media type
-- SHA-256 digest
-- byte size
-- creation timestamp
-- metadata
+For `create_file`, it:
 
-The manifest itself has a digest binding the artifact inventory.
+1. Resolves the target path through policy.
+2. Rejects overwrite attempts.
+3. Rejects empty file content.
+4. Compiles the mutation into a `PatchFileChange.add`.
 
----
+## Authoring policy gate
 
-## Operator Summary
+The policy gate can allow, require review, or block a proposal.
 
-The operator summary is markdown intended for human review.
+It blocks high-risk cases such as:
 
-It answers:
+- secret-like paths
+- blocked roots
+- path traversal
+- unsafe command or dynamic-execution content
+- delete-like mutation language
 
-- What was requested?
-- What did BlackFox do?
-- What changed?
-- What evidence exists?
-- What still needs human review?
+It requires review for cases such as:
 
-Output path:
+- test mutation
+- possible test weakening
+- governance-sensitive paths
+- acceptance logic
+- receipt logic
+- dependency or build configuration
+- CI workflow files
+- executable scripts
+- create-file mutations
+- weak or missing evidence
+- low-confidence proposals
+- large patches
 
-```
-artifacts/runs/<run_id>/reports/operator-summary.md
-```
+Low-risk source patches with direct evidence can be allowed.
 
----
+## Candidate ranking
 
-## Verification Summary
+Wave 3 ranks compiled candidates using deterministic scoring.
 
-The verification summary is JSON intended for machine review.
+Scoring considers:
 
-It records:
+- proposal confidence
+- policy decision
+- evidence strength
+- path risk
+- patch size
+- selected hypothesis alignment
+- review penalties
+- blocked penalties
+- duplicate patch digests
 
-- verification status
-- objective
-- conclusion
-- evidence items
-- findings
-- summary digest
+Only one candidate can be selected. Lower-ranked available candidates are preserved as not selected.
 
-Output path:
+## Authoring receipts
 
-```
-artifacts/runs/<run_id>/verification/verification-summary.json
-```
+Wave 3 records an authoring receipt chain for review.
 
-Possible verification statuses:
+Receipt events include:
 
-```
-verified
-partial
-failed
-blocked
-inconclusive
-```
+- context collected
+- evidence extracted
+- decomposition created
+- hypotheses generated
+- prompt contract rendered
+- model response received
+- response parsed
+- proposal validated
+- patch compiled
+- policy decided
+- candidate selected
+- candidate rejected
+- authoring failed
 
-A run is marked `verified` only when the captured repair report reached a successful terminal state and the latest parsed test run passed.
+Each receipt includes a payload digest and chain digest. The chain is intended to make the authoring path reviewable and tamper-evident enough for local engineering workflow evidence. It is not a replacement for external signing infrastructure.
 
----
+## Wave 3 acceptance
 
-## Acceptance Validation
-
-Wave 2 includes an acceptance validator:
-
-```python
-from ix_blackfox.runtime import Wave2AcceptanceValidator
-
-acceptance = Wave2AcceptanceValidator().validate_control_plane_report(
-    report,
-    check_filesystem=True,
-)
-
-print(acceptance.status)
-print(acceptance.conclusion)
-```
+Wave 3 acceptance validates that the authored repair path and Wave 2 execution path line up.
 
 Acceptance checks include:
 
-- successful repair loop
-- verified status
-- passing latest parsed test run
-- minimum tool receipt count
-- minimum repair receipt count
-- required run-bundle artifact kinds
-- unique artifact paths
-- persisted artifact digests when filesystem checking is enabled
+- authored repair report exists
+- receipt chain is valid
+- required authoring events are present
+- selected candidate exists
+- selected patch exists
+- selection report exists
+- selected candidate has an allow policy report
+- Wave 2 report exists
+- Wave 2 executed
+- Wave 2 succeeded
+- Wave 2 metadata references the selected Wave 3 patch
+- Wave 2 metadata references the authoring chain digest
+- Wave 2 metadata references the authoring receipt count
 
 Acceptance statuses:
 
-```
-accepted
-rejected
-inconclusive
-```
+| Status | Meaning |
+|---|---|
+| `passed` | Authoring, policy, receipts, selected patch, and Wave 2 success aligned |
+| `failed` | Required evidence or alignment failed |
+| `blocked` | Authoring was blocked |
+| `requires_review` | Authoring requires review |
+| `not_executed` | No selected candidate reached Wave 2 execution |
 
----
+## Wave 3 evidence package
 
-## Receipt Model
+The Wave 3 evidence package writer persists:
 
-BlackFox records two kinds of receipts.
+- authored engineering report
+- authoring receipts
+- Wave 3 acceptance report
+- Wave 2 engineering report, when present
+- Wave 3 evidence index
+- Wave 3 evidence package manifest
 
-### Tool Receipts
+This package is separate from the Wave 2 run bundle. It exists so the authored layer can be reviewed alongside the execution layer.
 
-Tool receipts record:
+## Manual CLI usage
 
-- policy evaluation
-- invocation start
-- invocation result
-- emitted artifacts
+The Wave 3 CLI is intended for manual proposal import and controlled local runs.
 
-These answer:
+Example:
 
-```
-What tool was invoked, under what policy decision, with what result?
-```
+~~~
+python -m ix_blackfox.runtime.wave3_cli \
+  --workspace-root . \
+  --artifact-root . \
+  --task-id task-add \
+  --run-id run-add \
+  --objective "Repair addition behavior." \
+  --include-path src \
+  --include-path tests \
+  --proposal-file proposal.json \
+  --raw-test-output-file pytest-output.txt \
+  --test-command python -m pytest -q tests
+~~~
 
-### Repair-Loop Receipts
+Exit codes:
 
-Repair-loop receipts record:
+| Exit code | Meaning |
+|---:|---|
+| `0` | Wave 3 acceptance passed |
+| `1` | Wave 3 acceptance failed |
+| `2` | CLI input error |
+| `10` | Review required |
+| `20` | Blocked |
 
-- loop start
-- attempt start
-- patch result
-- test result
-- loop termination
-- failure events
+## Programmatic usage
 
-These answer:
+Example manual/static Wave 3 run through the control plane:
 
-```
-Why did the repair loop continue, stop, pass, fail, or block?
-```
+~~~
+from pathlib import Path
 
-Both receipt ledgers use chained digests for tamper-evident sequencing.
+from ix_blackfox.runtime.control_plane import EngineeringControlPlane
+from ix_blackfox.runtime.authoring_repair import StaticPatchProposalProvider
+from ix_blackfox.runtime.wave3_acceptance import Wave3AcceptanceValidator
 
----
+proposal_json = """
+{
+  "schema_version": "wave3.patch_authoring_response.v1",
+  "proposal_id": "proposal-1",
+  "objective_summary": "Repair file content.",
+  "reasoning_summary": "The proposed source change aligns with the failure evidence.",
+  "confidence": 0.72,
+  "assumptions": ["The compiler must verify before_text."],
+  "risk_notes": ["The patch must still pass policy and Wave 2 execution."],
+  "expected_tests": ["The targeted behavior test should pass after governed execution."],
+  "mutations": [
+    {
+      "mutation_id": "mutation-1",
+      "mutation_type": "replace_text",
+      "path": "src/example.py",
+      "before_text": "before",
+      "after_text": "after\\n",
+      "rationale": "Repair source behavior."
+    }
+  ]
+}
+"""
 
-## Serious Use Boundaries
+control_plane = EngineeringControlPlane.from_workspace(
+    workspace_root=Path("."),
+    artifact_root=Path("."),
+    test_command=("python", "-m", "pytest", "-q", "tests"),
+)
 
-BlackFox is designed for local governed engineering experiments and audit-friendly AI-runtime research.
+report = control_plane.run_authored_programming_repair(
+    task_id="task-example",
+    run_id="run-example",
+    objective="Repair file content.",
+    include_paths=("src", "tests"),
+    proposal_provider=StaticPatchProposalProvider(responses=(proposal_json,)),
+    raw_test_output="FAILED tests/test_example.py::test_example",
+    authoring_test_return_code=1,
+)
 
-It is appropriate for:
+acceptance = Wave3AcceptanceValidator().validate(report)
+print(acceptance.status.value)
+~~~
 
-- controlled proof-of-concept demos
-- local patch/test experimentation
-- AI governance runtime design
-- receipt-chain and evidence-package research
-- operator review workflows
-- deterministic tool-policy testing
+## Workspace requirements
 
-It is not appropriate for:
+By default, the control plane requires a workspace marker:
 
-- unreviewed production mutation
-- secret-bearing repositories without additional sandboxing
-- arbitrary shell execution
-- remote code execution
-- sensitive infrastructure
-- safety-critical deployment
-- autonomous unattended repair of real systems
+~~~
+.blackfox-workspace
+~~~
 
----
+This is intentional. IX-BlackFox is designed to run in an explicitly reserved workspace, not in arbitrary directories by accident.
 
-## Development Workflow
+## Policy file
 
-Recommended local loop:
+If present, the control plane loads:
 
-```bash
-python -m pytest tests/tools -q
-python -m pytest tests/runtime -q
-python -m pytest -q
-```
+~~~
+blackfox.policy.toml
+~~~
 
-Suggested manual review checklist:
+The policy document controls path boundaries and repair-loop behavior. If no policy file is present, the system falls back to the default policy document.
 
-```
-1. Confirm .blackfox-workspace exists.
-2. Confirm blackfox.policy.toml is present.
-3. Confirm allowed_roots include only intended workspace areas.
-4. Confirm blocked_roots include secrets and repository-control folders.
-5. Confirm test command is argv-style and allowlisted.
-6. Confirm patch candidates contain exact before_text and after_text.
-7. Run pytest.
-8. Inspect artifacts/runs/<run_id>/manifest.json.
-9. Inspect operator-summary.md.
-10. Inspect verification-summary.json.
-11. Inspect tool and repair receipts.
-12. Run Wave2AcceptanceValidator for final acceptance.
-```
+## Testing
 
----
+From the repository root:
 
-## Design Principle
+~~~
+python -m pytest
+~~~
 
-BlackFox exists because AI engineering systems need more than fluent output.
+To run only Wave 3 related tests:
 
-They need:
+~~~
+python -m pytest tests/authoring tests/runtime/test_authoring_repair.py tests/runtime/test_control_plane_wave3.py tests/runtime/test_wave3_acceptance.py tests/runtime/test_wave3_cli.py tests/runtime/test_wave3_bundle.py
+~~~
 
-- typed inputs
-- explicit routing
-- bounded tools
-- policy gates
-- approval points
-- test evidence
-- receipts
-- traceable artifacts
-- failure states
-- reviewable summaries
-- exportable evidence packs
+## Current Wave 3 limitations
 
-The goal is not to make AI look autonomous.
+Wave 3 is now structurally present, but it is not the final form of IX-BlackFox.
 
-The goal is to make AI engineering work inspectable enough that a serious reviewer can decide whether to trust, reject, or rerun it.
+Known boundaries:
 
----
+- No production remote model provider is committed by default.
+- The CLI uses manual/static proposal JSON import.
+- The policy gate is intentionally conservative.
+- Acceptance validates local evidence, not external certification.
+- Receipt chaining is local evidence integrity, not cryptographic signing infrastructure.
+- Human review is still required for governance-sensitive or high-risk mutations.
+- Generated proposals are not trusted until they pass parsing, policy, compilation, ranking, Wave 2, and acceptance.
+
+## Canonical roadmap
+
+The locked IX-BlackFox roadmap is:
+
+| Wave | Locked meaning |
+|---:|---|
+| 1 | Governed multi-brain runtime scaffold |
+| 2 | Governed local patch-test-verify control plane |
+| 3 | Governed patch authoring and repair intelligence |
+| 4 | Reliability lab with scenario suites, adversarial tests, and repair metrics |
+| 5 | Organization-grade workflow with PR evidence packs, approvals, and CI integration |
+| 6 | Hardened sandbox execution layer with isolated workspaces, signed artifacts, and egress controls |
+| 7 | Model-agnostic repair intelligence with model comparison, routing, budget controls, and provider abstraction |
+| 8 | Repository intelligence layer with code graph, dependency mapping, impact analysis, and architectural memory |
+| 9 | Compliance/audit attestation layer with policy packs, evidence standards, reviewer signoff, and governance reports |
+| 10 | Full AI engineering operating system: multi-repo, multi-team, policy-governed, measurable, replayable, and reviewable |
+
+Future extensions may continue beyond Wave 10 only if they add testable, useful, bounded, auditable capability.
+
+A clean extended direction is:
+
+| Wave | Possible extension |
+|---:|---|
+| 11 | Cross-program learning without data leakage |
+| 12 | Certification-ready evidence packaging |
+| 13 | Human-machine review board |
+| 14 | Constraint-aware mission/factory optimizer |
+| 15 | Governed engineering autonomy layer |
+| 16 | Digital engineering mesh |
+| 17 | Assurance-grade model governance |
+| 18 | Program-scale resilience command layer |
+| 19 | Closed-loop verification ecosystem |
+| 20 | High-consequence engineering intelligence fabric |
+
+Wave 20 is not “AI takes over engineering.” The correct endpoint is a governed, auditable, multi-domain engineering intelligence fabric that proposes, tests, compares, documents, routes, reviews, learns, and recommends while preserving human command authority.
+
+## Engineering principle
+
+IX-BlackFox evolves through controlled engineering optimization, not uncontrolled mutation.
+
+Every serious capability should be:
+
+- bounded
+- testable
+- auditable
+- reversible
+- policy-gated
+- evidence-producing
+- human-reviewable
+- honest about uncertainty
+
+That is the spine of the project.
 
 ## License
 
 Apache License 2.0.
 
-See:
-
-```
-LICENSE
-```
-
----
-
-## Final Wave 2 State
-
-Wave 2 turns IX-BlackFox into a governed AI engineering control plane proof-of-concept.
-
-The important claim is narrow and defensible:
-
-> BlackFox can coordinate explicit patch candidates through a bounded local patch-test-verify-package loop under policy, receipts, and operator review artifacts.
-
-That is the line.
-
-Anything beyond that needs more testing, stronger sandboxing, deeper policy enforcement, real model-side patch planning, and external security review before it should be trusted.
+See `LICENSE` for the full license text.
