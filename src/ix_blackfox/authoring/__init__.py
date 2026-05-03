@@ -18,6 +18,13 @@ from ix_blackfox.authoring.errors import (
     AuthoringProviderError,
     AuthoringValidationError,
 )
+from ix_blackfox.authoring.failure_evidence import (
+    FailureEvidenceExtractor,
+    FailureEvidenceExtractorConfig,
+    FailureEvidenceKind,
+    FailureEvidenceReport,
+    FailureEvidenceSnippet,
+)
 from ix_blackfox.authoring.models import (
     AuthoringContext,
     AuthoringContextFile,
@@ -61,5 +68,10 @@ __all__ = [
     "AuthoringSubtaskKind",
     "AuthoringValidationError",
     "ContextSkipReason",
+    "FailureEvidenceExtractor",
+    "FailureEvidenceExtractorConfig",
+    "FailureEvidenceKind",
+    "FailureEvidenceReport",
+    "FailureEvidenceSnippet",
     "SkippedContextPath",
 ]
