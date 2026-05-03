@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+from ix_blackfox.authoring.candidates import (
+    CandidateDisposition,
+    CandidateRejectionReason,
+    CandidateScoreBreakdown,
+    RankedRepairCandidate,
+    RepairCandidateRanker,
+    RepairCandidateRankerConfig,
+    RepairCandidateSelectionReport,
+)
 from ix_blackfox.authoring.context import (
     AuthoringContextBuilder,
     AuthoringContextBuilderConfig,
@@ -133,6 +142,9 @@ __all__ = [
     "AuthoringSubtask",
     "AuthoringSubtaskKind",
     "AuthoringValidationError",
+    "CandidateDisposition",
+    "CandidateRejectionReason",
+    "CandidateScoreBreakdown",
     "CompiledPatchCandidate",
     "ContextSkipReason",
     "DecompositionSignal",
@@ -159,6 +171,10 @@ __all__ = [
     "PatchProposalValidationCode",
     "PromptContractMessage",
     "PromptMessageRole",
+    "RankedRepairCandidate",
+    "RepairCandidateRanker",
+    "RepairCandidateRankerConfig",
+    "RepairCandidateSelectionReport",
     "RepairDecompositionPlan",
     "RepairFailureClass",
     "RepairHypothesis",
