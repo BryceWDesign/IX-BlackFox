@@ -55,6 +55,14 @@ from ix_blackfox.authoring.models import (
     AuthoringSubtask,
     AuthoringSubtaskKind,
 )
+from ix_blackfox.authoring.prompt_contract import (
+    PatchAuthoringPromptContract,
+    PatchAuthoringPromptRenderer,
+    PatchAuthoringPromptRendererConfig,
+    PatchAuthoringResponseSchema,
+    PromptContractMessage,
+    PromptMessageRole,
+)
 
 __all__ = [
     "AuthoringCompilationError",
@@ -90,6 +98,12 @@ __all__ = [
     "FailureEvidenceKind",
     "FailureEvidenceReport",
     "FailureEvidenceSnippet",
+    "PatchAuthoringPromptContract",
+    "PatchAuthoringPromptRenderer",
+    "PatchAuthoringPromptRendererConfig",
+    "PatchAuthoringResponseSchema",
+    "PromptContractMessage",
+    "PromptMessageRole",
     "RepairDecompositionPlan",
     "RepairFailureClass",
     "RepairHypothesis",
