@@ -55,6 +55,14 @@ from ix_blackfox.authoring.models import (
     AuthoringSubtask,
     AuthoringSubtaskKind,
 )
+from ix_blackfox.authoring.patch_compiler import (
+    CompiledPatchCandidate,
+    PatchCompilationFinding,
+    PatchCompilationFindingCode,
+    PatchCompilationStatus,
+    PatchProposalCompiler,
+    PatchProposalCompilerConfig,
+)
 from ix_blackfox.authoring.prompt_contract import (
     PatchAuthoringPromptContract,
     PatchAuthoringPromptRenderer,
@@ -98,6 +106,7 @@ __all__ = [
     "AuthoringSubtask",
     "AuthoringSubtaskKind",
     "AuthoringValidationError",
+    "CompiledPatchCandidate",
     "ContextSkipReason",
     "DecompositionSignal",
     "DecompositionSignalKind",
@@ -114,7 +123,12 @@ __all__ = [
     "PatchAuthoringResponseParser",
     "PatchAuthoringResponseParserConfig",
     "PatchAuthoringResponseSchema",
+    "PatchCompilationFinding",
+    "PatchCompilationFindingCode",
+    "PatchCompilationStatus",
     "PatchMutationType",
+    "PatchProposalCompiler",
+    "PatchProposalCompilerConfig",
     "PatchProposalValidationCode",
     "PromptContractMessage",
     "PromptMessageRole",
