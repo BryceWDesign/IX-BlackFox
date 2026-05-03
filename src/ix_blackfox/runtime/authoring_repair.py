@@ -4,7 +4,7 @@ from collections.abc import Iterable, Mapping, Protocol
 from dataclasses import dataclass, field
 from enum import StrEnum, auto
 from pathlib import Path
-from typing import Any, Self
+from typing import Any
 
 from ix_blackfox.authoring import (
     AuthoringContextBuilder,
@@ -15,11 +15,9 @@ from ix_blackfox.authoring import (
     AuthoringMode,
     AuthoringPolicyGate,
     AuthoringPolicyReport,
-    AuthoringReceiptEventType,
     AuthoringReceiptLedger,
     AuthoringReceiptSnapshot,
     AuthoringRequest,
-    CandidateDisposition,
     CompiledPatchCandidate,
     FailureEvidenceExtractor,
     FailureEvidenceExtractorConfig,
@@ -32,7 +30,6 @@ from ix_blackfox.authoring import (
     PatchAuthoringResponseParserConfig,
     PatchProposalCompiler,
     PatchProposalCompilerConfig,
-    RankedRepairCandidate,
     RepairCandidateRanker,
     RepairCandidateRankerConfig,
     RepairCandidateSelectionReport,
@@ -82,9 +79,8 @@ class StaticPatchProposalProvider:
     """
     Test and replay provider for already-known raw proposal responses.
 
-    This provider is intentionally simple. It is useful for deterministic tests,
-    offline replay, and manual model-output import. It does not call a remote
-    model or execute any command.
+    This provider is useful for deterministic tests, offline replay, and manual
+    model-output import. It does not call a remote model or execute commands.
     """
 
     responses: tuple[str, ...]
@@ -97,9 +93,18 @@ class StaticPatchProposalProvider:
             raise ValueError("StaticPatchProposalProvider requires at least one response.")
         if any(not response for response in responses):
             raise ValueError("StaticPatchProposalProvider responses must not be empty.")
+
         object.__setattr__(self, "responses", responses)
-        object.__setattr__(self, "provider_name", _normalize_token(self.provider_name, label="provider_name"))
-        object.__setattr__(self, "model_name", _normalize_token(self.model_name, label="model_name"))
+        object.__setattr__(
+            self,
+            "provider_name",
+            _normalize_token(self.provider_name, label="provider_name"),
+        )
+        object.__setattr__(
+            self,
+            "model_name",
+            _normalize_token(self.model_name, label="model_name"),
+        )
 
     def generate(self, contract: PatchAuthoringPromptContract) -> Iterable[str]:
         return self.responses
@@ -143,8 +148,11 @@ class AuthoredRepairRuntimeConfig:
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        workspace_root = self.workspace_root.expanduser().resolve()
-        object.__setattr__(self, "workspace_root", workspace_root)
+        object.__setattr__(
+            self,
+            "workspace_root",
+            self.workspace_root.expanduser().resolve(),
+        )
         object.__setattr__(
             self,
             "include_paths",
@@ -199,17 +207,17 @@ class AuthoredRepairRunReport:
         object.__setattr__(self, "metadata", dict(self.metadata))
 
     @property
-    def selected_candidate(self) -> CompiledPatchCandidate | None:
-        selected_ranked = self.selected_ranked_candidate
-        if selected_ranked is None:
-            return None
-        return selected_ranked.candidate
-
-    @property
-    def selected_ranked_candidate(self) -> RankedRepairCandidate | None:
+    def selected_ranked_candidate(self):
         if self.selection_report is None:
             return None
         return self.selection_report.selected_candidate
+
+    @property
+    def selected_candidate(self) -> CompiledPatchCandidate | None:
+        ranked = self.selected_ranked_candidate
+        if ranked is None:
+            return None
+        return ranked.candidate
 
     @property
     def selected_patch(self) -> PatchDiff | None:
@@ -286,21 +294,6 @@ class AuthoredRepairRuntime:
     This runtime creates patch candidates. It does not apply them and it does not
     run tests. The existing Wave 2 engineering control plane remains responsible
     for patch-test-verify-bundle execution.
-
-    The runtime sequence is:
-
-    1. create an AuthoringRequest
-    2. collect bounded repository context
-    3. normalize evidence
-    4. decompose the repair task
-    5. generate repair hypotheses
-    6. render a strict prompt contract
-    7. receive untrusted raw proposal JSON
-    8. parse and validate proposals
-    9. compile valid proposals into PatchDiff candidates
-    10. policy-gate the candidates
-    11. rank candidates
-    12. preserve receipts
     """
 
     config: AuthoredRepairRuntimeConfig
@@ -419,10 +412,12 @@ class AuthoredRepairRuntime:
             )
 
             compiled_candidates = self._compile_proposals(
+                request=request,
                 proposals=tuple(proposals),
             )
 
             policy_reports = self._evaluate_policy(
+                request=request,
                 proposals=tuple(proposals),
                 candidates=tuple(compiled_candidates),
                 evidence=request.evidence,
@@ -629,19 +624,20 @@ class AuthoredRepairRuntime:
         prompt_contract: PatchAuthoringPromptContract,
         raw_proposal_responses: tuple[str, ...],
     ) -> tuple[str, ...]:
-        combined = tuple(response.strip() for response in raw_proposal_responses if response.strip())
-
+        direct_responses = tuple(
+            response.strip()
+            for response in raw_proposal_responses
+            if response.strip()
+        )
         provider_responses = tuple(
             response.strip()
             for response in self.provider.generate(prompt_contract)
             if response.strip()
         )
 
-        combined = combined + provider_responses
-
+        combined = direct_responses + provider_responses
         if len(combined) > self.config.max_raw_proposals:
-            combined = combined[: self.config.max_raw_proposals]
-
+            return combined[: self.config.max_raw_proposals]
         return combined
 
     def _parse_proposals(
@@ -653,19 +649,20 @@ class AuthoredRepairRuntime:
         parser = PatchAuthoringResponseParser(config=self.config.response_parser_config)
         proposals: list[PatchAuthoringProposal] = []
 
-        for raw_response in raw_responses:
+        for index, raw_response in enumerate(raw_responses, start=1):
             self.receipt_ledger.record_model_response_received(
                 request_id=request.request_id,
                 raw_response=raw_response,
                 provider_name=getattr(self.provider, "provider_name", None),
                 model_name=getattr(self.provider, "model_name", None),
             )
+
             try:
                 proposal = parser.parse(raw_response)
             except AuthoringError as exc:
                 self.receipt_ledger.record_candidate_rejected(
                     request_id=request.request_id,
-                    candidate_id=f"unparsed-{len(proposals) + 1}",
+                    candidate_id=f"unparsed-{index}",
                     rejection_phase="response_parser",
                     rejection_reason=str(exc),
                 )
@@ -686,6 +683,7 @@ class AuthoredRepairRuntime:
     def _compile_proposals(
         self,
         *,
+        request: AuthoringRequest,
         proposals: tuple[PatchAuthoringProposal, ...],
     ) -> list[CompiledPatchCandidate]:
         compiler = PatchProposalCompiler(
@@ -700,7 +698,7 @@ class AuthoredRepairRuntime:
                 candidate = compiler.compile(proposal)
             except AuthoringError as exc:
                 self.receipt_ledger.record_candidate_rejected(
-                    request_id=proposal.proposal_id,
+                    request_id=request.request_id,
                     candidate_id=f"uncompiled-{proposal.proposal_id}",
                     rejection_phase="patch_compiler",
                     rejection_reason=str(exc),
@@ -710,12 +708,17 @@ class AuthoredRepairRuntime:
                 continue
 
             candidates.append(candidate)
+            self.receipt_ledger.record_patch_compiled(
+                request_id=request.request_id,
+                candidate=candidate,
+            )
 
         return candidates
 
     def _evaluate_policy(
         self,
         *,
+        request: AuthoringRequest,
         proposals: tuple[PatchAuthoringProposal, ...],
         candidates: tuple[CompiledPatchCandidate, ...],
         evidence: tuple[AuthoringEvidence, ...],
@@ -735,6 +738,10 @@ class AuthoredRepairRuntime:
                 evidence=evidence,
             )
             policy_reports.append(report)
+            self.receipt_ledger.record_policy_decided(
+                request_id=request.request_id,
+                report=report,
+            )
 
         return policy_reports
 
@@ -766,7 +773,10 @@ class AuthoredRepairRuntime:
         if selection_report.selected_candidate is not None:
             return AuthoredRepairStatus.AUTHORED
 
-        if selection_report.blocked_candidates and len(selection_report.blocked_candidates) == len(selection_report.ranked_candidates):
+        if (
+            selection_report.blocked_candidates
+            and len(selection_report.blocked_candidates) == len(selection_report.ranked_candidates)
+        ):
             return AuthoredRepairStatus.BLOCKED
 
         if selection_report.review_required_candidates:
