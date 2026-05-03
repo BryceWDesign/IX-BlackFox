@@ -443,7 +443,7 @@ class RepairCandidateRanker:
             if score.path_risk_score > self.config.maximum_path_risk_score_for_selection:
                 rejection_reasons.append(CandidateRejectionReason.PATH_RISK_TOO_HIGH)
 
-            if abs(candidate.patch_diff.total_size_delta) > self.config.maximum_total_size_delta_for_selection:
+            if abs(_patch_size_delta(candidate)) > self.config.maximum_total_size_delta_for_selection:
                 rejection_reasons.append(CandidateRejectionReason.PATCH_TOO_LARGE)
 
             disposition = self._initial_disposition(rejection_reasons)
