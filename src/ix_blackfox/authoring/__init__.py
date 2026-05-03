@@ -63,6 +63,14 @@ from ix_blackfox.authoring.patch_compiler import (
     PatchProposalCompiler,
     PatchProposalCompilerConfig,
 )
+from ix_blackfox.authoring.policy import (
+    AuthoringPolicyDecision,
+    AuthoringPolicyFinding,
+    AuthoringPolicyFindingCode,
+    AuthoringPolicyGate,
+    AuthoringPolicyGateConfig,
+    AuthoringPolicyReport,
+)
 from ix_blackfox.authoring.prompt_contract import (
     PatchAuthoringPromptContract,
     PatchAuthoringPromptRenderer,
@@ -98,7 +106,13 @@ __all__ = [
     "AuthoringFindingSeverity",
     "AuthoringMode",
     "AuthoringObjective",
+    "AuthoringPolicyDecision",
     "AuthoringPolicyError",
+    "AuthoringPolicyFinding",
+    "AuthoringPolicyFindingCode",
+    "AuthoringPolicyGate",
+    "AuthoringPolicyGateConfig",
+    "AuthoringPolicyReport",
     "AuthoringProviderError",
     "AuthoringRequest",
     "AuthoringRiskLevel",
