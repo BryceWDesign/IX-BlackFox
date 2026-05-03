@@ -63,6 +63,14 @@ from ix_blackfox.authoring.prompt_contract import (
     PromptContractMessage,
     PromptMessageRole,
 )
+from ix_blackfox.authoring.response_parser import (
+    PatchAuthoringMutation,
+    PatchAuthoringProposal,
+    PatchAuthoringResponseParser,
+    PatchAuthoringResponseParserConfig,
+    PatchMutationType,
+    PatchProposalValidationCode,
+)
 
 __all__ = [
     "AuthoringCompilationError",
@@ -98,10 +106,16 @@ __all__ = [
     "FailureEvidenceKind",
     "FailureEvidenceReport",
     "FailureEvidenceSnippet",
+    "PatchAuthoringMutation",
     "PatchAuthoringPromptContract",
     "PatchAuthoringPromptRenderer",
     "PatchAuthoringPromptRendererConfig",
+    "PatchAuthoringProposal",
+    "PatchAuthoringResponseParser",
+    "PatchAuthoringResponseParserConfig",
     "PatchAuthoringResponseSchema",
+    "PatchMutationType",
+    "PatchProposalValidationCode",
     "PromptContractMessage",
     "PromptMessageRole",
     "RepairDecompositionPlan",
