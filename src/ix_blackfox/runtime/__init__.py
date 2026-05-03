@@ -15,6 +15,7 @@ from typing import Any
 _ALIAS_ATTRS = {
     "control_plane_cli_main": "main",
     "runtime_doctor_main": "main",
+    "wave3_cli_main": "main",
 }
 
 _EXPORTS: dict[str, str] = {
@@ -113,10 +114,17 @@ _EXPORTS: dict[str, str] = {
     "Wave3AcceptanceStatus": "ix_blackfox.runtime.wave3_acceptance",
     "Wave3AcceptanceValidator": "ix_blackfox.runtime.wave3_acceptance",
     "Wave3AcceptanceValidatorConfig": "ix_blackfox.runtime.wave3_acceptance",
+    "Wave3CliError": "ix_blackfox.runtime.wave3_cli",
+    "Wave3CliRequest": "ix_blackfox.runtime.wave3_cli",
+    "Wave3CliResult": "ix_blackfox.runtime.wave3_cli",
+    "build_wave3_cli_parser": "ix_blackfox.runtime.wave3_cli",
     "control_plane_cli_main": "ix_blackfox.runtime.control_plane_cli",
     "fingerprint_task_request": "ix_blackfox.runtime.replay",
     "run_control_plane_cli": "ix_blackfox.runtime.control_plane_cli",
+    "run_wave3_cli": "ix_blackfox.runtime.wave3_cli",
+    "run_wave3_cli_request": "ix_blackfox.runtime.wave3_cli",
     "runtime_doctor_main": "ix_blackfox.runtime.doctor",
+    "wave3_cli_main": "ix_blackfox.runtime.wave3_cli",
 }
 
 __all__ = tuple(_EXPORTS)
@@ -129,7 +137,10 @@ def __getattr__(name: str) -> Any:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
 
     module = import_module(module_name)
-    value = getattr(module, _ALIAS_ATTRS.get(name, name))
+    attr_name = _ALIAS_ATTRS.get(name, name)
+    if name == "build_wave3_cli_parser":
+        attr_name = "build_parser"
+    value = getattr(module, attr_name)
     globals()[name] = value
     return value
 
