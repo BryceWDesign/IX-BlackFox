@@ -8,6 +8,13 @@ from ix_blackfox.authoring.context import (
     ContextSkipReason,
     SkippedContextPath,
 )
+from ix_blackfox.authoring.decomposition import (
+    DecompositionSignal,
+    DecompositionSignalKind,
+    RepairDecompositionPlan,
+    RepairTaskDecomposer,
+    RepairTaskDecomposerConfig,
+)
 from ix_blackfox.authoring.errors import (
     AuthoringCompilationError,
     AuthoringContextError,
@@ -68,10 +75,15 @@ __all__ = [
     "AuthoringSubtaskKind",
     "AuthoringValidationError",
     "ContextSkipReason",
+    "DecompositionSignal",
+    "DecompositionSignalKind",
     "FailureEvidenceExtractor",
     "FailureEvidenceExtractorConfig",
     "FailureEvidenceKind",
     "FailureEvidenceReport",
     "FailureEvidenceSnippet",
+    "RepairDecompositionPlan",
+    "RepairTaskDecomposer",
+    "RepairTaskDecomposerConfig",
     "SkippedContextPath",
 ]
