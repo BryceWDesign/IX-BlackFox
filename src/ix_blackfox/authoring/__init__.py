@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+from ix_blackfox.authoring.context import (
+    AuthoringContextBuilder,
+    AuthoringContextBuilderConfig,
+    AuthoringContextDocument,
+    AuthoringContextSnapshot,
+    ContextSkipReason,
+    SkippedContextPath,
+)
 from ix_blackfox.authoring.errors import (
     AuthoringCompilationError,
     AuthoringContextError,
@@ -29,8 +37,12 @@ from ix_blackfox.authoring.models import (
 __all__ = [
     "AuthoringCompilationError",
     "AuthoringContext",
+    "AuthoringContextBuilder",
+    "AuthoringContextBuilderConfig",
+    "AuthoringContextDocument",
     "AuthoringContextError",
     "AuthoringContextFile",
+    "AuthoringContextSnapshot",
     "AuthoringDecompositionError",
     "AuthoringError",
     "AuthoringEvidence",
@@ -48,4 +60,6 @@ __all__ = [
     "AuthoringSubtask",
     "AuthoringSubtaskKind",
     "AuthoringValidationError",
+    "ContextSkipReason",
+    "SkippedContextPath",
 ]
