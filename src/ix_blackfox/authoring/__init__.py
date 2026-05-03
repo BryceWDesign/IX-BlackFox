@@ -32,6 +32,14 @@ from ix_blackfox.authoring.failure_evidence import (
     FailureEvidenceReport,
     FailureEvidenceSnippet,
 )
+from ix_blackfox.authoring.hypotheses import (
+    RepairFailureClass,
+    RepairHypothesis,
+    RepairHypothesisEngine,
+    RepairHypothesisEngineConfig,
+    RepairHypothesisReport,
+    RepairShape,
+)
 from ix_blackfox.authoring.models import (
     AuthoringContext,
     AuthoringContextFile,
@@ -83,6 +91,12 @@ __all__ = [
     "FailureEvidenceReport",
     "FailureEvidenceSnippet",
     "RepairDecompositionPlan",
+    "RepairFailureClass",
+    "RepairHypothesis",
+    "RepairHypothesisEngine",
+    "RepairHypothesisEngineConfig",
+    "RepairHypothesisReport",
+    "RepairShape",
     "RepairTaskDecomposer",
     "RepairTaskDecomposerConfig",
     "SkippedContextPath",
