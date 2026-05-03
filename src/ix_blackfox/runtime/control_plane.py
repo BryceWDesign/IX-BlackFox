@@ -6,6 +6,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Self
 
+from ix_blackfox.runtime.authoring_repair import (
+    AuthoredRepairRunReport,
+    AuthoredRepairRuntime,
+    AuthoredRepairRuntimeConfig,
+    AuthoredRepairStatus,
+    NullPatchProposalProvider,
+    PatchProposalProvider,
+)
 from ix_blackfox.runtime.operator_summary import (
     OperatorSummaryDocument,
     OperatorSummaryRenderer,
@@ -214,20 +222,89 @@ class EngineeringControlPlaneReport:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class AuthoredEngineeringControlPlaneReport:
+    """
+    End-to-end Wave 3 report that preserves the authored repair layer and the
+    optional Wave 2 execution report.
+
+    A Wave 3 authored run is only fully successful when the authored layer
+    selected a governed patch candidate and Wave 2 succeeded after executing it.
+    """
+
+    run_id: str
+    task_id: str
+    authored_repair_report: AuthoredRepairRunReport
+    wave2_report: EngineeringControlPlaneReport | None = None
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "run_id", _normalize_identifier(self.run_id, label="run_id"))
+        object.__setattr__(self, "task_id", _normalize_identifier(self.task_id, label="task_id"))
+        object.__setattr__(self, "metadata", dict(self.metadata))
+
+    @property
+    def authored_status(self) -> str:
+        return self.authored_repair_report.status.value
+
+    @property
+    def wave2_executed(self) -> bool:
+        return self.wave2_report is not None
+
+    @property
+    def succeeded(self) -> bool:
+        return (
+            self.authored_repair_report.succeeded
+            and self.wave2_report is not None
+            and self.wave2_report.succeeded
+        )
+
+    @property
+    def requires_review(self) -> bool:
+        return self.authored_repair_report.requires_review
+
+    @property
+    def blocked(self) -> bool:
+        return self.authored_repair_report.blocked
+
+    @property
+    def selected_patch_id(self) -> str | None:
+        patch = self.authored_repair_report.selected_patch
+        if patch is None:
+            return None
+        return patch.patch_id
+
+    @property
+    def bundle_root(self) -> str | None:
+        if self.wave2_report is None:
+            return None
+        return self.wave2_report.bundle_root
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "run_id": self.run_id,
+            "task_id": self.task_id,
+            "succeeded": self.succeeded,
+            "authored_status": self.authored_status,
+            "wave2_executed": self.wave2_executed,
+            "requires_review": self.requires_review,
+            "blocked": self.blocked,
+            "selected_patch_id": self.selected_patch_id,
+            "bundle_root": self.bundle_root,
+            "authored_repair_report": self.authored_repair_report.to_dict(),
+            "wave2_report": None if self.wave2_report is None else self.wave2_report.to_dict(),
+            "metadata": dict(self.metadata),
+        }
+
+
 @dataclass(slots=True)
 class EngineeringControlPlane:
     """
     Wave 2 governed AI engineering control plane.
 
-    This class is the highest-level local orchestration object added in Wave 2.
-    It does not pretend to be a magic autonomous agent. It coordinates bounded,
-    auditable engineering actions:
-    - apply supplied patch candidates
-    - run allowlisted tests
-    - parse test output
-    - record tool and repair receipts
-    - generate operator and verification summaries
-    - write a reviewable run bundle
+    Wave 3 integration is additive. The authored repair path first generates a
+    governed patch candidate through the Wave 3 authoring runtime, then hands the
+    selected candidate into this same Wave 2 patch-test-verify-bundle runtime.
     """
 
     config: EngineeringControlPlaneConfig
@@ -388,6 +465,129 @@ class EngineeringControlPlane:
                 "candidate_patch_count": len(candidate_patch_tuple),
                 "workspace_root": str(self.config.workspace_root),
                 "artifact_root": str(self.config.artifact_root),
+                **dict(metadata or {}),
+            },
+        )
+
+    def run_authored_programming_repair(
+        self,
+        *,
+        task_id: str,
+        run_id: str,
+        objective: str,
+        include_paths: Iterable[str] = (".",),
+        proposal_provider: PatchProposalProvider | None = None,
+        raw_proposal_responses: Iterable[str] = (),
+        raw_test_output: str | None = None,
+        authoring_test_return_code: int = 1,
+        authoring_test_timed_out: bool = False,
+        authoring_evidence=(),
+        test_command: tuple[str, ...] | None = None,
+        test_working_directory: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> AuthoredEngineeringControlPlaneReport:
+        """
+        Run Wave 3 governed patch authoring, then hand the selected patch to the
+        existing Wave 2 patch-test-verify-bundle path.
+
+        This method intentionally does not let the authoring layer apply files
+        or run tests. The authored layer only creates a selected PatchDiff
+        candidate. Wave 2 remains the execution authority.
+        """
+        self._validate_workspace()
+
+        selected_test_command = (
+            test_command
+            or self.config.test_command
+            or ("python", "-m", "pytest", "-q")
+        )
+        selected_working_directory = (
+            test_working_directory or self.config.test_working_directory
+        )
+
+        authoring_runtime = AuthoredRepairRuntime(
+            config=AuthoredRepairRuntimeConfig(
+                workspace_root=self.config.workspace_root,
+                include_paths=tuple(include_paths),
+                path_policy=self.config.tool_path_policy,
+                metadata={
+                    "control_plane": "engineering",
+                    "wave3_integration": True,
+                    "run_id": run_id,
+                    "task_id": task_id,
+                    **dict(metadata or {}),
+                },
+            ),
+            provider=proposal_provider or NullPatchProposalProvider(),
+        )
+
+        authored_report = authoring_runtime.run(
+            task_id=task_id,
+            run_id=run_id,
+            objective=objective,
+            raw_test_output=raw_test_output,
+            test_command=selected_test_command,
+            test_return_code=authoring_test_return_code,
+            test_timed_out=authoring_test_timed_out,
+            evidence=authoring_evidence,
+            raw_proposal_responses=tuple(raw_proposal_responses),
+            metadata={
+                "control_plane": "engineering",
+                "wave3_integration": True,
+                **dict(metadata or {}),
+            },
+        )
+
+        if not authored_report.succeeded:
+            return AuthoredEngineeringControlPlaneReport(
+                run_id=run_id,
+                task_id=task_id,
+                authored_repair_report=authored_report,
+                wave2_report=None,
+                metadata={
+                    "control_plane": "engineering",
+                    "wave": 3,
+                    "wave2_executed": False,
+                    "reason": authored_report.status.value,
+                    **dict(metadata or {}),
+                },
+            )
+
+        wave2_report = self.run_programming_repair(
+            task_id=task_id,
+            run_id=run_id,
+            objective=objective,
+            candidate_patches=authored_report.selected_patch_candidates,
+            test_command=selected_test_command,
+            test_working_directory=selected_working_directory,
+            metadata={
+                "control_plane": "engineering",
+                "wave3_authored": True,
+                "authoring_status": authored_report.status.value,
+                "authoring_request_id": authored_report.request.request_id,
+                "authoring_receipt_count": authored_report.receipt_snapshot.count,
+                "authoring_chain_digest": authored_report.receipt_snapshot.latest_chain_digest,
+                "selected_candidate_id": None
+                if authored_report.selected_candidate is None
+                else authored_report.selected_candidate.candidate_id,
+                "selected_patch_id": None
+                if authored_report.selected_patch is None
+                else authored_report.selected_patch.patch_id,
+                **dict(metadata or {}),
+            },
+        )
+
+        return AuthoredEngineeringControlPlaneReport(
+            run_id=run_id,
+            task_id=task_id,
+            authored_repair_report=authored_report,
+            wave2_report=wave2_report,
+            metadata={
+                "control_plane": "engineering",
+                "wave": 3,
+                "wave2_executed": True,
+                "authoring_status": authored_report.status.value,
+                "wave2_succeeded": wave2_report.succeeded,
                 **dict(metadata or {}),
             },
         )
