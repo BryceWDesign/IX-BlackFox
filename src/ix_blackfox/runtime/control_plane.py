@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Self
 
+from ix_blackfox.authoring import AuthoringEvidence
 from ix_blackfox.runtime.authoring_repair import (
     AuthoredRepairRunReport,
     AuthoredRepairRuntime,
     AuthoredRepairRuntimeConfig,
-    AuthoredRepairStatus,
     NullPatchProposalProvider,
     PatchProposalProvider,
 )
@@ -162,7 +161,9 @@ class EngineeringControlPlaneConfig:
             "policy_document": self.policy_document.to_dict(),
             "require_workspace_marker": self.require_workspace_marker,
             "workspace_marker_name": self.workspace_marker_name,
-            "test_command": list(self.test_command) if self.test_command is not None else None,
+            "test_command": list(self.test_command)
+            if self.test_command is not None
+            else None,
             "test_working_directory": self.test_working_directory,
             "test_timeout_seconds": self.test_timeout_seconds,
             "allowed_test_executables": list(self.allowed_test_executables),
@@ -188,8 +189,12 @@ class EngineeringControlPlaneReport:
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "run_id", _normalize_identifier(self.run_id, label="run_id"))
-        object.__setattr__(self, "task_id", _normalize_identifier(self.task_id, label="task_id"))
+        object.__setattr__(
+            self, "run_id", _normalize_identifier(self.run_id, label="run_id")
+        )
+        object.__setattr__(
+            self, "task_id", _normalize_identifier(self.task_id, label="task_id")
+        )
         object.__setattr__(self, "metadata", dict(self.metadata))
 
     @property
@@ -239,8 +244,12 @@ class AuthoredEngineeringControlPlaneReport:
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "run_id", _normalize_identifier(self.run_id, label="run_id"))
-        object.__setattr__(self, "task_id", _normalize_identifier(self.task_id, label="task_id"))
+        object.__setattr__(
+            self, "run_id", _normalize_identifier(self.run_id, label="run_id")
+        )
+        object.__setattr__(
+            self, "task_id", _normalize_identifier(self.task_id, label="task_id")
+        )
         object.__setattr__(self, "metadata", dict(self.metadata))
 
     @property
@@ -292,7 +301,9 @@ class AuthoredEngineeringControlPlaneReport:
             "selected_patch_id": self.selected_patch_id,
             "bundle_root": self.bundle_root,
             "authored_repair_report": self.authored_repair_report.to_dict(),
-            "wave2_report": None if self.wave2_report is None else self.wave2_report.to_dict(),
+            "wave2_report": None
+            if self.wave2_report is None
+            else self.wave2_report.to_dict(),
             "metadata": dict(self.metadata),
         }
 
@@ -419,8 +430,10 @@ class EngineeringControlPlane:
                 **dict(metadata or {}),
             },
         )
-        operator_summary = self.operator_summary_renderer.render_programming_repair_report(
-            report=programming_report
+        operator_summary = (
+            self.operator_summary_renderer.render_programming_repair_report(
+                report=programming_report
+            )
         )
         verification_summary = (
             self.verification_summary_renderer.from_programming_repair_report(
@@ -481,7 +494,7 @@ class EngineeringControlPlane:
         raw_test_output: str | None = None,
         authoring_test_return_code: int = 1,
         authoring_test_timed_out: bool = False,
-        authoring_evidence=(),
+        authoring_evidence: Iterable[AuthoringEvidence] = (),
         test_command: tuple[str, ...] | None = None,
         test_working_directory: str | None = None,
         metadata: Mapping[str, Any] | None = None,
@@ -497,9 +510,7 @@ class EngineeringControlPlane:
         self._validate_workspace()
 
         selected_test_command = (
-            test_command
-            or self.config.test_command
-            or ("python", "-m", "pytest", "-q")
+            test_command or self.config.test_command or ("python", "-m", "pytest", "-q")
         )
         selected_working_directory = (
             test_working_directory or self.config.test_working_directory
@@ -598,7 +609,9 @@ class EngineeringControlPlane:
         if not root.exists():
             raise FileNotFoundError(f"Engineering workspace does not exist: {root}")
         if not root.is_dir():
-            raise NotADirectoryError(f"Engineering workspace is not a directory: {root}")
+            raise NotADirectoryError(
+                f"Engineering workspace is not a directory: {root}"
+            )
 
         if self.config.require_workspace_marker:
             marker_path = root / self.config.workspace_marker_name
