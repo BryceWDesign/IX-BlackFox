@@ -327,16 +327,16 @@ class AuthoringContext:
 @dataclass(frozen=True, slots=True)
 class AuthoringEvidence:
     """
-    Evidence supplied to the Wave 3 authoring layer before patch generation.
+    Normalized evidence available to the Wave 3 authoring layer.
     """
 
     evidence_id: str
+    source: str
+    strength: AuthoringEvidenceStrength
     summary: str
-    strength: AuthoringEvidenceStrength = AuthoringEvidenceStrength.WEAK
-    source: str = "operator"
-    path: str | None = None
-    line: int | None = None
-    tags: tuple[str, ...] = field(default_factory=tuple)
+    raw_digest: str | None = None
+    related_paths: tuple[str, ...] = field(default_factory=tuple)
+    findings: tuple[AuthoringFinding, ...] = field(default_factory=tuple)
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -346,39 +346,44 @@ class AuthoringEvidence:
             _normalize_identifier(self.evidence_id, label="evidence_id"),
         )
         object.__setattr__(
+            self, "source", _normalize_token(self.source, label="source")
+        )
+        object.__setattr__(
             self, "summary", _normalize_text(self.summary, label="summary")
         )
-        object.__setattr__(self, "source", _normalize_token(self.source, label="source"))
-        object.__setattr__(self, "path", _normalize_optional_path(self.path))
-        if self.line is not None and self.line <= 0:
-            raise ValueError("line must be positive when provided.")
         object.__setattr__(
             self,
-            "tags",
-            tuple(_normalize_token(tag, label="tag") for tag in self.tags),
+            "raw_digest",
+            _normalize_optional_sha256(self.raw_digest),
         )
+        object.__setattr__(
+            self,
+            "related_paths",
+            tuple(_normalize_relative_path(path) for path in self.related_paths),
+        )
+        object.__setattr__(self, "findings", tuple(self.findings))
         object.__setattr__(self, "metadata", dict(self.metadata))
 
     @classmethod
     def create(
         cls,
         *,
+        source: str,
+        strength: AuthoringEvidenceStrength,
         summary: str,
-        strength: AuthoringEvidenceStrength = AuthoringEvidenceStrength.WEAK,
-        source: str = "operator",
-        path: str | None = None,
-        line: int | None = None,
-        tags: Iterable[str] = (),
+        raw_text: str | None = None,
+        related_paths: Iterable[str] = (),
+        findings: Iterable[AuthoringFinding] = (),
         metadata: Mapping[str, Any] | None = None,
     ) -> Self:
         return cls(
             evidence_id=f"evidence-{uuid4().hex}",
-            summary=summary,
-            strength=strength,
             source=source,
-            path=path,
-            line=line,
-            tags=tuple(tags),
+            strength=strength,
+            summary=summary,
+            raw_digest=_sha256_text(raw_text),
+            related_paths=tuple(related_paths),
+            findings=tuple(findings),
             metadata=dict(metadata or {}),
         )
 
@@ -386,250 +391,38 @@ class AuthoringEvidence:
     def has_direct_evidence(self) -> bool:
         return self.strength is AuthoringEvidenceStrength.DIRECT
 
-    @property
-    def location(self) -> str | None:
-        if self.path is None:
-            return None
-        if self.line is None:
-            return self.path
-        return f"{self.path}:{self.line}"
-
     def to_dict(self) -> dict[str, Any]:
         return {
             "evidence_id": self.evidence_id,
-            "summary": self.summary,
-            "strength": self.strength.value,
             "source": self.source,
-            "path": self.path,
-            "line": self.line,
-            "location": self.location,
-            "tags": list(self.tags),
+            "strength": self.strength.value,
+            "summary": self.summary,
+            "raw_digest": self.raw_digest,
+            "related_paths": list(self.related_paths),
+            "findings": [finding.to_dict() for finding in self.findings],
             "metadata": dict(self.metadata),
         }
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> Self:
+        raw_findings = payload.get("findings", ())
+        if not isinstance(raw_findings, Iterable) or isinstance(raw_findings, str):
+            raise TypeError("findings must be an iterable of mappings.")
+        findings: list[AuthoringFinding] = []
+        for raw_finding in raw_findings:
+            if not isinstance(raw_finding, Mapping):
+                raise TypeError("findings must contain only mappings.")
+            findings.append(AuthoringFinding.from_dict(raw_finding))
         return cls(
             evidence_id=_require_text(payload, "evidence_id"),
+            source=_require_text(payload, "source"),
+            strength=AuthoringEvidenceStrength(_require_text(payload, "strength")),
             summary=_require_text(payload, "summary"),
-            strength=AuthoringEvidenceStrength(
-                str(payload.get("strength", AuthoringEvidenceStrength.WEAK.value))
+            raw_digest=_optional_text_from_payload(payload, "raw_digest"),
+            related_paths=_coerce_text_tuple(
+                payload.get("related_paths", ()), field_name="related_paths"
             ),
-            source=str(payload.get("source", "operator")),
-            path=_optional_text_from_payload(payload, "path"),
-            line=_optional_int_from_payload(payload, "line"),
-            tags=_coerce_text_tuple(payload.get("tags", ()), field_name="tags"),
-            metadata=_coerce_mapping(
-                payload.get("metadata", {}), field_name="metadata"
-            ),
-        )
-
-
-@dataclass(frozen=True, slots=True)
-class PatchAuthoringMutation:
-    """
-    One file-level mutation proposed by Wave 3.
-
-    The mutation is structured so a compiler can convert it to a PatchDiff
-    without executing model-provided code.
-    """
-
-    path: str
-    before: str
-    after: str
-    mutation_type: str = "replace"
-    rationale: str = "model proposed patch mutation"
-    metadata: Mapping[str, Any] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "path", _normalize_relative_path(self.path))
-        object.__setattr__(
-            self,
-            "mutation_type",
-            _normalize_token(self.mutation_type, label="mutation_type"),
-        )
-        object.__setattr__(
-            self,
-            "rationale",
-            _normalize_text(self.rationale, label="rationale"),
-        )
-        object.__setattr__(self, "metadata", dict(self.metadata))
-
-    @property
-    def digest(self) -> str:
-        return _digest_payload(self.to_dict(include_digest=False))
-
-    @property
-    def size_delta(self) -> int:
-        return len(self.after.encode("utf-8")) - len(self.before.encode("utf-8"))
-
-    def to_dict(self, *, include_digest: bool = True) -> dict[str, Any]:
-        payload = {
-            "path": self.path,
-            "before_sha256": _sha256_text(self.before),
-            "after_sha256": _sha256_text(self.after),
-            "size_delta": self.size_delta,
-            "mutation_type": self.mutation_type,
-            "rationale": self.rationale,
-            "metadata": dict(self.metadata),
-        }
-        if include_digest:
-            payload["digest"] = self.digest
-        return payload
-
-    @classmethod
-    def from_dict(cls, payload: Mapping[str, Any]) -> Self:
-        return cls(
-            path=_require_text(payload, "path"),
-            before=_require_text(payload, "before"),
-            after=_require_text(payload, "after"),
-            mutation_type=str(payload.get("mutation_type", "replace")),
-            rationale=str(payload.get("rationale", "model proposed patch mutation")),
-            metadata=_coerce_mapping(
-                payload.get("metadata", {}), field_name="metadata"
-            ),
-        )
-
-
-@dataclass(frozen=True, slots=True)
-class PatchAuthoringProposal:
-    """
-    Parsed Wave 3 patch proposal before policy review and compilation.
-
-    This is still untrusted input. The compiler and policy gate must reject
-    anything that violates the bounded authoring contract.
-    """
-
-    proposal_id: str
-    objective: str
-    mutations: tuple[PatchAuthoringMutation, ...]
-    tests_to_run: tuple[str, ...] = field(default_factory=tuple)
-    rationale: str = "model proposed patch"
-    confidence: float = 0.0
-    risks: tuple[str, ...] = field(default_factory=tuple)
-    assumptions: tuple[str, ...] = field(default_factory=tuple)
-    metadata: Mapping[str, Any] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        object.__setattr__(
-            self,
-            "proposal_id",
-            _normalize_identifier(self.proposal_id, label="proposal_id"),
-        )
-        object.__setattr__(
-            self,
-            "objective",
-            _normalize_text(self.objective, label="objective"),
-        )
-        mutation_tuple = tuple(self.mutations)
-        if not mutation_tuple:
-            raise ValueError("PatchAuthoringProposal requires at least one mutation.")
-        object.__setattr__(self, "mutations", mutation_tuple)
-        object.__setattr__(
-            self,
-            "tests_to_run",
-            tuple(_normalize_text(test, label="test") for test in self.tests_to_run),
-        )
-        object.__setattr__(
-            self, "rationale", _normalize_text(self.rationale, label="rationale")
-        )
-        if self.confidence < 0.0 or self.confidence > 1.0:
-            raise ValueError("confidence must be between 0.0 and 1.0.")
-        object.__setattr__(
-            self,
-            "risks",
-            tuple(_normalize_text(risk, label="risk") for risk in self.risks),
-        )
-        object.__setattr__(
-            self,
-            "assumptions",
-            tuple(
-                _normalize_text(assumption, label="assumption")
-                for assumption in self.assumptions
-            ),
-        )
-        object.__setattr__(self, "metadata", dict(self.metadata))
-
-    @classmethod
-    def create(
-        cls,
-        *,
-        objective: str,
-        mutations: Iterable[PatchAuthoringMutation],
-        tests_to_run: Iterable[str] = (),
-        rationale: str = "model proposed patch",
-        confidence: float = 0.0,
-        risks: Iterable[str] = (),
-        assumptions: Iterable[str] = (),
-        metadata: Mapping[str, Any] | None = None,
-    ) -> Self:
-        return cls(
-            proposal_id=f"patch-proposal-{uuid4().hex}",
-            objective=objective,
-            mutations=tuple(mutations),
-            tests_to_run=tuple(tests_to_run),
-            rationale=rationale,
-            confidence=confidence,
-            risks=tuple(risks),
-            assumptions=tuple(assumptions),
-            metadata=dict(metadata or {}),
-        )
-
-    @property
-    def affected_paths(self) -> tuple[str, ...]:
-        return tuple(dict.fromkeys(mutation.path for mutation in self.mutations))
-
-    @property
-    def total_size_delta(self) -> int:
-        return sum(mutation.size_delta for mutation in self.mutations)
-
-    @property
-    def digest(self) -> str:
-        return _digest_payload(self.to_dict(include_digest=False))
-
-    def to_dict(self, *, include_digest: bool = True) -> dict[str, Any]:
-        payload = {
-            "proposal_id": self.proposal_id,
-            "objective": self.objective,
-            "affected_paths": list(self.affected_paths),
-            "mutation_count": len(self.mutations),
-            "total_size_delta": self.total_size_delta,
-            "mutations": [mutation.to_dict() for mutation in self.mutations],
-            "tests_to_run": list(self.tests_to_run),
-            "rationale": self.rationale,
-            "confidence": self.confidence,
-            "risks": list(self.risks),
-            "assumptions": list(self.assumptions),
-            "metadata": dict(self.metadata),
-        }
-        if include_digest:
-            payload["digest"] = self.digest
-        return payload
-
-    @classmethod
-    def from_dict(cls, payload: Mapping[str, Any]) -> Self:
-        raw_mutations = payload.get("mutations", ())
-        if not isinstance(raw_mutations, Iterable) or isinstance(raw_mutations, str):
-            raise TypeError("mutations must be an iterable of mappings.")
-        mutations: list[PatchAuthoringMutation] = []
-        for raw_mutation in raw_mutations:
-            if not isinstance(raw_mutation, Mapping):
-                raise TypeError("mutations must contain only mappings.")
-            mutations.append(PatchAuthoringMutation.from_dict(raw_mutation))
-
-        return cls(
-            proposal_id=_require_text(payload, "proposal_id"),
-            objective=_require_text(payload, "objective"),
-            mutations=tuple(mutations),
-            tests_to_run=_coerce_text_tuple(
-                payload.get("tests_to_run", ()), field_name="tests_to_run"
-            ),
-            rationale=str(payload.get("rationale", "model proposed patch")),
-            confidence=float(payload.get("confidence", 0.0)),
-            risks=_coerce_text_tuple(payload.get("risks", ()), field_name="risks"),
-            assumptions=_coerce_text_tuple(
-                payload.get("assumptions", ()), field_name="assumptions"
-            ),
+            findings=tuple(findings),
             metadata=_coerce_mapping(
                 payload.get("metadata", {}), field_name="metadata"
             ),
@@ -639,7 +432,7 @@ class PatchAuthoringProposal:
 @dataclass(frozen=True, slots=True)
 class AuthoringSubtask:
     """
-    One bounded task inside a Wave 3 repair decomposition plan.
+    One explicit task-decomposition step for Wave 3 repair authoring.
     """
 
     subtask_id: str
@@ -663,7 +456,10 @@ class AuthoringSubtask:
         object.__setattr__(
             self,
             "depends_on",
-            tuple(_normalize_identifier(item, label="depends_on") for item in self.depends_on),
+            tuple(
+                _normalize_identifier(value, label="depends_on")
+                for value in self.depends_on
+            ),
         )
         object.__setattr__(
             self,
@@ -673,32 +469,12 @@ class AuthoringSubtask:
         object.__setattr__(
             self,
             "required_evidence",
-            tuple(_normalize_text(item, label="required_evidence") for item in self.required_evidence),
+            tuple(
+                _normalize_identifier(value, label="required_evidence")
+                for value in self.required_evidence
+            ),
         )
         object.__setattr__(self, "metadata", dict(self.metadata))
-
-    @classmethod
-    def create(
-        cls,
-        *,
-        summary: str,
-        kind: AuthoringSubtaskKind,
-        risk_level: AuthoringRiskLevel = AuthoringRiskLevel.MODERATE,
-        depends_on: Iterable[str] = (),
-        target_paths: Iterable[str] = (),
-        required_evidence: Iterable[str] = (),
-        metadata: Mapping[str, Any] | None = None,
-    ) -> Self:
-        return cls(
-            subtask_id=f"authoring-subtask-{uuid4().hex}",
-            summary=summary,
-            kind=kind,
-            risk_level=risk_level,
-            depends_on=tuple(depends_on),
-            target_paths=tuple(target_paths),
-            required_evidence=tuple(required_evidence),
-            metadata=dict(metadata or {}),
-        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -984,13 +760,4 @@ def _optional_text_from_payload(payload: Mapping[str, Any], key: str) -> str | N
         return None
     if not isinstance(value, str):
         raise TypeError(f"Field {key!r} must be a string or None.")
-    return value
-
-
-def _optional_int_from_payload(payload: Mapping[str, Any], key: str) -> int | None:
-    value = payload.get(key)
-    if value is None:
-        return None
-    if not isinstance(value, int):
-        raise TypeError(f"Field {key!r} must be an integer or None.")
     return value
