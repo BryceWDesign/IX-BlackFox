@@ -44,7 +44,9 @@ class Wave3EvidenceArtifact:
     def __post_init__(self) -> None:
         object.__setattr__(self, "path", _normalize_text(self.path, label="path"))
         object.__setattr__(self, "sha256", _normalize_sha256(self.sha256))
-        object.__setattr__(self, "media_type", _normalize_text(self.media_type, label="media_type"))
+        object.__setattr__(
+            self, "media_type", _normalize_text(self.media_type, label="media_type")
+        )
         object.__setattr__(self, "metadata", dict(self.metadata))
 
         if self.size_bytes < 0:
@@ -68,7 +70,9 @@ class Wave3EvidenceArtifact:
             sha256=_require_text(payload, "sha256"),
             size_bytes=_require_int(payload, "size_bytes"),
             media_type=_require_text(payload, "media_type"),
-            metadata=_coerce_mapping(payload.get("metadata", {}), field_name="metadata"),
+            metadata=_coerce_mapping(
+                payload.get("metadata", {}), field_name="metadata"
+            ),
         )
 
 
@@ -101,9 +105,15 @@ class Wave3EvidencePackageManifest:
             "package_id",
             _normalize_identifier(self.package_id, label="package_id"),
         )
-        object.__setattr__(self, "run_id", _normalize_identifier(self.run_id, label="run_id"))
-        object.__setattr__(self, "task_id", _normalize_identifier(self.task_id, label="task_id"))
-        object.__setattr__(self, "root_path", _normalize_text(self.root_path, label="root_path"))
+        object.__setattr__(
+            self, "run_id", _normalize_identifier(self.run_id, label="run_id")
+        )
+        object.__setattr__(
+            self, "task_id", _normalize_identifier(self.task_id, label="task_id")
+        )
+        object.__setattr__(
+            self, "root_path", _normalize_text(self.root_path, label="root_path")
+        )
         object.__setattr__(
             self,
             "acceptance_status",
@@ -112,12 +122,16 @@ class Wave3EvidencePackageManifest:
         object.__setattr__(
             self,
             "selected_patch_id",
-            _normalize_optional_identifier(self.selected_patch_id, label="selected_patch_id"),
+            _normalize_optional_identifier(
+                self.selected_patch_id, label="selected_patch_id"
+            ),
         )
         object.__setattr__(
             self,
             "selected_candidate_id",
-            _normalize_optional_identifier(self.selected_candidate_id, label="selected_candidate_id"),
+            _normalize_optional_identifier(
+                self.selected_candidate_id, label="selected_candidate_id"
+            ),
         )
         object.__setattr__(
             self,
@@ -129,8 +143,18 @@ class Wave3EvidencePackageManifest:
         object.__setattr__(self, "created_at", _normalize_datetime(self.created_at))
         object.__setattr__(self, "metadata", dict(self.metadata))
 
-        if self.artifact_count != len(artifacts):
-            raise ValueError("artifact_count must match the number of artifacts.")
+        manifest_included = any(
+            artifact.kind is Wave3EvidenceArtifactKind.WAVE3_PACKAGE_MANIFEST
+            for artifact in artifacts
+        )
+        valid_counts = {len(artifacts)}
+        if manifest_included:
+            valid_counts.add(len(artifacts) - 1)
+        if self.artifact_count not in valid_counts:
+            raise ValueError(
+                "artifact_count must match persisted core artifacts, "
+                "excluding the package manifest when that self-artifact is included."
+            )
 
     @property
     def digest(self) -> str:
@@ -171,12 +195,18 @@ class Wave3EvidencePackageManifest:
             root_path=_require_text(payload, "root_path"),
             acceptance_status=_require_text(payload, "acceptance_status"),
             selected_patch_id=_optional_text_from_payload(payload, "selected_patch_id"),
-            selected_candidate_id=_optional_text_from_payload(payload, "selected_candidate_id"),
-            authoring_chain_digest=_optional_text_from_payload(payload, "authoring_chain_digest"),
+            selected_candidate_id=_optional_text_from_payload(
+                payload, "selected_candidate_id"
+            ),
+            authoring_chain_digest=_optional_text_from_payload(
+                payload, "authoring_chain_digest"
+            ),
             artifact_count=_require_int(payload, "artifact_count"),
             artifacts=_load_artifacts(payload.get("artifacts", ())),
             created_at=_datetime_from_payload(payload, "created_at"),
-            metadata=_coerce_mapping(payload.get("metadata", {}), field_name="metadata"),
+            metadata=_coerce_mapping(
+                payload.get("metadata", {}), field_name="metadata"
+            ),
         )
 
 
@@ -211,7 +241,9 @@ class Wave3EvidencePackageWriter:
     """
 
     root_dir: Path
-    config: Wave3EvidencePackageWriterConfig = field(default_factory=Wave3EvidencePackageWriterConfig)
+    config: Wave3EvidencePackageWriterConfig = field(
+        default_factory=Wave3EvidencePackageWriterConfig
+    )
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "root_dir", self.root_dir.expanduser().resolve())
@@ -219,13 +251,17 @@ class Wave3EvidencePackageWriter:
     def write(
         self,
         *,
-        authored_report: "AuthoredEngineeringControlPlaneReport",
-        acceptance_report: "Wave3AcceptanceReport",
+        authored_report: AuthoredEngineeringControlPlaneReport,
+        acceptance_report: Wave3AcceptanceReport,
         metadata: Mapping[str, Any] | None = None,
     ) -> Wave3EvidencePackageManifest:
-        package_root = self.root_dir / authored_report.run_id / self.config.package_dir_name
+        package_root = (
+            self.root_dir / authored_report.run_id / self.config.package_dir_name
+        )
         if package_root.exists() and not self.config.overwrite_existing:
-            raise FileExistsError(f"Wave 3 evidence package already exists: {package_root}")
+            raise FileExistsError(
+                f"Wave 3 evidence package already exists: {package_root}"
+            )
 
         package_root.mkdir(parents=True, exist_ok=True)
 
@@ -352,7 +388,7 @@ class Wave3EvidencePackageWriter:
             selected_patch_id=manifest_without_self.selected_patch_id,
             selected_candidate_id=manifest_without_self.selected_candidate_id,
             authoring_chain_digest=manifest_without_self.authoring_chain_digest,
-            artifact_count=len(final_artifacts),
+            artifact_count=manifest_without_self.artifact_count,
             artifacts=final_artifacts,
             created_at=manifest_without_self.created_at,
             metadata=manifest_without_self.metadata,
@@ -368,12 +404,15 @@ class Wave3EvidencePackageWriter:
         metadata: Mapping[str, Any] | None = None,
     ) -> Wave3EvidenceArtifact:
         target = package_root / filename
-        text = json.dumps(
-            _to_jsonable(dict(payload)),
-            indent=self.config.indent,
-            sort_keys=True,
-            ensure_ascii=False,
-        ) + "\n"
+        text = (
+            json.dumps(
+                _to_jsonable(dict(payload)),
+                indent=self.config.indent,
+                sort_keys=True,
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
         target.write_text(text, encoding="utf-8")
 
         relative_path = target.relative_to(self.root_dir).as_posix()
@@ -391,8 +430,8 @@ class Wave3EvidencePackageWriter:
     def _build_evidence_index_payload(
         self,
         *,
-        authored_report: "AuthoredEngineeringControlPlaneReport",
-        acceptance_report: "Wave3AcceptanceReport",
+        authored_report: AuthoredEngineeringControlPlaneReport,
+        acceptance_report: Wave3AcceptanceReport,
         artifacts: tuple[Wave3EvidenceArtifact, ...],
         package_root: Path,
         metadata: Mapping[str, Any],
@@ -416,13 +455,19 @@ class Wave3EvidencePackageWriter:
             "selected_candidate_id": None
             if selected_candidate is None
             else selected_candidate.candidate_id,
-            "selected_patch_id": None if selected_patch is None else selected_patch.patch_id,
-            "selected_patch_digest": None if selected_patch is None else selected_patch.digest,
+            "selected_patch_id": None
+            if selected_patch is None
+            else selected_patch.patch_id,
+            "selected_patch_digest": None
+            if selected_patch is None
+            else selected_patch.digest,
             "authoring_request_id": authored_runtime_report.request.request_id,
             "authoring_receipt_count": authored_runtime_report.receipt_snapshot.count,
             "authoring_chain_digest": authored_runtime_report.receipt_snapshot.latest_chain_digest,
             "proposal_count": len(authored_runtime_report.proposals),
-            "compiled_candidate_count": len(authored_runtime_report.compiled_candidates),
+            "compiled_candidate_count": len(
+                authored_runtime_report.compiled_candidates
+            ),
             "policy_report_count": len(authored_runtime_report.policy_reports),
             "artifact_count": len(artifacts),
             "artifacts": [artifact.to_dict() for artifact in artifacts],
