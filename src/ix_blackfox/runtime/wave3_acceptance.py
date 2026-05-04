@@ -277,7 +277,8 @@ class Wave3AcceptanceValidator:
             )
 
         self._append_authoring_status_findings(
-            authored_status=authored.status, findings=findings
+            authored_status=authored.status,
+            findings=findings,
         )
         self._append_policy_findings(report=report, findings=findings)
         self._append_wave2_findings(report=report, findings=findings)
