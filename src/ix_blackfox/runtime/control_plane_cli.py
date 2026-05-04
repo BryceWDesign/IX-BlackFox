@@ -12,11 +12,12 @@ from ix_blackfox.runtime.control_plane import (
     EngineeringControlPlane,
     EngineeringControlPlaneReport,
 )
+from ix_blackfox.runtime.run_bundle import RunBundleLayout
 from ix_blackfox.runtime.run_bundle_export import (
+    RunBundleExporter,
     RunBundleExportFormat,
     RunBundleExportRequest,
     RunBundleExportResult,
-    RunBundleExporter,
 )
 from ix_blackfox.tools.patch import PatchDiff
 
@@ -91,12 +92,16 @@ def run_control_plane_cli(argv: Sequence[str] | None = None) -> ControlPlaneCliR
     policy_path = Path(args.policy) if args.policy else None
     candidate_patches = _load_patch_candidates(args.patch)
     test_command = tuple(json.loads(args.test_command)) if args.test_command else None
-    allowed_executables = tuple(args.allowed_executable) if args.allowed_executable else (
-        "python",
-        "python3",
-        "py",
-        "pytest",
-        Path(sys.executable).name,
+    allowed_executables = (
+        tuple(args.allowed_executable)
+        if args.allowed_executable
+        else (
+            "python",
+            "python3",
+            "py",
+            "pytest",
+            Path(sys.executable).name,
+        )
     )
 
     control_plane = EngineeringControlPlane.from_workspace(
@@ -409,16 +414,13 @@ def _write_output_json(*, path: Path, payload: Mapping[str, Any]) -> Path:
     return destination
 
 
-def _layout_from_report_bundle_root(bundle_root: str, run_id: str):
-    from ix_blackfox.runtime.run_bundle import RunBundleLayout
-
+def _layout_from_report_bundle_root(bundle_root: str, run_id: str) -> RunBundleLayout:
     root = Path(bundle_root).expanduser().resolve()
     expected_suffix = Path("artifacts") / "runs" / run_id
 
     if not str(root).replace("\\", "/").endswith(expected_suffix.as_posix()):
         raise ControlPlaneCliError(
-            "Cannot infer artifact root from report bundle root: "
-            f"{bundle_root!r}."
+            "Cannot infer artifact root from report bundle root: " f"{bundle_root!r}."
         )
 
     artifact_root = root.parents[2]
