@@ -92,11 +92,15 @@ from ix_blackfox.authoring.prompt_contract import (
     PromptMessageRole,
 )
 from ix_blackfox.authoring.receipts import (
+    AuthoringReceipt,
     AuthoringReceiptEvent,
     AuthoringReceiptEventKind,
+    AuthoringReceiptEventType,
     AuthoringReceiptLedger,
     AuthoringReceiptSeverity,
     AuthoringReceiptSnapshot,
+    AuthoringReceiptStatus,
+    digest_payload,
     receipt_severity_from_findings,
 )
 from ix_blackfox.authoring.response_parser import (
@@ -136,12 +140,15 @@ __all__ = [
     "AuthoringPolicyGate",
     "AuthoringPolicyGateConfig",
     "AuthoringPolicyReport",
+    "AuthoringReceipt",
     "AuthoringReceiptError",
     "AuthoringReceiptEvent",
     "AuthoringReceiptEventKind",
+    "AuthoringReceiptEventType",
     "AuthoringReceiptLedger",
     "AuthoringReceiptSeverity",
     "AuthoringReceiptSnapshot",
+    "AuthoringReceiptStatus",
     "AuthoringRequest",
     "AuthoringRiskLevel",
     "AuthoringStatus",
@@ -191,5 +198,6 @@ __all__ = [
     "RepairTaskDecomposer",
     "RepairTaskDecomposerConfig",
     "SkippedContextPath",
+    "digest_payload",
     "receipt_severity_from_findings",
 ]
