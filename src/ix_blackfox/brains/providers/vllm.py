@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from time import perf_counter
-from typing import Any, Callable
+from typing import Any
 
-from ix_blackfox.brains.providers.base import BrainProviderHealth
+from ix_blackfox.brains.providers.base import (
+    BrainProviderHealth,
+    BrainProviderInvocation,
+)
 from ix_blackfox.brains.providers.openai_compatible import (
     OpenAICompatibleProvider,
     OpenAIHealthTransport,
@@ -77,7 +81,9 @@ class VLLMProvider(OpenAICompatibleProvider):
                 self._build_headers(),
                 self._default_timeout_seconds,
             )
-        except Exception as error:  # pragma: no cover - exercised via wrapped error tests
+        except (
+            Exception
+        ) as error:  # pragma: no cover - exercised via wrapped error tests
             wrapped = self.wrap_error(
                 error,
                 operation="health_check",
@@ -106,7 +112,7 @@ class VLLMProvider(OpenAICompatibleProvider):
             metadata={"model_ids": models},
         )
 
-    def build_payload(self, invocation):
+    def build_payload(self, invocation: BrainProviderInvocation) -> dict[str, Any]:
         """
         Extend the inherited OpenAI-compatible payload with vLLM-specific
         forwarding knobs.
