@@ -32,12 +32,16 @@ class TestRunnerWorkspaceError(RuntimeError):
     Raised when governed test execution cannot be safely started.
     """
 
+    __test__ = False
+
 
 @dataclass(frozen=True, slots=True)
 class TestCommandResult:
     """
     Normalized subprocess result from a governed test command.
     """
+
+    __test__ = False
 
     command: tuple[str, ...]
     cwd: str
@@ -86,6 +90,8 @@ class TestRunnerTool:
     whether the invocation is allowed, requires review, or is blocked before this
     wrapper is called.
     """
+
+    __test__ = False
 
     workspace_root: Path
     path_policy: ToolPathPolicy | None = None
@@ -214,6 +220,11 @@ class TestRunnerTool:
                     },
                 )
             else:
+                if failure is None:
+                    failure = ToolFailure(
+                        kind=ToolFailureKind.EXECUTION_ERROR,
+                        message="Test command failed without a structured failure reason.",
+                    )
                 result = ToolInvocationResult.failed(
                     request=request,
                     status=(
@@ -327,7 +338,9 @@ class TestRunnerTool:
         for key, value in raw_extra_env.items():
             key_text = str(key).strip()
             if not key_text:
-                raise TestRunnerWorkspaceError("environment variable names must not be empty.")
+                raise TestRunnerWorkspaceError(
+                    "environment variable names must not be empty."
+                )
             if _looks_sensitive_env_key(key_text):
                 raise TestRunnerWorkspaceError(
                     f"Sensitive environment variable is not allowed: {key_text}"
