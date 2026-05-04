@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Callable
+from collections.abc import Callable, Mapping
 
 from ix_blackfox.brains.providers.base import BrainProvider
 from ix_blackfox.brains.providers.http_transport import (
@@ -32,7 +31,9 @@ class BrainProviderFactory:
         get_transport_builder: GetTransportBuilder | None = None,
     ) -> None:
         self._env = dict(env or {})
-        self._post_transport_builder = post_transport_builder or build_json_post_transport
+        self._post_transport_builder = (
+            post_transport_builder or build_json_post_transport
+        )
         self._get_transport_builder = get_transport_builder or build_json_get_transport
 
     def build_many(
@@ -64,52 +65,42 @@ class BrainProviderFactory:
         api_key = self._resolve_api_key(provider_config)
 
         if provider_config.provider_kind is BrainProviderKind.OLLAMA:
-            kwargs = {
-                "base_url": provider_config.base_url,
-                "api_key": api_key,
-                "provider_name": provider_config.provider_name,
-                "transport": self._post_transport_builder(),
-                "health_transport": self._get_transport_builder(),
-                "default_timeout_seconds": provider_config.default_timeout_seconds,
-            }
-            if provider_config.endpoint_path is not None:
-                kwargs["chat_path"] = provider_config.endpoint_path
-            if provider_config.health_path is not None:
-                kwargs["tags_path"] = provider_config.health_path
-            return OllamaProvider(**kwargs)
+            return OllamaProvider(
+                base_url=provider_config.base_url,
+                api_key=api_key,
+                provider_name=provider_config.provider_name,
+                chat_path=provider_config.endpoint_path or "/api/chat",
+                tags_path=provider_config.health_path or "/api/tags",
+                transport=self._post_transport_builder(),
+                health_transport=self._get_transport_builder(),
+                default_timeout_seconds=provider_config.default_timeout_seconds,
+            )
 
         if provider_config.provider_kind is BrainProviderKind.OPENAI_COMPATIBLE:
-            kwargs = {
-                "base_url": provider_config.base_url,
-                "api_key": api_key,
-                "provider_name": provider_config.provider_name,
-                "transport": self._post_transport_builder(),
-                "health_transport": self._get_transport_builder(),
-                "default_timeout_seconds": provider_config.default_timeout_seconds,
-            }
-            if provider_config.endpoint_path is not None:
-                kwargs["endpoint_path"] = provider_config.endpoint_path
-            if provider_config.health_path is not None:
-                kwargs["health_path"] = provider_config.health_path
-            return OpenAICompatibleProvider(**kwargs)
+            return OpenAICompatibleProvider(
+                base_url=provider_config.base_url,
+                api_key=api_key,
+                provider_name=provider_config.provider_name,
+                endpoint_path=provider_config.endpoint_path or "/v1/chat/completions",
+                health_path=provider_config.health_path or "/health",
+                transport=self._post_transport_builder(),
+                health_transport=self._get_transport_builder(),
+                default_timeout_seconds=provider_config.default_timeout_seconds,
+            )
 
         if provider_config.provider_kind is BrainProviderKind.VLLM:
-            kwargs = {
-                "base_url": provider_config.base_url,
-                "api_key": api_key,
-                "provider_name": provider_config.provider_name,
-                "transport": self._post_transport_builder(),
-                "models_transport": self._get_transport_builder(),
-                "health_transport": self._get_transport_builder(),
-                "default_timeout_seconds": provider_config.default_timeout_seconds,
-            }
-            if provider_config.endpoint_path is not None:
-                kwargs["endpoint_path"] = provider_config.endpoint_path
-            if provider_config.health_path is not None:
-                kwargs["health_path"] = provider_config.health_path
-            if provider_config.models_path is not None:
-                kwargs["models_path"] = provider_config.models_path
-            return VLLMProvider(**kwargs)
+            return VLLMProvider(
+                base_url=provider_config.base_url,
+                api_key=api_key,
+                provider_name=provider_config.provider_name,
+                endpoint_path=provider_config.endpoint_path or "/v1/chat/completions",
+                models_path=provider_config.models_path or "/v1/models",
+                health_path=provider_config.health_path or "/health",
+                transport=self._post_transport_builder(),
+                models_transport=self._get_transport_builder(),
+                health_transport=self._get_transport_builder(),
+                default_timeout_seconds=provider_config.default_timeout_seconds,
+            )
 
         raise ValueError(
             f"Unsupported provider kind '{provider_config.provider_kind.value}'."
