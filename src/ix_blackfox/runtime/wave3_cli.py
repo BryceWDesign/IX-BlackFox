@@ -103,16 +103,26 @@ class Wave3CliRequest:
         object.__setattr__(
             self,
             "policy_path",
-            None if self.policy_path is None else self.policy_path.expanduser().resolve(),
+            None
+            if self.policy_path is None
+            else self.policy_path.expanduser().resolve(),
         )
         object.__setattr__(
             self,
             "output_path",
-            None if self.output_path is None else self.output_path.expanduser().resolve(),
+            None
+            if self.output_path is None
+            else self.output_path.expanduser().resolve(),
         )
-        object.__setattr__(self, "task_id", _normalize_identifier(self.task_id, label="task_id"))
-        object.__setattr__(self, "run_id", _normalize_identifier(self.run_id, label="run_id"))
-        object.__setattr__(self, "objective", _normalize_text(self.objective, label="objective"))
+        object.__setattr__(
+            self, "task_id", _normalize_identifier(self.task_id, label="task_id")
+        )
+        object.__setattr__(
+            self, "run_id", _normalize_identifier(self.run_id, label="run_id")
+        )
+        object.__setattr__(
+            self, "objective", _normalize_text(self.objective, label="objective")
+        )
         object.__setattr__(
             self,
             "include_paths",
@@ -121,7 +131,10 @@ class Wave3CliRequest:
         object.__setattr__(
             self,
             "proposal_responses",
-            tuple(_normalize_text(value, label="proposal_response") for value in self.proposal_responses),
+            tuple(
+                _normalize_text(value, label="proposal_response")
+                for value in self.proposal_responses
+            ),
         )
         object.__setattr__(
             self,
@@ -136,7 +149,9 @@ class Wave3CliRequest:
         object.__setattr__(
             self,
             "test_working_directory",
-            _normalize_text(self.test_working_directory, label="test_working_directory"),
+            _normalize_text(
+                self.test_working_directory, label="test_working_directory"
+            ),
         )
         object.__setattr__(
             self,
@@ -156,7 +171,9 @@ class Wave3CliRequest:
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> Self:
         workspace_root = Path(args.workspace_root)
-        artifact_root = Path(args.artifact_root) if args.artifact_root else workspace_root
+        artifact_root = (
+            Path(args.artifact_root) if args.artifact_root else workspace_root
+        )
         output_path = None if args.output_path is None else Path(args.output_path)
         policy_path = None if args.policy_path is None else Path(args.policy_path)
 
@@ -256,9 +273,7 @@ def run_wave3_cli_request(request: Wave3CliRequest) -> Wave3CliResult:
         payload=payload,
         errors=()
         if exit_code == 0
-        else (
-            f"Wave 3 acceptance status: {acceptance_report.status.value}",
-        ),
+        else (f"Wave 3 acceptance status: {acceptance_report.status.value}",),
     )
 
 
@@ -267,7 +282,12 @@ def run_wave3_cli(argv: Sequence[str] | None = None) -> Wave3CliResult:
     Parse argv, execute the Wave 3 CLI command, and return a structured result.
     """
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args, unknown_args = parser.parse_known_args(argv)
+    if unknown_args:
+        if args.test_command:
+            args.test_command = [*args.test_command, *unknown_args]
+        else:
+            parser.error(f"unrecognized arguments: {' '.join(unknown_args)}")
 
     try:
         request = Wave3CliRequest.from_args(args)
@@ -446,7 +466,9 @@ def _load_proposal_responses(
     for file_name in proposal_file:
         path = Path(file_name).expanduser().resolve()
         if not path.is_file():
-            raise Wave3CliError(f"Proposal file does not exist or is not a file: {path}")
+            raise Wave3CliError(
+                f"Proposal file does not exist or is not a file: {path}"
+            )
         text = path.read_text(encoding="utf-8").strip()
         if not text:
             raise Wave3CliError(f"Proposal file is empty: {path}")
@@ -464,7 +486,9 @@ def _load_optional_text_file(file_name: str | None) -> str | None:
 
     path = Path(file_name).expanduser().resolve()
     if not path.is_file():
-        raise Wave3CliError(f"Raw test output file does not exist or is not a file: {path}")
+        raise Wave3CliError(
+            f"Raw test output file does not exist or is not a file: {path}"
+        )
 
     text = path.read_text(encoding="utf-8")
     return text if text.strip() else None
