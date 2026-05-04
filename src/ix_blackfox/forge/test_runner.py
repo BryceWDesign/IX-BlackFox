@@ -33,6 +33,8 @@ class TestRunSpec:
         Extra framework arguments appended after built-in flags.
     """
 
+    __test__ = False
+
     framework: str = "pytest"
     target_paths: tuple[str, ...] = field(default_factory=tuple)
     cwd_relative_path: str = "input"
@@ -70,6 +72,8 @@ class TestRunResult:
     """
     Result of one forge test run.
     """
+
+    __test__ = False
 
     framework: str
     target_paths: tuple[str, ...]
