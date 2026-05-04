@@ -107,7 +107,9 @@ class FailureEvidenceSnippet:
             node_id=_optional_text_from_payload(payload, "node_id"),
             path=_optional_text_from_payload(payload, "path"),
             line_number=_optional_int_from_payload(payload, "line_number"),
-            metadata=_coerce_mapping(payload.get("metadata", {}), field_name="metadata"),
+            metadata=_coerce_mapping(
+                payload.get("metadata", {}), field_name="metadata"
+            ),
         )
 
 
@@ -131,14 +133,15 @@ class FailureEvidenceReport:
             for value in self.failing_node_ids
         )
         related_paths = tuple(
-            _normalize_relative_path(value)
-            for value in self.related_paths
+            _normalize_relative_path(value) for value in self.related_paths
         )
 
         object.__setattr__(self, "snippets", snippets)
         object.__setattr__(self, "failing_node_ids", failing_node_ids)
         object.__setattr__(self, "related_paths", related_paths)
-        object.__setattr__(self, "raw_digest", _normalize_optional_digest(self.raw_digest))
+        object.__setattr__(
+            self, "raw_digest", _normalize_optional_digest(self.raw_digest)
+        )
         object.__setattr__(self, "metadata", dict(self.metadata))
 
     @property
@@ -183,7 +186,9 @@ class FailureEvidenceReport:
                 field_name="related_paths",
             ),
             raw_digest=_optional_text_from_payload(payload, "raw_digest"),
-            metadata=_coerce_mapping(payload.get("metadata", {}), field_name="metadata"),
+            metadata=_coerce_mapping(
+                payload.get("metadata", {}), field_name="metadata"
+            ),
         )
 
 
@@ -669,7 +674,9 @@ def _map_finding_severity(
     return AuthoringFindingSeverity.INFO
 
 
-def _dedupe_findings(findings: Iterable[AuthoringFinding]) -> tuple[AuthoringFinding, ...]:
+def _dedupe_findings(
+    findings: Iterable[AuthoringFinding],
+) -> tuple[AuthoringFinding, ...]:
     deduped: list[AuthoringFinding] = []
     seen: set[tuple[str, str | None]] = set()
 
