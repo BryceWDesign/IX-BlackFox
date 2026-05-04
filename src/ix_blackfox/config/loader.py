@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import tomllib
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
-import tomllib
 
 from ix_blackfox.brains.budgets import (
     BrainContextBudget,
@@ -22,8 +22,8 @@ from ix_blackfox.brains.manifest import BrainManifest
 from ix_blackfox.brains.models import (
     BrainContextWindow,
     BrainExecutionLimits,
-    BrainModelProfile,
     BrainModalityProfile,
+    BrainModelProfile,
 )
 from ix_blackfox.brains.profiles import BrainExecutionMode, BrainExecutionProfile
 from ix_blackfox.config.models import (
@@ -284,10 +284,10 @@ def _build_provider_configs(
             raise ValueError("Each brains.providers entry must be a table/object.")
 
         provider_name = _require_text(raw.get("provider_name"), label="provider_name")
-        provider_kind = _parse_provider_kind(
-            raw.get("provider_kind", provider_name)
+        provider_kind = _parse_provider_kind(raw.get("provider_kind", provider_name))
+        normalized_provider_name = _normalize_identifier(
+            provider_name, label="provider_name"
         )
-        normalized_provider_name = _normalize_identifier(provider_name, label="provider_name")
         configured_names.add(normalized_provider_name)
 
         env_base_url = _provider_base_url_from_env(env, provider_name, provider_kind)
@@ -331,7 +331,9 @@ def _build_provider_configs(
     return tuple(configs)
 
 
-def _build_brain_manifests(manifest_values: tuple[Any, ...]) -> tuple[BrainManifest, ...]:
+def _build_brain_manifests(
+    manifest_values: tuple[Any, ...],
+) -> tuple[BrainManifest, ...]:
     manifests: list[BrainManifest] = []
 
     for raw in manifest_values:
@@ -343,17 +345,24 @@ def _build_brain_manifests(manifest_values: tuple[Any, ...]) -> tuple[BrainManif
         model_name = _require_text(raw.get("model_name"), label="model_name")
         version = _require_text(raw.get("version", "0.1.0"), label="version")
 
-        roles = tuple(_parse_brain_role(item) for item in _parse_sequence(raw.get("roles")))
+        roles = tuple(
+            _parse_brain_role(item) for item in _parse_sequence(raw.get("roles"))
+        )
         capabilities = tuple(
-            _parse_brain_capability(item) for item in _parse_sequence(raw.get("capabilities"))
+            _parse_brain_capability(item)
+            for item in _parse_sequence(raw.get("capabilities"))
         )
         input_modalities = tuple(
             _parse_brain_modality(item)
-            for item in _parse_sequence(raw.get("input_modalities", (BrainModality.TEXT.value,)))
+            for item in _parse_sequence(
+                raw.get("input_modalities", (BrainModality.TEXT.value,))
+            )
         )
         output_modalities = tuple(
             _parse_brain_modality(item)
-            for item in _parse_sequence(raw.get("output_modalities", (BrainModality.TEXT.value,)))
+            for item in _parse_sequence(
+                raw.get("output_modalities", (BrainModality.TEXT.value,))
+            )
         )
 
         manifests.append(
@@ -364,24 +373,34 @@ def _build_brain_manifests(manifest_values: tuple[Any, ...]) -> tuple[BrainManif
                 version=version,
                 description=_optional_text(raw.get("description")) or "",
                 labels=_parse_identifier_sequence(raw.get("labels", ())),
-                preferred_packs=_parse_identifier_sequence(raw.get("preferred_packs", ())),
+                preferred_packs=_parse_identifier_sequence(
+                    raw.get("preferred_packs", ())
+                ),
                 is_default=_parse_bool(raw.get("is_default", False)),
                 profile=BrainModelProfile(
                     brain_name=brain_name,
                     roles=roles,
                     capabilities=capabilities,
                     context_window=BrainContextWindow(
-                        max_input_tokens=int(raw.get("max_input_tokens")),
-                        max_output_tokens=int(raw.get("max_output_tokens")),
+                        max_input_tokens=_require_int(
+                            raw.get("max_input_tokens"), label="max_input_tokens"
+                        ),
+                        max_output_tokens=_require_int(
+                            raw.get("max_output_tokens"), label="max_output_tokens"
+                        ),
                     ),
                     modalities=BrainModalityProfile(
                         input_modalities=input_modalities,
                         output_modalities=output_modalities,
-                        supports_streaming=_parse_bool(raw.get("supports_streaming", False)),
+                        supports_streaming=_parse_bool(
+                            raw.get("supports_streaming", False)
+                        ),
                         supports_structured_output=_parse_bool(
                             raw.get("supports_structured_output", False)
                         ),
-                        supports_tool_use=_parse_bool(raw.get("supports_tool_use", False)),
+                        supports_tool_use=_parse_bool(
+                            raw.get("supports_tool_use", False)
+                        ),
                     ),
                     limits=BrainExecutionLimits(
                         max_concurrent_invocations=int(
@@ -584,7 +603,7 @@ def _sequence_or_empty(value: Any) -> tuple[Any, ...]:
 
 
 def _parse_sequence(value: Any) -> tuple[Any, ...]:
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         return tuple(value)
     if value is None:
         return ()
@@ -694,6 +713,12 @@ def _optional_text(value: Any) -> str | None:
 def _optional_int(value: Any) -> int | None:
     if value is None:
         return None
+    return int(value)
+
+
+def _require_int(value: Any, *, label: str) -> int:
+    if value is None:
+        raise ValueError(f"{label} must not be empty.")
     return int(value)
 
 
