@@ -4,7 +4,7 @@ import tomllib
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
 from ix_blackfox.tools.manifest import (
     ToolCapability,
@@ -12,6 +12,9 @@ from ix_blackfox.tools.manifest import (
     ToolSideEffect,
 )
 from ix_blackfox.tools.policy import ToolPolicyEvaluatorConfig
+
+if TYPE_CHECKING:
+    from ix_blackfox.runtime.repair_loop import RepairLoopConfig
 
 
 class ToolPolicyDocumentError(ValueError):
@@ -40,7 +43,9 @@ class ToolPolicyExecutionConfig:
 
     def __post_init__(self) -> None:
         if self.max_repair_attempts <= 0:
-            raise ToolPolicyDocumentError("execution.max_repair_attempts must be positive.")
+            raise ToolPolicyDocumentError(
+                "execution.max_repair_attempts must be positive."
+            )
         if self.max_repair_attempts > 10:
             raise ToolPolicyDocumentError(
                 "execution.max_repair_attempts must not exceed 10."
@@ -119,7 +124,7 @@ class ToolPolicyExecutionConfig:
             "max_tool_timeout_seconds": self.max_tool_timeout_seconds,
         }
 
-    def to_repair_loop_config(self):
+    def to_repair_loop_config(self) -> RepairLoopConfig:
         from ix_blackfox.runtime.repair_loop import RepairLoopConfig
 
         return RepairLoopConfig(max_attempts=self.max_repair_attempts)
@@ -348,7 +353,9 @@ class ToolPolicyDocument:
     def __post_init__(self) -> None:
         object.__setattr__(self, "metadata", dict(self.metadata))
         if self.source_path is not None:
-            object.__setattr__(self, "source_path", self.source_path.expanduser().resolve())
+            object.__setattr__(
+                self, "source_path", self.source_path.expanduser().resolve()
+            )
 
     @classmethod
     def from_toml_text(
@@ -360,7 +367,9 @@ class ToolPolicyDocument:
         try:
             payload = tomllib.loads(text)
         except tomllib.TOMLDecodeError as exc:
-            raise ToolPolicyDocumentError(f"Invalid blackfox.policy.toml: {exc}") from exc
+            raise ToolPolicyDocumentError(
+                f"Invalid blackfox.policy.toml: {exc}"
+            ) from exc
 
         return cls.from_mapping(payload, source_path=source_path)
 
@@ -393,10 +402,16 @@ class ToolPolicyDocument:
             section_name="root",
         )
 
-        execution_payload = _optional_mapping(root.get("execution"), section_name="execution")
-        approval_payload = _optional_mapping(root.get("approval"), section_name="approval")
+        execution_payload = _optional_mapping(
+            root.get("execution"), section_name="execution"
+        )
+        approval_payload = _optional_mapping(
+            root.get("approval"), section_name="approval"
+        )
         paths_payload = _optional_mapping(root.get("paths"), section_name="paths")
-        metadata_payload = _optional_mapping(root.get("metadata"), section_name="metadata")
+        metadata_payload = _optional_mapping(
+            root.get("metadata"), section_name="metadata"
+        )
 
         execution = ToolPolicyExecutionConfig.from_mapping(execution_payload)
         approval = ToolPolicyApprovalConfig.from_mapping(approval_payload)
@@ -483,7 +498,7 @@ class ToolPolicyDocument:
             review_side_effects=tuple(_dedupe(review_side_effects)),
         )
 
-    def to_repair_loop_config(self):
+    def to_repair_loop_config(self) -> RepairLoopConfig:
         return self.execution.to_repair_loop_config()
 
     def to_tool_path_policy(self) -> ToolPathPolicy:
@@ -495,7 +510,9 @@ class ToolPolicyDocument:
             "approval": self.approval.to_dict(),
             "paths": self.paths.to_dict(),
             "metadata": dict(self.metadata),
-            "source_path": str(self.source_path) if self.source_path is not None else None,
+            "source_path": str(self.source_path)
+            if self.source_path is not None
+            else None,
         }
 
 
@@ -530,11 +547,11 @@ def _coerce_bool(value: Any, *, field_name: str) -> bool:
 def _coerce_int(value: Any, *, field_name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise ToolPolicyDocumentError(f"{field_name} must be an integer.")
-    return value
+    return int(value)
 
 
 def _coerce_float(value: Any, *, field_name: str) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
+    if isinstance(value, bool) or not isinstance(value, int | float):
         raise ToolPolicyDocumentError(f"{field_name} must be a number.")
     return float(value)
 
