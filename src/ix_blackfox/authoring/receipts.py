@@ -15,10 +15,6 @@ from ix_blackfox.authoring.models import AuthoringFinding, AuthoringFindingSever
 class AuthoringReceiptEventKind(StrEnum):
     """
     Auditable Wave 3 authoring event kind.
-
-    These events preserve the chain from human objective through context,
-    evidence, decomposition, hypothesis, prompt, proposal, policy, candidate
-    ranking, and Wave 2 handoff.
     """
 
     REQUEST_CREATED = auto()
@@ -27,8 +23,10 @@ class AuthoringReceiptEventKind(StrEnum):
     DECOMPOSITION_CREATED = auto()
     HYPOTHESES_CREATED = auto()
     PROMPT_RENDERED = auto()
+    MODEL_RESPONSE_RECEIVED = auto()
     PROPOSAL_RECEIVED = auto()
     PROPOSAL_PARSED = auto()
+    PROPOSAL_VALIDATED = auto()
     PROPOSAL_REJECTED = auto()
     PATCH_COMPILED = auto()
     POLICY_EVALUATED = auto()
@@ -41,6 +39,7 @@ class AuthoringReceiptEventKind(StrEnum):
     RUN_BLOCKED = auto()
     RUN_REQUIRES_REVIEW = auto()
     RUN_COMPLETED = auto()
+    RUN_FAILED = auto()
 
 
 class AuthoringReceiptSeverity(StrEnum):
@@ -57,10 +56,6 @@ class AuthoringReceiptSeverity(StrEnum):
 class AuthoringReceiptEvent:
     """
     One immutable Wave 3 authoring receipt event.
-
-    The event digest covers the event payload. The chain digest links this event
-    to the previous event so a reviewer can detect deletion, insertion, or
-    reordering in an evidence package.
     """
 
     event_id: str
@@ -110,7 +105,6 @@ class AuthoringReceiptEvent:
         object.__setattr__(self, "payload", dict(self.payload))
         object.__setattr__(self, "findings", tuple(self.findings))
         object.__setattr__(self, "metadata", dict(self.metadata))
-
         object.__setattr__(
             self,
             "previous_chain_digest",
@@ -260,8 +254,7 @@ class AuthoringReceiptSnapshot:
         object.__setattr__(
             self, "task_id", _normalize_identifier(self.task_id, label="task_id")
         )
-        events = tuple(self.events)
-        object.__setattr__(self, "events", events)
+        object.__setattr__(self, "events", tuple(self.events))
         object.__setattr__(self, "metadata", dict(self.metadata))
         self._validate_chain()
 
@@ -290,6 +283,13 @@ class AuthoringReceiptSnapshot:
     @property
     def digest(self) -> str:
         return _sha256_json(self.to_dict(include_digest=False))
+
+    def verify_chain(self) -> bool:
+        try:
+            self._validate_chain()
+        except ValueError:
+            return False
+        return True
 
     def to_dict(self, *, include_digest: bool = True) -> dict[str, Any]:
         payload = {
@@ -340,14 +340,11 @@ class AuthoringReceiptSnapshot:
 @dataclass(slots=True)
 class AuthoringReceiptLedger:
     """
-    Append-only in-memory authoring receipt ledger.
-
-    The runtime uses this ledger while building one authored repair report. The
-    final snapshot is then persisted into Wave 3 evidence packages.
+    Append-only in-memory Wave 3 authoring receipt ledger.
     """
 
-    run_id: str
-    task_id: str
+    run_id: str = "authoring-run"
+    task_id: str = "authoring-task"
     metadata: Mapping[str, Any] = field(default_factory=dict)
     _events: list[AuthoringReceiptEvent] = field(default_factory=list)
 
@@ -409,15 +406,218 @@ class AuthoringReceiptLedger:
         findings: Iterable[AuthoringFinding] = (),
         metadata: Mapping[str, Any] | None = None,
     ) -> AuthoringReceiptEvent:
-        payload = _payload_from_object(payload_object)
         return self.record(
             event_kind=event_kind,
             severity=severity,
             summary=summary,
             related_ids=related_ids,
-            payload=payload,
+            payload=_payload_from_object(payload_object),
             findings=findings,
             metadata=metadata,
+        )
+
+    def record_context_collected(
+        self, *, request_id: str, snapshot: Any
+    ) -> AuthoringReceiptEvent:
+        return self.record_payload(
+            event_kind=AuthoringReceiptEventKind.CONTEXT_COLLECTED,
+            summary="Bounded Wave 3 repository context was collected.",
+            payload_object=snapshot,
+            related_ids={"request_id": request_id},
+        )
+
+    def record_evidence_extracted(
+        self, *, request_id: str, report: Any
+    ) -> AuthoringReceiptEvent:
+        return self.record_payload(
+            event_kind=AuthoringReceiptEventKind.EVIDENCE_EXTRACTED,
+            summary="Wave 3 failure evidence was extracted.",
+            payload_object=report,
+            related_ids={"request_id": request_id},
+        )
+
+    def record_decomposition_created(
+        self, *, request_id: str, plan: Any
+    ) -> AuthoringReceiptEvent:
+        return self.record_payload(
+            event_kind=AuthoringReceiptEventKind.DECOMPOSITION_CREATED,
+            summary="Wave 3 repair task decomposition was created.",
+            payload_object=plan,
+            related_ids={"request_id": request_id},
+        )
+
+    def record_hypotheses_generated(
+        self, *, request_id: str, report: Any
+    ) -> AuthoringReceiptEvent:
+        return self.record_payload(
+            event_kind=AuthoringReceiptEventKind.HYPOTHESES_CREATED,
+            summary="Wave 3 repair hypotheses were generated.",
+            payload_object=report,
+            related_ids={"request_id": request_id},
+        )
+
+    def record_prompt_contract_rendered(
+        self, *, request_id: str, contract: Any
+    ) -> AuthoringReceiptEvent:
+        return self.record_payload(
+            event_kind=AuthoringReceiptEventKind.PROMPT_RENDERED,
+            summary="Wave 3 patch-authoring prompt contract was rendered.",
+            payload_object=contract,
+            related_ids={"request_id": request_id},
+        )
+
+    def record_model_response_received(
+        self,
+        *,
+        request_id: str,
+        raw_response: str,
+        provider_name: str | None = None,
+        model_name: str | None = None,
+    ) -> AuthoringReceiptEvent:
+        digest = hashlib.sha256(raw_response.encode("utf-8")).hexdigest()
+        return self.record(
+            event_kind=AuthoringReceiptEventKind.MODEL_RESPONSE_RECEIVED,
+            summary="Untrusted Wave 3 proposal response was received.",
+            related_ids={"request_id": request_id},
+            payload={
+                "raw_response_digest": digest,
+                "raw_response_chars": len(raw_response),
+                "provider_name": provider_name,
+                "model_name": model_name,
+            },
+        )
+
+    def record_response_parsed(
+        self, *, request_id: str, proposal: Any
+    ) -> AuthoringReceiptEvent:
+        return self.record_payload(
+            event_kind=AuthoringReceiptEventKind.PROPOSAL_PARSED,
+            summary="Wave 3 proposal response parsed into a strict contract.",
+            payload_object=proposal,
+            related_ids={
+                "request_id": request_id,
+                "proposal_id": str(getattr(proposal, "proposal_id", "unknown")),
+            },
+            findings=tuple(getattr(proposal, "findings", ())),
+        )
+
+    def record_proposal_validated(
+        self, *, request_id: str, proposal: Any
+    ) -> AuthoringReceiptEvent:
+        return self.record_payload(
+            event_kind=AuthoringReceiptEventKind.PROPOSAL_VALIDATED,
+            summary="Wave 3 proposal passed parser-level validation.",
+            payload_object=proposal,
+            related_ids={
+                "request_id": request_id,
+                "proposal_id": str(getattr(proposal, "proposal_id", "unknown")),
+            },
+            findings=tuple(getattr(proposal, "findings", ())),
+        )
+
+    def record_patch_compiled(
+        self, *, request_id: str, candidate: Any
+    ) -> AuthoringReceiptEvent:
+        findings = tuple(
+            finding.to_authoring_finding()
+            for finding in getattr(candidate, "findings", ())
+            if hasattr(finding, "to_authoring_finding")
+        )
+        return self.record_payload(
+            event_kind=AuthoringReceiptEventKind.PATCH_COMPILED,
+            summary="Wave 3 proposal compiled into a governed PatchDiff candidate.",
+            payload_object=candidate,
+            related_ids={
+                "request_id": request_id,
+                "candidate_id": str(getattr(candidate, "candidate_id", "unknown")),
+                "proposal_id": str(getattr(candidate, "proposal_id", "unknown")),
+            },
+            findings=findings,
+            severity=receipt_severity_from_findings(findings),
+        )
+
+    def record_policy_decided(
+        self, *, request_id: str, report: Any
+    ) -> AuthoringReceiptEvent:
+        findings = tuple(getattr(report, "authoring_findings", ()))
+        return self.record_payload(
+            event_kind=AuthoringReceiptEventKind.POLICY_EVALUATED,
+            summary="Wave 3 authoring policy gate evaluated a candidate.",
+            payload_object=report,
+            related_ids={
+                "request_id": request_id,
+                "policy_report_id": str(getattr(report, "report_id", "unknown")),
+                "proposal_id": str(getattr(report, "proposal_id", "unknown")),
+            },
+            findings=findings,
+            severity=receipt_severity_from_findings(findings),
+        )
+
+    def record_candidate_selected(
+        self,
+        *,
+        request_id: str,
+        selected_candidate_id: str,
+        candidate_ids: Iterable[str],
+        selection_reason: str,
+    ) -> AuthoringReceiptEvent:
+        return self.record(
+            event_kind=AuthoringReceiptEventKind.CANDIDATE_SELECTED,
+            summary="Wave 3 candidate was selected for governed Wave 2 handoff.",
+            related_ids={
+                "request_id": request_id,
+                "selected_candidate_id": selected_candidate_id,
+            },
+            payload={
+                "selected_candidate_id": selected_candidate_id,
+                "candidate_ids": list(candidate_ids),
+                "selection_reason": selection_reason,
+            },
+        )
+
+    def record_candidate_rejected(
+        self,
+        *,
+        request_id: str,
+        candidate_id: str,
+        rejection_phase: str,
+        rejection_reason: str,
+        proposal_digest: str | None = None,
+        affected_paths: Iterable[str] = (),
+    ) -> AuthoringReceiptEvent:
+        return self.record(
+            event_kind=AuthoringReceiptEventKind.CANDIDATE_REJECTED,
+            severity=AuthoringReceiptSeverity.WARNING,
+            summary="Wave 3 candidate was rejected before Wave 2 handoff.",
+            related_ids={
+                "request_id": request_id,
+                "candidate_id": candidate_id,
+            },
+            payload={
+                "candidate_id": candidate_id,
+                "rejection_phase": rejection_phase,
+                "rejection_reason": rejection_reason,
+                "proposal_digest": proposal_digest,
+                "affected_paths": list(affected_paths),
+            },
+        )
+
+    def record_authoring_failed(
+        self,
+        *,
+        request_id: str,
+        failure_phase: str,
+        failure_reason: str,
+    ) -> AuthoringReceiptEvent:
+        return self.record(
+            event_kind=AuthoringReceiptEventKind.RUN_FAILED,
+            severity=AuthoringReceiptSeverity.ERROR,
+            summary="Wave 3 authoring failed before a governed handoff.",
+            related_ids={"request_id": request_id},
+            payload={
+                "failure_phase": failure_phase,
+                "failure_reason": failure_reason,
+            },
         )
 
     def snapshot(self) -> AuthoringReceiptSnapshot:
@@ -455,9 +655,14 @@ def receipt_severity_from_findings(
 def _payload_from_object(value: Any) -> dict[str, Any]:
     if value is None:
         return {}
-
     if isinstance(value, Mapping):
         return dict(value)
+
+    to_manifest_dict = getattr(value, "to_manifest_dict", None)
+    if callable(to_manifest_dict):
+        payload = to_manifest_dict()
+        if isinstance(payload, Mapping):
+            return dict(payload)
 
     to_dict = getattr(value, "to_dict", None)
     if callable(to_dict):
