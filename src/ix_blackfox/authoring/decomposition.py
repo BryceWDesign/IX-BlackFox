@@ -55,7 +55,9 @@ class DecompositionSignal:
             "signal_id",
             _normalize_identifier(self.signal_id, label="signal_id"),
         )
-        object.__setattr__(self, "summary", _normalize_text(self.summary, label="summary"))
+        object.__setattr__(
+            self, "summary", _normalize_text(self.summary, label="summary")
+        )
         object.__setattr__(self, "path", _normalize_optional_relative_path(self.path))
         if self.weight <= 0:
             raise ValueError("DecompositionSignal weight must be positive.")
@@ -98,7 +100,9 @@ class DecompositionSignal:
             summary=_require_text(payload, "summary"),
             path=_optional_text_from_payload(payload, "path"),
             weight=_require_int(payload, "weight"),
-            metadata=_coerce_mapping(payload.get("metadata", {}), field_name="metadata"),
+            metadata=_coerce_mapping(
+                payload.get("metadata", {}), field_name="metadata"
+            ),
         )
 
 
@@ -149,7 +153,9 @@ class RepairDecompositionPlan:
 
     @property
     def requires_review(self) -> bool:
-        return any(subtask.kind is AuthoringSubtaskKind.REVIEW for subtask in self.subtasks)
+        return any(
+            subtask.kind is AuthoringSubtaskKind.REVIEW for subtask in self.subtasks
+        )
 
     @property
     def target_paths(self) -> tuple[str, ...]:
@@ -215,7 +221,9 @@ class RepairDecompositionPlan:
             subtasks=_load_subtasks(payload.get("subtasks", ())),
             signals=_load_signals(payload.get("signals", ())),
             findings=_load_findings(payload.get("findings", ())),
-            metadata=_coerce_mapping(payload.get("metadata", {}), field_name="metadata"),
+            metadata=_coerce_mapping(
+                payload.get("metadata", {}), field_name="metadata"
+            ),
         )
 
 
@@ -301,7 +309,9 @@ class RepairTaskDecomposer:
     repair plan reviewable before hypotheses or model-side patch authoring.
     """
 
-    config: RepairTaskDecomposerConfig = field(default_factory=RepairTaskDecomposerConfig)
+    config: RepairTaskDecomposerConfig = field(
+        default_factory=RepairTaskDecomposerConfig
+    )
 
     def decompose_request(self, request: AuthoringRequest) -> RepairDecompositionPlan:
         if not isinstance(request, AuthoringRequest):
@@ -458,7 +468,9 @@ class RepairTaskDecomposer:
         for signal in signals:
             if signal.path is None:
                 continue
-            weighted_paths[signal.path] = weighted_paths.get(signal.path, 0) + signal.weight
+            weighted_paths[signal.path] = (
+                weighted_paths.get(signal.path, 0) + signal.weight
+            )
 
         for item in evidence:
             for path in item.related_paths:
@@ -483,16 +495,19 @@ class RepairTaskDecomposer:
     ) -> AuthoringRiskLevel:
         lowered_objective = objective_text.lower()
         high_risk_hits = sum(
-            1 for keyword in self.config.high_risk_keywords if keyword in lowered_objective
+            1
+            for keyword in self.config.high_risk_keywords
+            if keyword in lowered_objective
         )
         has_direct_evidence = any(
             item.strength is AuthoringEvidenceStrength.DIRECT for item in evidence
         )
-        has_missing_or_no_evidence = (
-            not evidence
-            or any(item.strength is AuthoringEvidenceStrength.MISSING for item in evidence)
+        has_missing_or_no_evidence = not evidence or any(
+            item.strength is AuthoringEvidenceStrength.MISSING for item in evidence
         )
-        touches_governance = any(self._is_governance_path(path) for path in target_paths)
+        touches_governance = any(
+            self._is_governance_path(path) for path in target_paths
+        )
         touches_tests = any(self._is_test_path(path) for path in target_paths)
 
         if "bypass" in lowered_objective or "secret" in lowered_objective:
@@ -507,7 +522,10 @@ class RepairTaskDecomposer:
         if touches_tests and self.config.require_review_for_test_mutation:
             return AuthoringRiskLevel.MODERATE
 
-        if has_missing_or_no_evidence and self.config.require_review_when_evidence_missing:
+        if (
+            has_missing_or_no_evidence
+            and self.config.require_review_when_evidence_missing
+        ):
             return AuthoringRiskLevel.MODERATE
 
         if not has_direct_evidence:
@@ -628,7 +646,8 @@ class RepairTaskDecomposer:
             metadata={
                 "purpose": "establish_repair_scope",
                 "has_direct_evidence": any(
-                    item.strength is AuthoringEvidenceStrength.DIRECT for item in evidence
+                    item.strength is AuthoringEvidenceStrength.DIRECT
+                    for item in evidence
                 ),
             },
         )
@@ -653,7 +672,9 @@ class RepairTaskDecomposer:
             kind=AuthoringSubtaskKind.TEST,
             risk_level=AuthoringRiskLevel.LOW,
             depends_on=(modify_subtask.subtask_id,),
-            target_paths=tuple(path for path in target_paths if self._is_test_path(path)),
+            target_paths=tuple(
+                path for path in target_paths if self._is_test_path(path)
+            ),
             required_evidence=evidence_ids,
             metadata={
                 "purpose": "validate_candidate_with_wave2_tests",
@@ -705,7 +726,8 @@ class RepairTaskDecomposer:
 
         if self.config.require_review_when_evidence_missing:
             if not evidence or any(
-                item.strength in {
+                item.strength
+                in {
                     AuthoringEvidenceStrength.MISSING,
                     AuthoringEvidenceStrength.WEAK,
                 }
@@ -729,7 +751,9 @@ class RepairTaskDecomposer:
 
     def _is_governance_path(self, path: str) -> bool:
         normalized = path.lower().replace("\\", "/")
-        return any(pattern in normalized for pattern in self.config.governance_path_patterns)
+        return any(
+            pattern in normalized for pattern in self.config.governance_path_patterns
+        )
 
 
 def _objective_keywords(objective_text: str) -> tuple[str, ...]:
@@ -808,7 +832,9 @@ def _load_findings(value: Any) -> tuple[AuthoringFinding, ...]:
     return tuple(findings)
 
 
-def _dedupe_findings(findings: Iterable[AuthoringFinding]) -> tuple[AuthoringFinding, ...]:
+def _dedupe_findings(
+    findings: Iterable[AuthoringFinding],
+) -> tuple[AuthoringFinding, ...]:
     deduped: list[AuthoringFinding] = []
     seen: set[tuple[str, str | None, str]] = set()
 
@@ -863,7 +889,9 @@ def _normalize_relative_path(value: str) -> str:
     return "/".join(parts)
 
 
-def _normalize_keyword_tuple(values: Iterable[str], *, field_name: str) -> tuple[str, ...]:
+def _normalize_keyword_tuple(
+    values: Iterable[str], *, field_name: str
+) -> tuple[str, ...]:
     normalized: list[str] = []
     for value in values:
         if not isinstance(value, str):
