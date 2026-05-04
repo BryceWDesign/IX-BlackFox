@@ -49,10 +49,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip setuptools wheel
 
-      - name: Install project and quality tools
+      - name: Install project with pinned dev tools
         run: |
-          python -m pip install -e .
-          python -m pip install pytest ruff mypy
+          python -m pip install -e ".[dev]"
 
       - name: Ruff lint
         run: |
