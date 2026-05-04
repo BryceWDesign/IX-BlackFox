@@ -23,7 +23,7 @@ from ix_blackfox.tools.manifest import (
 )
 
 
-class WorkspacePathViolation(ValueError):
+class WorkspacePathViolation(ValueError):  # noqa: N818
     """
     Raised when a requested workspace path violates BlackFox path policy.
     """
@@ -301,7 +301,11 @@ class WorkspaceFileReadTool:
                 status=ToolInvocationStatus.FAILED,
                 kind=ToolFailureKind.EXECUTION_ERROR,
                 message=f"Could not decode workspace file: {exc}",
-                metadata={"encoding": str(request.arguments.get("encoding", self.default_encoding))},
+                metadata={
+                    "encoding": str(
+                        request.arguments.get("encoding", self.default_encoding)
+                    )
+                },
             )
         except Exception as exc:
             return _failed_result(
@@ -360,7 +364,9 @@ class WorkspaceDirectoryListTool:
         try:
             path_argument = str(request.arguments.get("path", ".")).strip() or "."
             recursive = _coerce_bool(request.arguments.get("recursive", False))
-            include_hidden = _coerce_bool(request.arguments.get("include_hidden", False))
+            include_hidden = _coerce_bool(
+                request.arguments.get("include_hidden", False)
+            )
             max_entries = int(request.arguments.get("max_entries", self.max_entries))
 
             if max_entries <= 0:
