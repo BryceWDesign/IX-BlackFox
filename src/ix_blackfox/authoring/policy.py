@@ -78,7 +78,9 @@ class AuthoringPolicyFinding:
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "summary", _normalize_text(self.summary, label="summary"))
+        object.__setattr__(
+            self, "summary", _normalize_text(self.summary, label="summary")
+        )
         object.__setattr__(self, "path", _normalize_optional_relative_path(self.path))
         object.__setattr__(self, "metadata", dict(self.metadata))
 
@@ -115,7 +117,9 @@ class AuthoringPolicyFinding:
             summary=_require_text(payload, "summary"),
             path=_optional_text_from_payload(payload, "path"),
             risk_level=AuthoringRiskLevel(_require_text(payload, "risk_level")),
-            metadata=_coerce_mapping(payload.get("metadata", {}), field_name="metadata"),
+            metadata=_coerce_mapping(
+                payload.get("metadata", {}), field_name="metadata"
+            ),
         )
 
 
@@ -152,7 +156,9 @@ class AuthoringPolicyReport:
             "proposal_id",
             _normalize_identifier(self.proposal_id, label="proposal_id"),
         )
-        object.__setattr__(self, "proposal_digest", _normalize_sha256(self.proposal_digest))
+        object.__setattr__(
+            self, "proposal_digest", _normalize_sha256(self.proposal_digest)
+        )
         object.__setattr__(
             self,
             "affected_paths",
@@ -169,7 +175,9 @@ class AuthoringPolicyReport:
             "patch_id",
             _normalize_optional_identifier(self.patch_id, label="patch_id"),
         )
-        object.__setattr__(self, "patch_digest", _normalize_optional_sha256(self.patch_digest))
+        object.__setattr__(
+            self, "patch_digest", _normalize_optional_sha256(self.patch_digest)
+        )
         object.__setattr__(self, "metadata", dict(self.metadata))
 
     @property
@@ -205,7 +213,9 @@ class AuthoringPolicyReport:
             "patch_id": self.patch_id,
             "patch_digest": self.patch_digest,
             "affected_paths": list(self.affected_paths),
-            "evidence_strength": None if self.evidence_strength is None else self.evidence_strength.value,
+            "evidence_strength": None
+            if self.evidence_strength is None
+            else self.evidence_strength.value,
             "finding_codes": list(self.finding_codes),
             "findings": [finding.to_dict() for finding in self.findings],
             "metadata": dict(self.metadata),
@@ -214,7 +224,9 @@ class AuthoringPolicyReport:
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> Self:
         evidence_strength_value = payload.get("evidence_strength")
-        if evidence_strength_value is not None and not isinstance(evidence_strength_value, str):
+        if evidence_strength_value is not None and not isinstance(
+            evidence_strength_value, str
+        ):
             raise TypeError("evidence_strength must be a string or None.")
 
         return cls(
@@ -225,12 +237,16 @@ class AuthoringPolicyReport:
             candidate_id=_optional_text_from_payload(payload, "candidate_id"),
             patch_id=_optional_text_from_payload(payload, "patch_id"),
             patch_digest=_optional_text_from_payload(payload, "patch_digest"),
-            affected_paths=_coerce_text_tuple(payload.get("affected_paths", ()), field_name="affected_paths"),
+            affected_paths=_coerce_text_tuple(
+                payload.get("affected_paths", ()), field_name="affected_paths"
+            ),
             evidence_strength=None
             if evidence_strength_value is None
             else AuthoringEvidenceStrength(evidence_strength_value),
             findings=_load_findings(payload.get("findings", ())),
-            metadata=_coerce_mapping(payload.get("metadata", {}), field_name="metadata"),
+            metadata=_coerce_mapping(
+                payload.get("metadata", {}), field_name="metadata"
+            ),
         )
 
 
@@ -374,8 +390,13 @@ class AuthoringPolicyGateConfig:
     )
 
     def __post_init__(self) -> None:
-        if self.minimum_confidence_for_allow < 0.0 or self.minimum_confidence_for_allow > 1.0:
-            raise ValueError("minimum_confidence_for_allow must be between 0.0 and 1.0.")
+        if (
+            self.minimum_confidence_for_allow < 0.0
+            or self.minimum_confidence_for_allow > 1.0
+        ):
+            raise ValueError(
+                "minimum_confidence_for_allow must be between 0.0 and 1.0."
+            )
         if self.maximum_mutations_for_allow <= 0:
             raise ValueError("maximum_mutations_for_allow must be positive.")
         if self.maximum_changed_paths_for_allow <= 0:
@@ -434,11 +455,17 @@ class AuthoringPolicyGate:
         findings: list[AuthoringPolicyFinding] = []
         evidence_strength = _combined_evidence_strength(evidence)
 
-        findings.extend(self._proposal_consistency_findings(proposal=proposal, candidate=candidate))
+        findings.extend(
+            self._proposal_consistency_findings(proposal=proposal, candidate=candidate)
+        )
         findings.extend(self._path_findings(proposal=proposal))
         findings.extend(self._mutation_findings(proposal=proposal))
         findings.extend(self._confidence_findings(proposal=proposal))
-        findings.extend(self._evidence_findings(evidence=evidence, evidence_strength=evidence_strength))
+        findings.extend(
+            self._evidence_findings(
+                evidence=evidence, evidence_strength=evidence_strength
+            )
+        )
         findings.extend(self._patch_size_findings(proposal=proposal))
         findings.extend(self._content_findings(proposal=proposal))
 
@@ -488,7 +515,10 @@ class AuthoringPolicyGate:
 
         findings: list[AuthoringPolicyFinding] = []
 
-        if candidate.proposal_id != proposal.proposal_id or candidate.proposal_digest != proposal.digest:
+        if (
+            candidate.proposal_id != proposal.proposal_id
+            or candidate.proposal_digest != proposal.digest
+        ):
             findings.append(
                 AuthoringPolicyFinding(
                     code=AuthoringPolicyFindingCode.CANDIDATE_PROPOSAL_MISMATCH,
@@ -522,7 +552,9 @@ class AuthoringPolicyGate:
 
         return tuple(findings)
 
-    def _path_findings(self, *, proposal: PatchAuthoringProposal) -> tuple[AuthoringPolicyFinding, ...]:
+    def _path_findings(
+        self, *, proposal: PatchAuthoringProposal
+    ) -> tuple[AuthoringPolicyFinding, ...]:
         findings: list[AuthoringPolicyFinding] = []
 
         for path in proposal.affected_paths:
@@ -572,7 +604,10 @@ class AuthoringPolicyGate:
                     )
                 )
 
-            if self.config.require_review_for_governance_paths and self._is_governance_path(path):
+            if (
+                self.config.require_review_for_governance_paths
+                and self._is_governance_path(path)
+            ):
                 findings.append(
                     self._finding(
                         code=AuthoringPolicyFindingCode.GOVERNANCE_PATH_REQUIRES_REVIEW,
@@ -616,7 +651,9 @@ class AuthoringPolicyGate:
                     )
                 )
 
-            if self.config.require_review_for_test_mutation and self._is_test_path(path):
+            if self.config.require_review_for_test_mutation and self._is_test_path(
+                path
+            ):
                 findings.append(
                     self._finding(
                         code=AuthoringPolicyFindingCode.TEST_MUTATION_REQUIRES_REVIEW,
@@ -627,7 +664,10 @@ class AuthoringPolicyGate:
                     )
                 )
 
-            if self.config.require_review_for_dependency_config and self._is_dependency_config_path(path):
+            if (
+                self.config.require_review_for_dependency_config
+                and self._is_dependency_config_path(path)
+            ):
                 findings.append(
                     self._finding(
                         code=AuthoringPolicyFindingCode.DEPENDENCY_CONFIG_REQUIRES_REVIEW,
@@ -638,7 +678,9 @@ class AuthoringPolicyGate:
                     )
                 )
 
-            if self.config.require_review_for_ci_workflow and self._is_ci_workflow_path(path):
+            if self.config.require_review_for_ci_workflow and self._is_ci_workflow_path(
+                path
+            ):
                 findings.append(
                     self._finding(
                         code=AuthoringPolicyFindingCode.CI_WORKFLOW_REQUIRES_REVIEW,
@@ -649,7 +691,10 @@ class AuthoringPolicyGate:
                     )
                 )
 
-            if self.config.require_review_for_executable_scripts and self._is_executable_script_path(path):
+            if (
+                self.config.require_review_for_executable_scripts
+                and self._is_executable_script_path(path)
+            ):
                 findings.append(
                     self._finding(
                         code=AuthoringPolicyFindingCode.EXECUTABLE_SCRIPT_REQUIRES_REVIEW,
@@ -662,11 +707,16 @@ class AuthoringPolicyGate:
 
         return tuple(findings)
 
-    def _mutation_findings(self, *, proposal: PatchAuthoringProposal) -> tuple[AuthoringPolicyFinding, ...]:
+    def _mutation_findings(
+        self, *, proposal: PatchAuthoringProposal
+    ) -> tuple[AuthoringPolicyFinding, ...]:
         findings: list[AuthoringPolicyFinding] = []
 
         for mutation in proposal.mutations:
-            if self.config.require_review_for_create_file and mutation.mutation_type is PatchMutationType.CREATE_FILE:
+            if (
+                self.config.require_review_for_create_file
+                and mutation.mutation_type is PatchMutationType.CREATE_FILE
+            ):
                 findings.append(
                     self._finding(
                         code=AuthoringPolicyFindingCode.CREATE_FILE_REQUIRES_REVIEW,
@@ -700,7 +750,9 @@ class AuthoringPolicyGate:
                     )
                 )
 
-            if self._is_test_path(mutation.path) and _looks_like_test_weakening(mutation, self.config.test_weakening_patterns):
+            if self._is_test_path(mutation.path) and _looks_like_test_weakening(
+                mutation, self.config.test_weakening_patterns
+            ):
                 findings.append(
                     self._finding(
                         code=AuthoringPolicyFindingCode.TEST_WEAKENING_RISK,
@@ -714,7 +766,9 @@ class AuthoringPolicyGate:
 
         return tuple(findings)
 
-    def _confidence_findings(self, *, proposal: PatchAuthoringProposal) -> tuple[AuthoringPolicyFinding, ...]:
+    def _confidence_findings(
+        self, *, proposal: PatchAuthoringProposal
+    ) -> tuple[AuthoringPolicyFinding, ...]:
         if proposal.confidence >= self.config.minimum_confidence_for_allow:
             return ()
 
@@ -774,7 +828,9 @@ class AuthoringPolicyGate:
 
         return ()
 
-    def _patch_size_findings(self, *, proposal: PatchAuthoringProposal) -> tuple[AuthoringPolicyFinding, ...]:
+    def _patch_size_findings(
+        self, *, proposal: PatchAuthoringProposal
+    ) -> tuple[AuthoringPolicyFinding, ...]:
         findings: list[AuthoringPolicyFinding] = []
 
         if len(proposal.mutations) > self.config.maximum_mutations_for_allow:
@@ -805,7 +861,10 @@ class AuthoringPolicyGate:
                 )
             )
 
-        if abs(proposal.total_size_delta) > self.config.maximum_total_size_delta_for_allow:
+        if (
+            abs(proposal.total_size_delta)
+            > self.config.maximum_total_size_delta_for_allow
+        ):
             findings.append(
                 self._finding(
                     code=AuthoringPolicyFindingCode.LARGE_PATCH_REQUIRES_REVIEW,
@@ -821,7 +880,9 @@ class AuthoringPolicyGate:
 
         return tuple(findings)
 
-    def _content_findings(self, *, proposal: PatchAuthoringProposal) -> tuple[AuthoringPolicyFinding, ...]:
+    def _content_findings(
+        self, *, proposal: PatchAuthoringProposal
+    ) -> tuple[AuthoringPolicyFinding, ...]:
         findings: list[AuthoringPolicyFinding] = []
 
         for mutation in proposal.mutations:
@@ -837,7 +898,9 @@ class AuthoringPolicyGate:
                     *proposal.expected_tests,
                 )
             )
-            unsafe_matches = _matching_patterns(combined_text, self.config.unsafe_content_patterns)
+            unsafe_matches = _matching_patterns(
+                combined_text, self.config.unsafe_content_patterns
+            )
             if unsafe_matches:
                 findings.append(
                     self._finding(
@@ -893,7 +956,10 @@ class AuthoringPolicyGate:
     def _is_secret_like_path(self, path: str) -> bool:
         lowered = path.lower().replace("\\", "/")
         name = PurePosixPath(lowered).name
-        return any(pattern in lowered or pattern in name for pattern in self.config.secret_file_patterns)
+        return any(
+            pattern in lowered or pattern in name
+            for pattern in self.config.secret_file_patterns
+        )
 
     def _is_governance_path(self, path: str) -> bool:
         return self._matches_path(path, self.config.governance_path_patterns)
@@ -909,7 +975,10 @@ class AuthoringPolicyGate:
 
     def _is_executable_script_path(self, path: str) -> bool:
         lowered = path.lower().replace("\\", "/")
-        return any(lowered.endswith(pattern) or pattern in lowered for pattern in self.config.executable_script_patterns)
+        return any(
+            lowered.endswith(pattern) or pattern in lowered
+            for pattern in self.config.executable_script_patterns
+        )
 
     def _matches_path(self, path: str, patterns: tuple[str, ...]) -> bool:
         lowered = path.lower().replace("\\", "/")
@@ -931,7 +1000,9 @@ def _combined_evidence_strength(
     return AuthoringEvidenceStrength.MISSING
 
 
-def _final_decision(findings: Iterable[AuthoringPolicyFinding]) -> AuthoringPolicyDecision:
+def _final_decision(
+    findings: Iterable[AuthoringPolicyFinding],
+) -> AuthoringPolicyDecision:
     decisions = tuple(finding.decision for finding in findings)
 
     if AuthoringPolicyDecision.BLOCK in decisions:
@@ -1004,7 +1075,9 @@ def _is_absolute_or_drive_path(path: str) -> bool:
     return cleaned.startswith(("/", "~")) or bool(re.match(r"^[a-zA-Z]:", cleaned))
 
 
-def _path_parts_start_with(path_parts: tuple[str, ...], root_parts: tuple[str, ...]) -> bool:
+def _path_parts_start_with(
+    path_parts: tuple[str, ...], root_parts: tuple[str, ...]
+) -> bool:
     if not root_parts:
         return False
     if len(path_parts) < len(root_parts):
@@ -1084,7 +1157,9 @@ def _normalize_optional_sha256(value: str | None) -> str | None:
     return _normalize_sha256(value)
 
 
-def _normalize_pattern_tuple(values: Iterable[str], *, field_name: str) -> tuple[str, ...]:
+def _normalize_pattern_tuple(
+    values: Iterable[str], *, field_name: str
+) -> tuple[str, ...]:
     normalized: list[str] = []
     for value in values:
         if not isinstance(value, str):
