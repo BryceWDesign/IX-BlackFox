@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from time import perf_counter
-from typing import Any, Callable
+from typing import Any
 
 from ix_blackfox.brains.contracts import (
     BrainFailure,
@@ -26,7 +27,9 @@ from ix_blackfox.brains.providers.errors import (
     BrainProviderUnavailableError,
 )
 
-OllamaTransport = Callable[[str, dict[str, str], dict[str, Any], float | None], dict[str, Any]]
+OllamaTransport = Callable[
+    [str, dict[str, str], dict[str, Any], float | None], dict[str, Any]
+]
 OllamaHealthTransport = Callable[[str, dict[str, str], float | None], dict[str, Any]]
 
 
@@ -116,8 +119,9 @@ class OllamaProvider(BrainProvider):
             )
 
         latency_ms = max(0, int((perf_counter() - started) * 1000))
-        models = payload.get("models")
-        is_available = isinstance(models, list)
+        raw_models = payload.get("models")
+        models = raw_models if isinstance(raw_models, list) else []
+        is_available = bool(models)
         message = (
             f"healthy ({len(models)} model(s) visible)"
             if is_available
@@ -131,7 +135,7 @@ class OllamaProvider(BrainProvider):
             message=message,
             latency_ms=int(payload.get("latency_ms", latency_ms)),
             metadata={
-                "model_names": _extract_model_names(models if isinstance(models, list) else []),
+                "model_names": _extract_model_names(models),
             },
         )
 
@@ -203,7 +207,9 @@ class OllamaProvider(BrainProvider):
                     correlation_id=request.invocation_id,
                     data={
                         "brain_name": request.brain_name,
-                        "input_modalities": [item.value for item in request.input_modalities],
+                        "input_modalities": [
+                            item.value for item in request.input_modalities
+                        ],
                     },
                 ),
             )
@@ -320,8 +326,7 @@ class OllamaProvider(BrainProvider):
             )
         else:
             refusal_message = (
-                done_reason
-                or "Ollama response did not include assistant content."
+                done_reason or "Ollama response did not include assistant content."
             )
             result = BrainInvocationResult(
                 invocation_id=invocation.request.invocation_id,
@@ -366,11 +371,15 @@ class OllamaProvider(BrainProvider):
             metadata=_compact_metadata(
                 created_at=_normalize_optional_text(raw_response.get("created_at")),
                 done_reason=done_reason,
-                load_duration=_normalize_optional_int(raw_response.get("load_duration")),
+                load_duration=_normalize_optional_int(
+                    raw_response.get("load_duration")
+                ),
                 prompt_eval_duration=_normalize_optional_int(
                     raw_response.get("prompt_eval_duration")
                 ),
-                eval_duration=_normalize_optional_int(raw_response.get("eval_duration")),
+                eval_duration=_normalize_optional_int(
+                    raw_response.get("eval_duration")
+                ),
             ),
         )
 
@@ -444,8 +453,10 @@ def _normalize_images(value: Any) -> tuple[str, ...]:
     if value is None:
         return ()
 
-    if not isinstance(value, (list, tuple)):
-        raise ValueError("request.metadata['images'] must be a list or tuple when provided.")
+    if not isinstance(value, list | tuple):
+        raise ValueError(
+            "request.metadata['images'] must be a list or tuple when provided."
+        )
 
     images: list[str] = []
     for item in value:
