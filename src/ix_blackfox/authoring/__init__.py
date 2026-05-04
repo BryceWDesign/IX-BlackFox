@@ -25,13 +25,16 @@ from ix_blackfox.authoring.decomposition import (
     RepairTaskDecomposerConfig,
 )
 from ix_blackfox.authoring.errors import (
+    AuthoringCandidateError,
     AuthoringCompilationError,
     AuthoringContextError,
     AuthoringDecompositionError,
     AuthoringError,
     AuthoringEvidenceError,
+    AuthoringHypothesisError,
+    AuthoringParseError,
     AuthoringPolicyError,
-    AuthoringProviderError,
+    AuthoringReceiptError,
     AuthoringValidationError,
 )
 from ix_blackfox.authoring.failure_evidence import (
@@ -89,12 +92,12 @@ from ix_blackfox.authoring.prompt_contract import (
     PromptMessageRole,
 )
 from ix_blackfox.authoring.receipts import (
-    AuthoringReceipt,
-    AuthoringReceiptEventType,
+    AuthoringReceiptEvent,
+    AuthoringReceiptEventKind,
     AuthoringReceiptLedger,
+    AuthoringReceiptSeverity,
     AuthoringReceiptSnapshot,
-    AuthoringReceiptStatus,
-    digest_payload,
+    receipt_severity_from_findings,
 )
 from ix_blackfox.authoring.response_parser import (
     PatchAuthoringMutation,
@@ -106,6 +109,7 @@ from ix_blackfox.authoring.response_parser import (
 )
 
 __all__ = [
+    "AuthoringCandidateError",
     "AuthoringCompilationError",
     "AuthoringContext",
     "AuthoringContextBuilder",
@@ -121,8 +125,10 @@ __all__ = [
     "AuthoringEvidenceStrength",
     "AuthoringFinding",
     "AuthoringFindingSeverity",
+    "AuthoringHypothesisError",
     "AuthoringMode",
     "AuthoringObjective",
+    "AuthoringParseError",
     "AuthoringPolicyDecision",
     "AuthoringPolicyError",
     "AuthoringPolicyFinding",
@@ -130,12 +136,12 @@ __all__ = [
     "AuthoringPolicyGate",
     "AuthoringPolicyGateConfig",
     "AuthoringPolicyReport",
-    "AuthoringProviderError",
-    "AuthoringReceipt",
-    "AuthoringReceiptEventType",
+    "AuthoringReceiptError",
+    "AuthoringReceiptEvent",
+    "AuthoringReceiptEventKind",
     "AuthoringReceiptLedger",
+    "AuthoringReceiptSeverity",
     "AuthoringReceiptSnapshot",
-    "AuthoringReceiptStatus",
     "AuthoringRequest",
     "AuthoringRiskLevel",
     "AuthoringStatus",
@@ -185,5 +191,5 @@ __all__ = [
     "RepairTaskDecomposer",
     "RepairTaskDecomposerConfig",
     "SkippedContextPath",
-    "digest_payload",
+    "receipt_severity_from_findings",
 ]
