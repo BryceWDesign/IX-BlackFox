@@ -6,10 +6,10 @@ import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum, auto
-from typing import Any, Self
-from uuid import uuid4
+from pathlib import PurePosixPath
+from typing import Any
 
-from ix_blackfox.authoring.errors import AuthoringParseError
+from ix_blackfox.authoring.errors import AuthoringValidationError
 from ix_blackfox.authoring.models import (
     AuthoringFinding,
     AuthoringFindingSeverity,
@@ -18,34 +18,48 @@ from ix_blackfox.authoring.models import (
 
 class PatchMutationType(StrEnum):
     """
-    Supported Wave 3 proposal mutation types.
-
-    Wave 3 proposals are intentionally constrained. The model may propose
-    creating a new file or replacing existing text, but it does not get to
-    execute commands, apply arbitrary diffs, delete files, or mutate policy
-    outside the compiler and Wave 2 control plane.
+    Allowed mutation types in a Wave 3 model-authored patch proposal.
     """
 
-    REPLACE_TEXT = auto()
-    CREATE_FILE = auto()
+    REPLACE_TEXT = "replace_text"
+    CREATE_FILE = "create_file"
 
 
-class ProposalParseStatus(StrEnum):
+class PatchProposalValidationCode(StrEnum):
     """
-    Result status for parsing untrusted model/manual proposal text.
+    Machine-readable validation codes emitted by the response parser.
     """
 
-    PARSED = auto()
-    REJECTED = auto()
+    VALID = auto()
+    EMPTY_RESPONSE = auto()
+    MARKDOWN_WRAPPED_RESPONSE = auto()
+    MALFORMED_JSON = auto()
+    TOP_LEVEL_NOT_OBJECT = auto()
+    UNKNOWN_TOP_LEVEL_FIELD = auto()
+    MISSING_REQUIRED_FIELD = auto()
+    INVALID_SCHEMA_VERSION = auto()
+    INVALID_FIELD_TYPE = auto()
+    INVALID_CONFIDENCE = auto()
+    EMPTY_MUTATIONS = auto()
+    MUTATION_NOT_OBJECT = auto()
+    UNKNOWN_MUTATION_FIELD = auto()
+    INVALID_MUTATION_TYPE = auto()
+    UNSAFE_PATH = auto()
+    EMPTY_BEFORE_TEXT = auto()
+    EMPTY_AFTER_TEXT = auto()
+    INVALID_CREATE_FILE_BEFORE_TEXT = auto()
+    NO_OP_MUTATION = auto()
+    SHELL_COMMAND_DETECTED = auto()
+    NETWORK_INSTRUCTION_DETECTED = auto()
+    SUCCESS_CLAIM_WITHOUT_EVIDENCE = auto()
+    DUPLICATE_MUTATION_ID = auto()
+    DUPLICATE_CREATE_PATH = auto()
 
 
 @dataclass(frozen=True, slots=True)
 class PatchAuthoringMutation:
     """
-    One parsed file mutation from a Wave 3 authored proposal.
-
-    The mutation is still untrusted. The patch compiler must verify paths,
-    current file text, and policy before it can become a PatchDiff.
+    One parsed and validated mutation from a Wave 3 authored patch proposal.
     """
 
     mutation_id: str
@@ -54,7 +68,6 @@ class PatchAuthoringMutation:
     before_text: str
     after_text: str
     rationale: str
-    metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -68,65 +81,38 @@ class PatchAuthoringMutation:
             "rationale",
             _normalize_text(self.rationale, label="rationale"),
         )
-        object.__setattr__(self, "metadata", dict(self.metadata))
 
         if self.mutation_type is PatchMutationType.REPLACE_TEXT:
             if not self.before_text:
-                raise ValueError("replace_text mutations require non-empty before_text.")
+                raise AuthoringValidationError(
+                    "replace_text mutation before_text must not be empty."
+                )
+            if not self.after_text:
+                raise AuthoringValidationError(
+                    "replace_text mutation after_text must not be empty."
+                )
             if self.before_text == self.after_text:
-                raise ValueError("replace_text mutations must change text.")
+                raise AuthoringValidationError(
+                    "replace_text mutation must not be a no-op."
+                )
 
-        if self.mutation_type is PatchMutationType.CREATE_FILE and self.before_text:
-            raise ValueError("create_file mutations must use empty before_text.")
-
-    @classmethod
-    def create_replace_text(
-        cls,
-        *,
-        path: str,
-        before_text: str,
-        after_text: str,
-        rationale: str,
-        metadata: Mapping[str, Any] | None = None,
-    ) -> Self:
-        return cls(
-            mutation_id=f"patch-mutation-{uuid4().hex}",
-            mutation_type=PatchMutationType.REPLACE_TEXT,
-            path=path,
-            before_text=before_text,
-            after_text=after_text,
-            rationale=rationale,
-            metadata=dict(metadata or {}),
-        )
-
-    @classmethod
-    def create_file(
-        cls,
-        *,
-        path: str,
-        after_text: str,
-        rationale: str,
-        metadata: Mapping[str, Any] | None = None,
-    ) -> Self:
-        return cls(
-            mutation_id=f"patch-mutation-{uuid4().hex}",
-            mutation_type=PatchMutationType.CREATE_FILE,
-            path=path,
-            before_text="",
-            after_text=after_text,
-            rationale=rationale,
-            metadata=dict(metadata or {}),
-        )
+        if self.mutation_type is PatchMutationType.CREATE_FILE:
+            if self.before_text != "":
+                raise AuthoringValidationError(
+                    "create_file mutation before_text must be empty."
+                )
+            if not self.after_text:
+                raise AuthoringValidationError(
+                    "create_file mutation after_text must not be empty."
+                )
 
     @property
     def size_delta(self) -> int:
-        return len(self.after_text.encode("utf-8")) - len(
-            self.before_text.encode("utf-8")
-        )
+        return len(self.after_text) - len(self.before_text)
 
     @property
     def digest(self) -> str:
-        return _digest_payload(self.to_dict(include_digest=False))
+        return _sha256_json(self.to_dict(include_digest=False))
 
     def to_dict(self, *, include_digest: bool = True) -> dict[str, Any]:
         payload = {
@@ -135,32 +121,12 @@ class PatchAuthoringMutation:
             "path": self.path,
             "before_text": self.before_text,
             "after_text": self.after_text,
-            "before_sha256": _sha256_text(self.before_text),
-            "after_sha256": _sha256_text(self.after_text),
-            "size_delta": self.size_delta,
             "rationale": self.rationale,
-            "metadata": dict(self.metadata),
+            "size_delta": self.size_delta,
         }
         if include_digest:
             payload["digest"] = self.digest
         return payload
-
-    @classmethod
-    def from_dict(cls, payload: Mapping[str, Any]) -> Self:
-        mutation_type = PatchMutationType(_require_text(payload, "mutation_type"))
-        mutation_id = str(payload.get("mutation_id") or f"patch-mutation-{uuid4().hex}")
-
-        return cls(
-            mutation_id=mutation_id,
-            mutation_type=mutation_type,
-            path=_require_text(payload, "path"),
-            before_text=str(payload.get("before_text", "")),
-            after_text=_require_text(payload, "after_text"),
-            rationale=str(payload.get("rationale", "Wave 3 authored mutation.")),
-            metadata=_coerce_mapping(
-                payload.get("metadata", {}), field_name="metadata"
-            ),
-        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,23 +134,28 @@ class PatchAuthoringProposal:
     """
     Parsed Wave 3 patch-authoring proposal.
 
-    This is a data contract, not authority. The proposal must pass policy,
-    compile into PatchDiff, be ranked, then flow through Wave 2 execution and
-    Wave 3 acceptance before anything can be treated as successful.
+    This object represents validated model output only. It has not been compiled
+    into a Wave 2 patch candidate and it has not been executed.
     """
 
+    schema_version: str
     proposal_id: str
     objective_summary: str
     reasoning_summary: str
+    confidence: float
+    assumptions: tuple[str, ...]
+    risk_notes: tuple[str, ...]
+    expected_tests: tuple[str, ...]
     mutations: tuple[PatchAuthoringMutation, ...]
-    expected_tests: tuple[str, ...] = field(default_factory=tuple)
-    confidence: float = 0.0
-    assumptions: tuple[str, ...] = field(default_factory=tuple)
-    risk_notes: tuple[str, ...] = field(default_factory=tuple)
-    raw_response: str | None = None
-    metadata: Mapping[str, Any] = field(default_factory=dict)
+    raw_digest: str
+    findings: tuple[AuthoringFinding, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "schema_version",
+            _normalize_text(self.schema_version, label="schema_version"),
+        )
         object.__setattr__(
             self,
             "proposal_id",
@@ -200,21 +171,10 @@ class PatchAuthoringProposal:
             "reasoning_summary",
             _normalize_text(self.reasoning_summary, label="reasoning_summary"),
         )
-        mutations = tuple(self.mutations)
-        if not mutations:
-            raise ValueError("PatchAuthoringProposal requires at least one mutation.")
-        object.__setattr__(self, "mutations", mutations)
-
-        object.__setattr__(
-            self,
-            "expected_tests",
-            tuple(
-                _normalize_text(value, label="expected_test")
-                for value in self.expected_tests
-            ),
-        )
         if self.confidence < 0.0 or self.confidence > 1.0:
-            raise ValueError("proposal confidence must be between 0.0 and 1.0.")
+            raise AuthoringValidationError(
+                "Proposal confidence must be between 0.0 and 1.0."
+            )
         object.__setattr__(
             self,
             "assumptions",
@@ -225,41 +185,26 @@ class PatchAuthoringProposal:
         object.__setattr__(
             self,
             "risk_notes",
-            tuple(_normalize_text(value, label="risk_note") for value in self.risk_notes),
+            tuple(
+                _normalize_text(value, label="risk_note") for value in self.risk_notes
+            ),
         )
         object.__setattr__(
             self,
-            "raw_response",
-            None if self.raw_response is None else str(self.raw_response),
+            "expected_tests",
+            tuple(
+                _normalize_text(value, label="expected_test")
+                for value in self.expected_tests
+            ),
         )
-        object.__setattr__(self, "metadata", dict(self.metadata))
-
-    @classmethod
-    def create(
-        cls,
-        *,
-        objective_summary: str,
-        reasoning_summary: str,
-        mutations: Iterable[PatchAuthoringMutation],
-        expected_tests: Iterable[str] = (),
-        confidence: float = 0.0,
-        assumptions: Iterable[str] = (),
-        risk_notes: Iterable[str] = (),
-        raw_response: str | None = None,
-        metadata: Mapping[str, Any] | None = None,
-    ) -> Self:
-        return cls(
-            proposal_id=f"patch-proposal-{uuid4().hex}",
-            objective_summary=objective_summary,
-            reasoning_summary=reasoning_summary,
-            mutations=tuple(mutations),
-            expected_tests=tuple(expected_tests),
-            confidence=confidence,
-            assumptions=tuple(assumptions),
-            risk_notes=tuple(risk_notes),
-            raw_response=raw_response,
-            metadata=dict(metadata or {}),
-        )
+        mutations = tuple(self.mutations)
+        if not mutations:
+            raise AuthoringValidationError(
+                "Patch authoring proposal requires at least one mutation."
+            )
+        object.__setattr__(self, "mutations", mutations)
+        object.__setattr__(self, "raw_digest", _normalize_sha256(self.raw_digest))
+        object.__setattr__(self, "findings", tuple(self.findings))
 
     @property
     def affected_paths(self) -> tuple[str, ...]:
@@ -277,479 +222,615 @@ class PatchAuthoringProposal:
         return sum(mutation.size_delta for mutation in self.mutations)
 
     @property
-    def raw_digest(self) -> str | None:
-        if self.raw_response is None:
-            return None
-        return _sha256_text(self.raw_response)
-
-    @property
     def digest(self) -> str:
-        return _digest_payload(self.to_dict(include_digest=False))
+        payload = self.to_dict(include_digest=False)
+        return _sha256_json(payload)
 
     def to_dict(self, *, include_digest: bool = True) -> dict[str, Any]:
         payload = {
+            "schema_version": self.schema_version,
             "proposal_id": self.proposal_id,
             "objective_summary": self.objective_summary,
             "reasoning_summary": self.reasoning_summary,
-            "affected_paths": list(self.affected_paths),
-            "mutation_count": len(self.mutations),
-            "total_size_delta": self.total_size_delta,
-            "mutations": [
-                mutation.to_dict(include_digest=include_digest)
-                for mutation in self.mutations
-            ],
-            "expected_tests": list(self.expected_tests),
             "confidence": self.confidence,
             "assumptions": list(self.assumptions),
             "risk_notes": list(self.risk_notes),
+            "expected_tests": list(self.expected_tests),
+            "mutations": [mutation.to_dict() for mutation in self.mutations],
+            "affected_paths": list(self.affected_paths),
+            "total_size_delta": self.total_size_delta,
             "raw_digest": self.raw_digest,
-            "metadata": dict(self.metadata),
+            "findings": [finding.to_dict() for finding in self.findings],
         }
         if include_digest:
             payload["digest"] = self.digest
         return payload
 
-    @classmethod
-    def from_dict(
-        cls,
-        payload: Mapping[str, Any],
-        *,
-        raw_response: str | None = None,
-    ) -> Self:
-        raw_mutations = payload.get("mutations", ())
-        if isinstance(raw_mutations, str) or not isinstance(raw_mutations, Iterable):
-            raise TypeError("mutations must be an iterable of mappings.")
-
-        mutations: list[PatchAuthoringMutation] = []
-        for raw_mutation in raw_mutations:
-            if not isinstance(raw_mutation, Mapping):
-                raise TypeError("mutations must contain only mappings.")
-            mutations.append(PatchAuthoringMutation.from_dict(raw_mutation))
-
-        proposal_id = str(payload.get("proposal_id") or f"patch-proposal-{uuid4().hex}")
-
-        return cls(
-            proposal_id=proposal_id,
-            objective_summary=_require_text(payload, "objective_summary"),
-            reasoning_summary=str(
-                payload.get("reasoning_summary", "No reasoning summary supplied.")
-            ),
-            mutations=tuple(mutations),
-            expected_tests=_coerce_text_tuple(
-                payload.get("expected_tests", ()), field_name="expected_tests"
-            ),
-            confidence=_coerce_confidence(payload.get("confidence", 0.0)),
-            assumptions=_coerce_text_tuple(
-                payload.get("assumptions", ()), field_name="assumptions"
-            ),
-            risk_notes=_coerce_text_tuple(
-                payload.get("risk_notes", ()), field_name="risk_notes"
-            ),
-            raw_response=raw_response,
-            metadata=_coerce_mapping(
-                payload.get("metadata", {}), field_name="metadata"
-            ),
-        )
-
-
-@dataclass(frozen=True, slots=True)
-class ProposalParseReport:
-    """
-    Result of parsing untrusted Wave 3 proposal text.
-    """
-
-    report_id: str
-    status: ProposalParseStatus
-    proposal: PatchAuthoringProposal | None = None
-    findings: tuple[AuthoringFinding, ...] = field(default_factory=tuple)
-    raw_digest: str | None = None
-    metadata: Mapping[str, Any] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        object.__setattr__(
-            self,
-            "report_id",
-            _normalize_identifier(self.report_id, label="report_id"),
-        )
-        object.__setattr__(self, "findings", tuple(self.findings))
-        object.__setattr__(self, "raw_digest", _normalize_optional_sha256(self.raw_digest))
-        object.__setattr__(self, "metadata", dict(self.metadata))
-
-        if self.status is ProposalParseStatus.PARSED and self.proposal is None:
-            raise ValueError("parsed proposal reports require a proposal.")
-        if self.status is ProposalParseStatus.REJECTED and self.proposal is not None:
-            raise ValueError("rejected proposal reports must not include a proposal.")
-
-    @property
-    def parsed(self) -> bool:
-        return self.status is ProposalParseStatus.PARSED
-
-    @property
-    def rejected(self) -> bool:
-        return self.status is ProposalParseStatus.REJECTED
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "report_id": self.report_id,
-            "status": self.status.value,
-            "parsed": self.parsed,
-            "rejected": self.rejected,
-            "proposal": None if self.proposal is None else self.proposal.to_dict(),
-            "findings": [finding.to_dict() for finding in self.findings],
-            "raw_digest": self.raw_digest,
-            "metadata": dict(self.metadata),
-        }
-
 
 @dataclass(frozen=True, slots=True)
 class PatchAuthoringResponseParserConfig:
     """
-    Limits and extraction settings for proposal parsing.
+    Strict parsing limits for Wave 3 model-authored patch proposals.
     """
 
-    max_response_chars: int = 200_000
-    require_json_object: bool = True
-    allow_markdown_fenced_json: bool = True
+    expected_schema_version: str = "wave3.patch_authoring_response.v1"
+    max_response_chars: int = 128_000
+    max_string_chars: int = 32_000
+    max_mutations: int = 12
+    reject_markdown_wrapped_json: bool = True
+    reject_shell_commands: bool = True
+    reject_network_instructions: bool = True
+    reject_success_claims_without_evidence: bool = True
 
     def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "expected_schema_version",
+            _normalize_text(
+                self.expected_schema_version, label="expected_schema_version"
+            ),
+        )
         if self.max_response_chars <= 0:
             raise ValueError("max_response_chars must be positive.")
+        if self.max_string_chars <= 0:
+            raise ValueError("max_string_chars must be positive.")
+        if self.max_mutations <= 0:
+            raise ValueError("max_mutations must be positive.")
 
 
 @dataclass(frozen=True, slots=True)
 class PatchAuthoringResponseParser:
     """
-    Parse untrusted Wave 3 patch proposal output into a strict data contract.
+    Strict parser for Wave 3 model-side patch-authoring responses.
 
-    The accepted JSON shape is:
-
-    {
-      "objective_summary": "...",
-      "reasoning_summary": "...",
-      "confidence": 0.75,
-      "expected_tests": ["python -m pytest -q"],
-      "assumptions": ["..."],
-      "risk_notes": ["..."],
-      "mutations": [
-        {
-          "mutation_type": "replace_text",
-          "path": "src/example.py",
-          "before_text": "...",
-          "after_text": "...",
-          "rationale": "..."
-        }
-      ]
-    }
+    The parser treats model output as hostile input. It accepts JSON only,
+    rejects markdown wrappers, rejects unknown fields, rejects unsafe paths, and
+    rejects command-like instructions before any proposal can reach compilation.
     """
 
     config: PatchAuthoringResponseParserConfig = field(
         default_factory=PatchAuthoringResponseParserConfig
     )
 
-    def parse(self, raw_response: str) -> ProposalParseReport:
-        raw_text = _normalize_text(raw_response, label="raw_response")
-        raw_digest = _sha256_text(raw_text)
+    def parse(self, raw_response: str) -> PatchAuthoringProposal:
+        response = self._normalize_raw_response(raw_response)
+        raw_digest = hashlib.sha256(response.encode("utf-8")).hexdigest()
+        payload = self._parse_json_object(response)
+        self._validate_top_level_fields(payload)
+        self._validate_schema_version(payload)
+        self._scan_for_forbidden_content(payload)
 
-        if len(raw_text) > self.config.max_response_chars:
-            finding = AuthoringFinding(
-                code="authoring.response_parser.response_too_large",
-                severity=AuthoringFindingSeverity.ERROR,
-                summary="Patch authoring response exceeded parser size limit.",
-                metadata={
-                    "response_chars": len(raw_text),
-                    "max_response_chars": self.config.max_response_chars,
-                },
-            )
-            return ProposalParseReport(
-                report_id=f"proposal-parse-report-{uuid4().hex}",
-                status=ProposalParseStatus.REJECTED,
-                findings=(finding,),
-                raw_digest=raw_digest,
-            )
+        mutations = self._parse_mutations(payload["mutations"])
 
-        try:
-            payload = self._load_payload(raw_text)
-            proposal = PatchAuthoringProposal.from_dict(
-                payload,
-                raw_response=raw_text,
-            )
-        except Exception as exc:
-            finding = AuthoringFinding(
-                code="authoring.response_parser.parse_failed",
-                severity=AuthoringFindingSeverity.ERROR,
-                summary=f"Patch authoring response could not be parsed: {exc}",
+        findings = (
+            AuthoringFinding(
+                code="authoring.response_parser.valid",
+                severity=AuthoringFindingSeverity.INFO,
+                summary="Model patch proposal passed strict Wave 3 response parsing.",
                 metadata={
-                    "error_type": type(exc).__name__,
+                    "proposal_id": payload["proposal_id"],
+                    "mutation_count": len(mutations),
                     "raw_digest": raw_digest,
                 },
-            )
-            return ProposalParseReport(
-                report_id=f"proposal-parse-report-{uuid4().hex}",
-                status=ProposalParseStatus.REJECTED,
-                findings=(finding,),
-                raw_digest=raw_digest,
-            )
-
-        findings = self._validate_proposal_shape(proposal)
-
-        if any(
-            finding.severity is AuthoringFindingSeverity.ERROR
-            for finding in findings
-        ):
-            return ProposalParseReport(
-                report_id=f"proposal-parse-report-{uuid4().hex}",
-                status=ProposalParseStatus.REJECTED,
-                findings=findings,
-                raw_digest=raw_digest,
-                metadata={"proposal_id": proposal.proposal_id},
-            )
-
-        return ProposalParseReport(
-            report_id=f"proposal-parse-report-{uuid4().hex}",
-            status=ProposalParseStatus.PARSED,
-            proposal=proposal,
-            findings=findings,
-            raw_digest=raw_digest,
-            metadata={
-                "proposal_id": proposal.proposal_id,
-                "mutation_count": len(proposal.mutations),
-                "affected_paths": list(proposal.affected_paths),
-            },
+            ),
         )
 
-    def parse_or_raise(self, raw_response: str) -> PatchAuthoringProposal:
-        report = self.parse(raw_response)
-        if report.proposal is None:
-            joined = "; ".join(finding.summary for finding in report.findings)
-            raise AuthoringParseError(joined or "Patch authoring response rejected.")
-        return report.proposal
+        return PatchAuthoringProposal(
+            schema_version=payload["schema_version"],
+            proposal_id=payload["proposal_id"],
+            objective_summary=payload["objective_summary"],
+            reasoning_summary=payload["reasoning_summary"],
+            confidence=float(payload["confidence"]),
+            assumptions=tuple(payload["assumptions"]),
+            risk_notes=tuple(payload["risk_notes"]),
+            expected_tests=tuple(payload["expected_tests"]),
+            mutations=mutations,
+            raw_digest=raw_digest,
+            findings=findings,
+        )
 
-    def _load_payload(self, raw_text: str) -> Mapping[str, Any]:
-        candidate_text = raw_text
-        if self.config.allow_markdown_fenced_json:
-            candidate_text = _extract_json_candidate(raw_text)
+    def _normalize_raw_response(self, raw_response: str) -> str:
+        if not isinstance(raw_response, str):
+            raise AuthoringValidationError("Model response must be a string.")
 
-        loaded = json.loads(candidate_text)
-        if not isinstance(loaded, Mapping):
-            raise TypeError("proposal response must decode to a JSON object.")
-
-        return loaded
-
-    def _validate_proposal_shape(
-        self,
-        proposal: PatchAuthoringProposal,
-    ) -> tuple[AuthoringFinding, ...]:
-        findings: list[AuthoringFinding] = []
-
-        if not proposal.expected_tests:
-            findings.append(
-                AuthoringFinding(
-                    code="authoring.response_parser.expected_tests_missing",
-                    severity=AuthoringFindingSeverity.WARNING,
-                    summary="Proposal does not include expected tests.",
-                    metadata={"proposal_id": proposal.proposal_id},
-                )
+        response = raw_response.strip()
+        if not response:
+            raise _validation_error(
+                PatchProposalValidationCode.EMPTY_RESPONSE,
+                "Model response was empty.",
             )
 
-        if proposal.confidence <= 0.0:
-            findings.append(
-                AuthoringFinding(
-                    code="authoring.response_parser.confidence_zero",
-                    severity=AuthoringFindingSeverity.WARNING,
-                    summary="Proposal confidence is zero.",
-                    metadata={"proposal_id": proposal.proposal_id},
-                )
+        if len(response) > self.config.max_response_chars:
+            raise _validation_error(
+                PatchProposalValidationCode.INVALID_FIELD_TYPE,
+                (
+                    "Model response exceeds max_response_chars "
+                    f"({len(response)} > {self.config.max_response_chars})."
+                ),
             )
 
-        duplicate_paths = _duplicates(proposal.affected_paths)
-        if duplicate_paths:
-            findings.append(
-                AuthoringFinding(
-                    code="authoring.response_parser.duplicate_paths",
-                    severity=AuthoringFindingSeverity.ERROR,
-                    summary="Proposal contains duplicate affected paths.",
-                    metadata={
-                        "proposal_id": proposal.proposal_id,
-                        "duplicate_paths": list(duplicate_paths),
-                    },
-                )
+        if self.config.reject_markdown_wrapped_json and _looks_markdown_wrapped(
+            response
+        ):
+            raise _validation_error(
+                PatchProposalValidationCode.MARKDOWN_WRAPPED_RESPONSE,
+                "Model response must be raw JSON only, not markdown-wrapped JSON.",
             )
 
-        for mutation in proposal.mutations:
-            if _looks_like_absolute_or_drive_path(mutation.path):
-                findings.append(
-                    AuthoringFinding(
-                        code="authoring.response_parser.absolute_path",
-                        severity=AuthoringFindingSeverity.ERROR,
-                        summary="Proposal mutation path is absolute or drive-qualified.",
-                        path=mutation.path,
-                        metadata={
-                            "proposal_id": proposal.proposal_id,
-                            "mutation_id": mutation.mutation_id,
-                        },
+        return response
+
+    def _parse_json_object(self, response: str) -> dict[str, Any]:
+        try:
+            payload = json.loads(response)
+        except json.JSONDecodeError as exc:
+            raise _validation_error(
+                PatchProposalValidationCode.MALFORMED_JSON,
+                f"Model response was not valid JSON: {exc}",
+            ) from exc
+
+        if not isinstance(payload, dict):
+            raise _validation_error(
+                PatchProposalValidationCode.TOP_LEVEL_NOT_OBJECT,
+                "Model response top level must be a JSON object.",
+            )
+
+        return payload
+
+    def _validate_top_level_fields(self, payload: Mapping[str, Any]) -> None:
+        required_fields = {
+            "schema_version",
+            "proposal_id",
+            "objective_summary",
+            "reasoning_summary",
+            "confidence",
+            "assumptions",
+            "risk_notes",
+            "expected_tests",
+            "mutations",
+        }
+        allowed_fields = set(required_fields)
+
+        missing = sorted(required_fields - set(payload))
+        if missing:
+            raise _validation_error(
+                PatchProposalValidationCode.MISSING_REQUIRED_FIELD,
+                f"Model response missing required field(s): {', '.join(missing)}.",
+            )
+
+        unknown = sorted(set(payload) - allowed_fields)
+        if unknown:
+            raise _validation_error(
+                PatchProposalValidationCode.UNKNOWN_TOP_LEVEL_FIELD,
+                f"Model response contains unknown top-level field(s): {', '.join(unknown)}.",
+            )
+
+        _require_string(
+            payload, "schema_version", max_chars=self.config.max_string_chars
+        )
+        _require_string(payload, "proposal_id", max_chars=self.config.max_string_chars)
+        _require_string(
+            payload, "objective_summary", max_chars=self.config.max_string_chars
+        )
+        _require_string(
+            payload, "reasoning_summary", max_chars=self.config.max_string_chars
+        )
+        _require_float(payload, "confidence")
+        _require_string_array(
+            payload, "assumptions", max_chars=self.config.max_string_chars
+        )
+        _require_string_array(
+            payload, "risk_notes", max_chars=self.config.max_string_chars
+        )
+        _require_string_array(
+            payload, "expected_tests", max_chars=self.config.max_string_chars
+        )
+
+        mutations = payload.get("mutations")
+        if not isinstance(mutations, list):
+            raise _validation_error(
+                PatchProposalValidationCode.INVALID_FIELD_TYPE,
+                "Field 'mutations' must be an array.",
+            )
+        if not mutations:
+            raise _validation_error(
+                PatchProposalValidationCode.EMPTY_MUTATIONS,
+                "Field 'mutations' must contain at least one mutation.",
+            )
+        if len(mutations) > self.config.max_mutations:
+            raise _validation_error(
+                PatchProposalValidationCode.INVALID_FIELD_TYPE,
+                (
+                    "Field 'mutations' exceeds max_mutations "
+                    f"({len(mutations)} > {self.config.max_mutations})."
+                ),
+            )
+
+    def _validate_schema_version(self, payload: Mapping[str, Any]) -> None:
+        schema_version = payload["schema_version"]
+        if schema_version != self.config.expected_schema_version:
+            raise _validation_error(
+                PatchProposalValidationCode.INVALID_SCHEMA_VERSION,
+                (
+                    "Model response schema_version mismatch: "
+                    f"{schema_version!r} != {self.config.expected_schema_version!r}."
+                ),
+            )
+
+        confidence = float(payload["confidence"])
+        if confidence < 0.0 or confidence > 1.0:
+            raise _validation_error(
+                PatchProposalValidationCode.INVALID_CONFIDENCE,
+                "Field 'confidence' must be between 0.0 and 1.0.",
+            )
+
+    def _scan_for_forbidden_content(self, payload: Mapping[str, Any]) -> None:
+        strings = tuple(_iter_strings(payload))
+
+        if self.config.reject_shell_commands:
+            for value in strings:
+                if _contains_shell_command(value):
+                    raise _validation_error(
+                        PatchProposalValidationCode.SHELL_COMMAND_DETECTED,
+                        "Model response contains command-like shell instructions.",
                     )
-                )
 
-            if ".." in mutation.path.split("/"):
-                findings.append(
-                    AuthoringFinding(
-                        code="authoring.response_parser.path_traversal",
-                        severity=AuthoringFindingSeverity.ERROR,
-                        summary="Proposal mutation path contains traversal.",
-                        path=mutation.path,
-                        metadata={
-                            "proposal_id": proposal.proposal_id,
-                            "mutation_id": mutation.mutation_id,
-                        },
+        if self.config.reject_network_instructions:
+            for value in strings:
+                if _contains_network_instruction(value):
+                    raise _validation_error(
+                        PatchProposalValidationCode.NETWORK_INSTRUCTION_DETECTED,
+                        "Model response contains network or download instructions.",
                     )
+
+        if self.config.reject_success_claims_without_evidence:
+            for value in strings:
+                if _contains_success_claim(value):
+                    raise _validation_error(
+                        PatchProposalValidationCode.SUCCESS_CLAIM_WITHOUT_EVIDENCE,
+                        "Model response claims tests or execution succeeded without evidence.",
+                    )
+
+    def _parse_mutations(
+        self, raw_mutations: list[Any]
+    ) -> tuple[PatchAuthoringMutation, ...]:
+        mutations: list[PatchAuthoringMutation] = []
+        seen_ids: set[str] = set()
+        create_paths: set[str] = set()
+
+        for index, raw_mutation in enumerate(raw_mutations):
+            if not isinstance(raw_mutation, dict):
+                raise _validation_error(
+                    PatchProposalValidationCode.MUTATION_NOT_OBJECT,
+                    f"Mutation at index {index} must be an object.",
                 )
 
-        if not findings:
-            findings.append(
-                AuthoringFinding(
-                    code="authoring.response_parser.parsed",
-                    severity=AuthoringFindingSeverity.INFO,
-                    summary="Patch authoring proposal parsed into a strict Wave 3 contract.",
-                    metadata={"proposal_id": proposal.proposal_id},
+            self._validate_mutation_fields(raw_mutation, index=index)
+
+            mutation_id = _normalize_identifier(
+                raw_mutation["mutation_id"],
+                label="mutation_id",
+            )
+            if mutation_id in seen_ids:
+                raise _validation_error(
+                    PatchProposalValidationCode.DUPLICATE_MUTATION_ID,
+                    f"Duplicate mutation_id detected: {mutation_id}.",
+                )
+            seen_ids.add(mutation_id)
+
+            mutation_type = PatchMutationType(raw_mutation["mutation_type"])
+            path = _normalize_relative_path(raw_mutation["path"])
+
+            if mutation_type is PatchMutationType.CREATE_FILE:
+                if path in create_paths:
+                    raise _validation_error(
+                        PatchProposalValidationCode.DUPLICATE_CREATE_PATH,
+                        f"Duplicate create_file path detected: {path}.",
+                    )
+                create_paths.add(path)
+
+            before_text = raw_mutation["before_text"]
+            after_text = raw_mutation["after_text"]
+
+            if mutation_type is PatchMutationType.REPLACE_TEXT:
+                if before_text == "":
+                    raise _validation_error(
+                        PatchProposalValidationCode.EMPTY_BEFORE_TEXT,
+                        f"replace_text mutation {mutation_id} before_text must not be empty.",
+                    )
+                if after_text == "":
+                    raise _validation_error(
+                        PatchProposalValidationCode.EMPTY_AFTER_TEXT,
+                        f"replace_text mutation {mutation_id} after_text must not be empty.",
+                    )
+                if before_text == after_text:
+                    raise _validation_error(
+                        PatchProposalValidationCode.NO_OP_MUTATION,
+                        f"replace_text mutation {mutation_id} is a no-op.",
+                    )
+
+            if mutation_type is PatchMutationType.CREATE_FILE:
+                if before_text != "":
+                    raise _validation_error(
+                        PatchProposalValidationCode.INVALID_CREATE_FILE_BEFORE_TEXT,
+                        f"create_file mutation {mutation_id} before_text must be empty.",
+                    )
+                if after_text == "":
+                    raise _validation_error(
+                        PatchProposalValidationCode.EMPTY_AFTER_TEXT,
+                        f"create_file mutation {mutation_id} after_text must not be empty.",
+                    )
+
+            mutations.append(
+                PatchAuthoringMutation(
+                    mutation_id=mutation_id,
+                    mutation_type=mutation_type,
+                    path=path,
+                    before_text=before_text,
+                    after_text=after_text,
+                    rationale=raw_mutation["rationale"],
                 )
             )
 
-        return tuple(findings)
+        return tuple(mutations)
+
+    def _validate_mutation_fields(
+        self, mutation: Mapping[str, Any], *, index: int
+    ) -> None:
+        required_fields = {
+            "mutation_id",
+            "mutation_type",
+            "path",
+            "before_text",
+            "after_text",
+            "rationale",
+        }
+        allowed_fields = set(required_fields)
+
+        missing = sorted(required_fields - set(mutation))
+        if missing:
+            raise _validation_error(
+                PatchProposalValidationCode.MISSING_REQUIRED_FIELD,
+                f"Mutation at index {index} missing required field(s): {', '.join(missing)}.",
+            )
+
+        unknown = sorted(set(mutation) - allowed_fields)
+        if unknown:
+            raise _validation_error(
+                PatchProposalValidationCode.UNKNOWN_MUTATION_FIELD,
+                f"Mutation at index {index} contains unknown field(s): {', '.join(unknown)}.",
+            )
+
+        _require_string(mutation, "mutation_id", max_chars=self.config.max_string_chars)
+        _require_string(
+            mutation, "mutation_type", max_chars=self.config.max_string_chars
+        )
+        _require_string(mutation, "path", max_chars=self.config.max_string_chars)
+        _require_string(mutation, "before_text", max_chars=self.config.max_string_chars)
+        _require_string(mutation, "after_text", max_chars=self.config.max_string_chars)
+        _require_string(mutation, "rationale", max_chars=self.config.max_string_chars)
+
+        try:
+            PatchMutationType(mutation["mutation_type"])
+        except ValueError as exc:
+            raise _validation_error(
+                PatchProposalValidationCode.INVALID_MUTATION_TYPE,
+                f"Unknown mutation_type: {mutation['mutation_type']!r}.",
+            ) from exc
+
+        try:
+            _normalize_relative_path(mutation["path"])
+        except AuthoringValidationError as exc:
+            raise _validation_error(
+                PatchProposalValidationCode.UNSAFE_PATH,
+                str(exc),
+            ) from exc
 
 
-def _extract_json_candidate(raw_text: str) -> str:
-    fenced_match = re.search(
-        r"```(?:json)?\s*(?P<body>\{.*?\})\s*```",
-        raw_text,
-        flags=re.IGNORECASE | re.DOTALL,
+def _validation_error(
+    code: PatchProposalValidationCode,
+    message: str,
+) -> AuthoringValidationError:
+    return AuthoringValidationError(f"{code.value}: {message}")
+
+
+def _looks_markdown_wrapped(response: str) -> bool:
+    stripped = response.strip()
+    return stripped.startswith("```") or stripped.endswith("```")
+
+
+def _iter_strings(value: Any) -> Iterable[str]:
+    if isinstance(value, str):
+        yield value
+        return
+
+    if isinstance(value, Mapping):
+        for nested in value.values():
+            yield from _iter_strings(nested)
+        return
+
+    if isinstance(value, Iterable):
+        for nested in value:
+            yield from _iter_strings(nested)
+
+
+def _contains_shell_command(value: str) -> bool:
+    lowered = value.lower()
+    command_patterns = (
+        r"\brm\s+-rf\b",
+        r"\bcurl\s+",
+        r"\bwget\s+",
+        r"\bpowershell\b",
+        r"\bcmd\.exe\b",
+        r"\bbash\s+-c\b",
+        r"\bsh\s+-c\b",
+        r"\bpython\s+-c\b",
+        r"\bpython3\s+-c\b",
+        r"\bchmod\s+",
+        r"\bsudo\s+",
+        r"\bdel\s+/[fq]\b",
+        r"\binvoke-webrequest\b",
+        r"\bstart-process\b",
     )
-    if fenced_match:
-        return fenced_match.group("body").strip()
-
-    stripped = raw_text.strip()
-    if stripped.startswith("{") and stripped.endswith("}"):
-        return stripped
-
-    first_brace = stripped.find("{")
-    last_brace = stripped.rfind("}")
-    if first_brace >= 0 and last_brace > first_brace:
-        return stripped[first_brace : last_brace + 1]
-
-    return stripped
+    return any(re.search(pattern, lowered) for pattern in command_patterns)
 
 
-def _duplicates(values: Iterable[str]) -> tuple[str, ...]:
-    seen: set[str] = set()
-    duplicates: list[str] = []
-
-    for value in values:
-        if value in seen and value not in duplicates:
-            duplicates.append(value)
-        seen.add(value)
-
-    return tuple(duplicates)
-
-
-def _looks_like_absolute_or_drive_path(path: str) -> bool:
-    cleaned = path.strip().replace("\\", "/")
-    return cleaned.startswith(("/", "~")) or bool(re.match(r"^[a-zA-Z]:", cleaned))
-
-
-def _digest_payload(value: Any) -> str:
-    canonical = json.dumps(
-        value,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-    ).encode("utf-8")
-    return hashlib.sha256(canonical).hexdigest()
+def _contains_network_instruction(value: str) -> bool:
+    lowered = value.lower()
+    network_patterns = (
+        "http://",
+        "https://",
+        "ftp://",
+        "download ",
+        "upload ",
+        "send request",
+        "post to ",
+        "open socket",
+        "network access",
+    )
+    return any(pattern in lowered for pattern in network_patterns)
 
 
-def _sha256_text(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+def _contains_success_claim(value: str) -> bool:
+    lowered = value.lower()
+    success_claim_patterns = (
+        "tests passed",
+        "test passed",
+        "all tests pass",
+        "all tests passed",
+        "pytest passed",
+        "i ran the tests",
+        "i executed the tests",
+        "verified by running",
+        "confirmed by running",
+    )
+    return any(pattern in lowered for pattern in success_claim_patterns)
+
+
+def _require_string(
+    payload: Mapping[str, Any],
+    key: str,
+    *,
+    max_chars: int,
+) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str):
+        raise _validation_error(
+            PatchProposalValidationCode.INVALID_FIELD_TYPE,
+            f"Field {key!r} must be a string.",
+        )
+    if len(value) > max_chars:
+        raise _validation_error(
+            PatchProposalValidationCode.INVALID_FIELD_TYPE,
+            f"Field {key!r} exceeds max string length.",
+        )
+    return value
+
+
+def _require_float(payload: Mapping[str, Any], key: str) -> float:
+    value = payload.get(key)
+    if not isinstance(value, int | float):
+        raise _validation_error(
+            PatchProposalValidationCode.INVALID_FIELD_TYPE,
+            f"Field {key!r} must be a number.",
+        )
+    return float(value)
+
+
+def _require_string_array(
+    payload: Mapping[str, Any],
+    key: str,
+    *,
+    max_chars: int,
+) -> tuple[str, ...]:
+    value = payload.get(key)
+    if not isinstance(value, list):
+        raise _validation_error(
+            PatchProposalValidationCode.INVALID_FIELD_TYPE,
+            f"Field {key!r} must be an array of strings.",
+        )
+
+    result: list[str] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, str):
+            raise _validation_error(
+                PatchProposalValidationCode.INVALID_FIELD_TYPE,
+                f"Field {key!r} item {index} must be a string.",
+            )
+        if len(item) > max_chars:
+            raise _validation_error(
+                PatchProposalValidationCode.INVALID_FIELD_TYPE,
+                f"Field {key!r} item {index} exceeds max string length.",
+            )
+        result.append(item)
+
+    return tuple(result)
 
 
 def _normalize_identifier(value: str, *, label: str) -> str:
     cleaned = value.strip().lower().replace(" ", "-")
     if not cleaned:
-        raise ValueError(f"{label} must not be empty.")
+        raise AuthoringValidationError(f"{label} must not be empty.")
+    if not re.fullmatch(r"[a-z0-9][a-z0-9_.:-]*", cleaned):
+        raise AuthoringValidationError(
+            f"{label} contains unsupported characters: {value!r}."
+        )
     return cleaned
 
 
 def _normalize_text(value: str, *, label: str) -> str:
     cleaned = value.strip()
     if not cleaned:
-        raise ValueError(f"{label} must not be empty.")
+        raise AuthoringValidationError(f"{label} must not be empty.")
     return cleaned
 
 
 def _normalize_relative_path(value: str) -> str:
     cleaned = value.strip().replace("\\", "/")
     if not cleaned:
-        raise ValueError("relative path must not be empty.")
-    if cleaned.startswith(("/", "~")) or ":" in cleaned.split("/")[0]:
-        raise ValueError(f"path must be relative: {value!r}")
+        raise AuthoringValidationError("path must not be empty.")
+    if cleaned.startswith(("/", "~")):
+        raise AuthoringValidationError(f"path must be workspace-relative: {value!r}.")
+    if ":" in cleaned.split("/")[0]:
+        raise AuthoringValidationError(
+            f"path must not include a drive or URI prefix: {value!r}."
+        )
 
+    path = PurePosixPath(cleaned)
     parts: list[str] = []
-    for raw_part in cleaned.split("/"):
-        part = raw_part.strip()
+    for part in path.parts:
         if part in {"", "."}:
             continue
         if part == "..":
-            raise ValueError(f"path traversal is not allowed: {value!r}")
+            raise AuthoringValidationError(f"path traversal is forbidden: {value!r}.")
         parts.append(part)
 
     if not parts:
-        raise ValueError("relative path must not resolve to workspace root.")
+        raise AuthoringValidationError("path must not resolve to the workspace root.")
 
-    return "/".join(parts)
+    normalized = "/".join(parts)
+
+    if normalized.startswith(".") and not normalized.startswith(".github/"):
+        raise AuthoringValidationError(
+            f"hidden root paths are not allowed in proposals: {value!r}."
+        )
+
+    return normalized
 
 
 def _normalize_sha256(value: str) -> str:
     cleaned = value.strip().lower()
     if len(cleaned) != 64 or any(char not in "0123456789abcdef" for char in cleaned):
-        raise ValueError("sha256 must be a 64-character lowercase hexadecimal digest.")
+        raise AuthoringValidationError(
+            "sha256 must be a 64-character lowercase hexadecimal value."
+        )
     return cleaned
 
 
-def _normalize_optional_sha256(value: str | None) -> str | None:
-    if value is None:
-        return None
-    return _normalize_sha256(value)
-
-
-def _coerce_confidence(value: Any) -> float:
-    if isinstance(value, bool):
-        raise TypeError("confidence must be numeric, not boolean.")
-    if not isinstance(value, int | float):
-        raise TypeError("confidence must be numeric.")
-    confidence = float(value)
-    if confidence < 0.0 or confidence > 1.0:
-        raise ValueError("confidence must be between 0.0 and 1.0.")
-    return confidence
-
-
-def _coerce_mapping(value: Any, *, field_name: str) -> dict[str, Any]:
-    if not isinstance(value, Mapping):
-        raise TypeError(f"{field_name} must be a mapping.")
-    return dict(value)
-
-
-def _coerce_text_tuple(value: Any, *, field_name: str) -> tuple[str, ...]:
-    if isinstance(value, str) or not isinstance(value, Iterable):
-        raise TypeError(f"{field_name} must be an iterable of strings.")
-
-    result: list[str] = []
-    for item in value:
-        if not isinstance(item, str):
-            raise TypeError(f"{field_name} must contain only strings.")
-        result.append(item)
-
-    return tuple(result)
-
-
-def _require_text(payload: Mapping[str, Any], key: str) -> str:
-    value = payload.get(key)
-    if not isinstance(value, str):
-        raise TypeError(f"Field {key!r} must be a string.")
-    return value
+def _sha256_json(payload: Mapping[str, Any]) -> str:
+    canonical = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
