@@ -122,6 +122,7 @@ class ForgeCommandRunner:
             relative_path=spec.cwd_relative_path,
         )
         env = os.environ.copy()
+        env.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
         env.update(spec.env_overrides)
 
         started_at = _utc_now()
