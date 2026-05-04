@@ -1,54 +1,68 @@
 from __future__ import annotations
 
 
-class AuthoringError(Exception):
+class AuthoringError(RuntimeError):
     """
-    Base exception for IX-BlackFox Wave 3 authoring failures.
-
-    Authoring failures are distinct from Wave 2 patch execution failures. A
-    proposal can fail during context collection, evidence normalization,
-    decomposition, parsing, policy, or patch compilation before it ever reaches
-    the governed Wave 2 repair loop.
-    """
-
-
-class AuthoringValidationError(AuthoringError):
-    """
-    Raised when an authoring model, request, proposal, or receipt is malformed.
+    Base exception for Wave 3 patch-authoring failures.
     """
 
 
 class AuthoringContextError(AuthoringError):
     """
-    Raised when repository context cannot be collected or bounded safely.
+    Raised when bounded repository context collection fails.
     """
 
 
 class AuthoringEvidenceError(AuthoringError):
     """
-    Raised when failure or objective evidence cannot be normalized safely.
+    Raised when failure evidence cannot be extracted or normalized.
     """
 
 
 class AuthoringDecompositionError(AuthoringError):
     """
-    Raised when a repair objective cannot be decomposed into reviewable tasks.
+    Raised when a repair objective cannot be decomposed safely.
     """
 
 
-class AuthoringPolicyError(AuthoringError):
+class AuthoringHypothesisError(AuthoringError):
     """
-    Raised when an authored candidate violates Wave 3 authoring policy.
+    Raised when repair hypothesis generation fails.
+    """
+
+
+class AuthoringParseError(AuthoringError):
+    """
+    Raised when untrusted model proposal text cannot be parsed.
+    """
+
+
+class AuthoringValidationError(AuthoringError):
+    """
+    Raised when untrusted model proposal text violates the Wave 3 schema,
+    path, or safety contract.
     """
 
 
 class AuthoringCompilationError(AuthoringError):
     """
-    Raised when a validated proposal cannot compile into a governed patch.
+    Raised when a parsed proposal cannot be compiled into a governed PatchDiff.
     """
 
 
-class AuthoringProviderError(AuthoringError):
+class AuthoringPolicyError(AuthoringError):
     """
-    Raised when a deterministic or model-assisted authoring provider fails.
+    Raised when authoring policy evaluation fails.
+    """
+
+
+class AuthoringCandidateError(AuthoringError):
+    """
+    Raised when authored candidate ranking or selection fails.
+    """
+
+
+class AuthoringReceiptError(AuthoringError):
+    """
+    Raised when authoring receipt-chain construction or validation fails.
     """
