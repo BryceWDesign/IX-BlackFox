@@ -65,7 +65,9 @@ class PatchCompilationFinding:
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "summary", _normalize_text(self.summary, label="summary"))
+        object.__setattr__(
+            self, "summary", _normalize_text(self.summary, label="summary")
+        )
         object.__setattr__(self, "path", _normalize_optional_relative_path(self.path))
         object.__setattr__(self, "metadata", dict(self.metadata))
 
@@ -94,7 +96,9 @@ class PatchCompilationFinding:
             severity=AuthoringFindingSeverity(_require_text(payload, "severity")),
             summary=_require_text(payload, "summary"),
             path=_optional_text_from_payload(payload, "path"),
-            metadata=_coerce_mapping(payload.get("metadata", {}), field_name="metadata"),
+            metadata=_coerce_mapping(
+                payload.get("metadata", {}), field_name="metadata"
+            ),
         )
 
 
@@ -128,7 +132,9 @@ class CompiledPatchCandidate:
             "proposal_id",
             _normalize_identifier(self.proposal_id, label="proposal_id"),
         )
-        object.__setattr__(self, "proposal_digest", _normalize_sha256(self.proposal_digest))
+        object.__setattr__(
+            self, "proposal_digest", _normalize_sha256(self.proposal_digest)
+        )
         object.__setattr__(self, "findings", tuple(self.findings))
         object.__setattr__(self, "metadata", dict(self.metadata))
 
@@ -171,7 +177,9 @@ class CompiledPatchCandidate:
             proposal_digest=_require_text(payload, "proposal_digest"),
             patch_diff=PatchDiff.from_dict(raw_patch),
             findings=_load_findings(payload.get("findings", ())),
-            metadata=_coerce_mapping(payload.get("metadata", {}), field_name="metadata"),
+            metadata=_coerce_mapping(
+                payload.get("metadata", {}), field_name="metadata"
+            ),
         )
 
 
@@ -196,8 +204,12 @@ class PatchProposalCompilerConfig:
     )
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "encoding", _normalize_text(self.encoding, label="encoding"))
-        object.__setattr__(self, "created_by", _normalize_token(self.created_by, label="created_by"))
+        object.__setattr__(
+            self, "encoding", _normalize_text(self.encoding, label="encoding")
+        )
+        object.__setattr__(
+            self, "created_by", _normalize_token(self.created_by, label="created_by")
+        )
         if self.max_compiled_file_bytes <= 0:
             raise ValueError("max_compiled_file_bytes must be positive.")
         object.__setattr__(
@@ -225,7 +237,9 @@ class PatchProposalCompiler:
     """
 
     workspace_root: Path
-    config: PatchProposalCompilerConfig = field(default_factory=PatchProposalCompilerConfig)
+    config: PatchProposalCompilerConfig = field(
+        default_factory=PatchProposalCompilerConfig
+    )
     path_policy: ToolPathPolicy | None = None
 
     def __post_init__(self) -> None:
@@ -252,7 +266,9 @@ class PatchProposalCompiler:
 
     def compile(self, proposal: PatchAuthoringProposal) -> CompiledPatchCandidate:
         if not isinstance(proposal, PatchAuthoringProposal):
-            raise AuthoringCompilationError("proposal must be a PatchAuthoringProposal.")
+            raise AuthoringCompilationError(
+                "proposal must be a PatchAuthoringProposal."
+            )
 
         findings: list[PatchCompilationFinding] = []
         file_changes: list[PatchFileChange] = []
@@ -458,9 +474,14 @@ class PatchProposalCompiler:
                     "refusing ambiguous replacement."
                 )
 
+            replacement_text = _replacement_text_for_snippet(
+                current_text=current_text,
+                before_text=mutation.before_text,
+                after_text=mutation.after_text,
+            )
             compiled_after_text = current_text.replace(
                 mutation.before_text,
-                mutation.after_text,
+                replacement_text,
                 1 if self.config.require_unique_replace_text else occurrence_count,
             )
             match_mode = "snippet"
@@ -568,6 +589,25 @@ def _normalize_optional_relative_path(value: str | None) -> str | None:
     if value is None:
         return None
     return _normalize_relative_path(value)
+
+
+def _replacement_text_for_snippet(
+    *, current_text: str, before_text: str, after_text: str
+) -> str:
+    match_index = current_text.find(before_text)
+    if match_index < 0:
+        return after_text
+
+    match_end = match_index + len(before_text)
+    duplicates_existing_newline = (
+        after_text.endswith("\n")
+        and not before_text.endswith("\n")
+        and match_end < len(current_text)
+        and current_text[match_end] == "\n"
+    )
+    if duplicates_existing_newline:
+        return after_text[:-1]
+    return after_text
 
 
 def _normalize_relative_path(value: str) -> str:
