@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum, auto
@@ -79,7 +78,9 @@ class RepairHypothesis:
             "hypothesis_id",
             _normalize_identifier(self.hypothesis_id, label="hypothesis_id"),
         )
-        object.__setattr__(self, "summary", _normalize_text(self.summary, label="summary"))
+        object.__setattr__(
+            self, "summary", _normalize_text(self.summary, label="summary")
+        )
         if self.confidence < 0.0 or self.confidence > 1.0:
             raise ValueError("RepairHypothesis confidence must be between 0.0 and 1.0.")
         object.__setattr__(
@@ -90,12 +91,18 @@ class RepairHypothesis:
         object.__setattr__(
             self,
             "evidence_ids",
-            tuple(_normalize_identifier(value, label="evidence_id") for value in self.evidence_ids),
+            tuple(
+                _normalize_identifier(value, label="evidence_id")
+                for value in self.evidence_ids
+            ),
         )
         object.__setattr__(
             self,
             "validation_expectations",
-            tuple(_normalize_text(value, label="validation_expectation") for value in self.validation_expectations),
+            tuple(
+                _normalize_text(value, label="validation_expectation")
+                for value in self.validation_expectations
+            ),
         )
         object.__setattr__(self, "findings", tuple(self.findings))
         object.__setattr__(self, "metadata", dict(self.metadata))
@@ -161,17 +168,25 @@ class RepairHypothesis:
             hypothesis_id=_require_text(payload, "hypothesis_id"),
             failure_class=RepairFailureClass(_require_text(payload, "failure_class")),
             summary=_require_text(payload, "summary"),
-            expected_repair_shape=RepairShape(_require_text(payload, "expected_repair_shape")),
+            expected_repair_shape=RepairShape(
+                _require_text(payload, "expected_repair_shape")
+            ),
             confidence=_require_float(payload, "confidence"),
             risk_level=AuthoringRiskLevel(_require_text(payload, "risk_level")),
-            target_paths=_coerce_text_tuple(payload.get("target_paths", ()), field_name="target_paths"),
-            evidence_ids=_coerce_text_tuple(payload.get("evidence_ids", ()), field_name="evidence_ids"),
+            target_paths=_coerce_text_tuple(
+                payload.get("target_paths", ()), field_name="target_paths"
+            ),
+            evidence_ids=_coerce_text_tuple(
+                payload.get("evidence_ids", ()), field_name="evidence_ids"
+            ),
             validation_expectations=_coerce_text_tuple(
                 payload.get("validation_expectations", ()),
                 field_name="validation_expectations",
             ),
             findings=_load_findings(payload.get("findings", ())),
-            metadata=_coerce_mapping(payload.get("metadata", {}), field_name="metadata"),
+            metadata=_coerce_mapping(
+                payload.get("metadata", {}), field_name="metadata"
+            ),
         )
 
 
@@ -231,7 +246,10 @@ class RepairHypothesisReport:
         if len(hypothesis_ids) != len(hypotheses):
             raise ValueError("RepairHypothesisReport hypothesis ids must be unique.")
 
-        if self.selected_hypothesis_id is not None and self.selected_hypothesis_id not in hypothesis_ids:
+        if (
+            self.selected_hypothesis_id is not None
+            and self.selected_hypothesis_id not in hypothesis_ids
+        ):
             raise ValueError("selected_hypothesis_id must match a report hypothesis.")
 
     @property
@@ -248,7 +266,8 @@ class RepairHypothesisReport:
     @property
     def contains_authorable_hypothesis(self) -> bool:
         return any(
-            hypothesis.expected_repair_shape not in {
+            hypothesis.expected_repair_shape
+            not in {
                 RepairShape.DO_NOT_AUTHOR_PATCH,
                 RepairShape.REQUIRE_HUMAN_REVIEW,
             }
@@ -276,10 +295,14 @@ class RepairHypothesisReport:
             request_id=_require_text(payload, "request_id"),
             objective_id=_require_text(payload, "objective_id"),
             plan_id=_optional_text_from_payload(payload, "plan_id"),
-            selected_hypothesis_id=_optional_text_from_payload(payload, "selected_hypothesis_id"),
+            selected_hypothesis_id=_optional_text_from_payload(
+                payload, "selected_hypothesis_id"
+            ),
             hypotheses=_load_hypotheses(payload.get("hypotheses", ())),
             findings=_load_findings(payload.get("findings", ())),
-            metadata=_coerce_mapping(payload.get("metadata", {}), field_name="metadata"),
+            metadata=_coerce_mapping(
+                payload.get("metadata", {}), field_name="metadata"
+            ),
         )
 
 
@@ -327,7 +350,6 @@ class RepairHypothesisEngineConfig:
         "config",
         "toml",
         "yaml",
-        "ini",
         "environment",
     )
     incomplete_patterns: tuple[str, ...] = (
@@ -364,8 +386,13 @@ class RepairHypothesisEngineConfig:
     )
 
     def __post_init__(self) -> None:
-        if self.minimum_authoring_confidence < 0.0 or self.minimum_authoring_confidence > 1.0:
-            raise ValueError("minimum_authoring_confidence must be between 0.0 and 1.0.")
+        if (
+            self.minimum_authoring_confidence < 0.0
+            or self.minimum_authoring_confidence > 1.0
+        ):
+            raise ValueError(
+                "minimum_authoring_confidence must be between 0.0 and 1.0."
+            )
 
         for field_name in (
             "import_error_patterns",
@@ -400,7 +427,9 @@ class RepairHypothesisEngine:
     authoring.
     """
 
-    config: RepairHypothesisEngineConfig = field(default_factory=RepairHypothesisEngineConfig)
+    config: RepairHypothesisEngineConfig = field(
+        default_factory=RepairHypothesisEngineConfig
+    )
 
     def generate(
         self,
@@ -445,10 +474,17 @@ class RepairHypothesisEngine:
             target_paths=target_paths,
             evidence_ids=evidence_ids,
         )
+        if not evidence_hypotheses:
+            evidence_hypotheses = self._pytest_failure_fallback_hypotheses(
+                evidence=request.evidence,
+                target_paths=target_paths,
+                evidence_ids=evidence_ids,
+            )
         candidates.extend(evidence_hypotheses)
 
         if not request.evidence or all(
-            item.strength is AuthoringEvidenceStrength.MISSING for item in request.evidence
+            item.strength is AuthoringEvidenceStrength.MISSING
+            for item in request.evidence
         ):
             findings.append(
                 AuthoringFinding(
@@ -727,7 +763,13 @@ class RepairHypothesisEngine:
                         "Import the affected module successfully.",
                         "Run failing pytest node and existing allowlisted tests.",
                     ),
-                    metadata={"matched_patterns": list(_matching_patterns(lowered, self.config.import_error_patterns))},
+                    metadata={
+                        "matched_patterns": list(
+                            _matching_patterns(
+                                lowered, self.config.import_error_patterns
+                            )
+                        )
+                    },
                 )
             )
 
@@ -748,7 +790,13 @@ class RepairHypothesisEngine:
                         "Referenced symbol exists at the expected import path.",
                         "Run targeted failing tests and relevant unit tests.",
                     ),
-                    metadata={"matched_patterns": list(_matching_patterns(lowered, self.config.missing_symbol_patterns))},
+                    metadata={
+                        "matched_patterns": list(
+                            _matching_patterns(
+                                lowered, self.config.missing_symbol_patterns
+                            )
+                        )
+                    },
                 )
             )
 
@@ -769,7 +817,13 @@ class RepairHypothesisEngine:
                         "Python parser accepts the changed file.",
                         "Run targeted failing tests after syntax correction.",
                     ),
-                    metadata={"matched_patterns": list(_matching_patterns(lowered, self.config.syntax_error_patterns))},
+                    metadata={
+                        "matched_patterns": list(
+                            _matching_patterns(
+                                lowered, self.config.syntax_error_patterns
+                            )
+                        )
+                    },
                 )
             )
 
@@ -790,7 +844,11 @@ class RepairHypothesisEngine:
                         "Prefer source behavior correction over test weakening.",
                         "Run failing pytest node and adjacent behavior tests.",
                     ),
-                    metadata={"matched_patterns": list(_matching_patterns(lowered, self.config.assertion_patterns))},
+                    metadata={
+                        "matched_patterns": list(
+                            _matching_patterns(lowered, self.config.assertion_patterns)
+                        )
+                    },
                 )
             )
 
@@ -811,7 +869,11 @@ class RepairHypothesisEngine:
                         "Add or correct type/boundary handling in source code.",
                         "Run targeted tests and edge-case tests when available.",
                     ),
-                    metadata={"matched_patterns": list(_matching_patterns(lowered, self.config.type_patterns))},
+                    metadata={
+                        "matched_patterns": list(
+                            _matching_patterns(lowered, self.config.type_patterns)
+                        )
+                    },
                 )
             )
 
@@ -832,7 +894,11 @@ class RepairHypothesisEngine:
                         "Replace stub behavior with minimal implementation aligned to tests.",
                         "Run targeted tests and avoid broad refactor.",
                     ),
-                    metadata={"matched_patterns": list(_matching_patterns(lowered, self.config.incomplete_patterns))},
+                    metadata={
+                        "matched_patterns": list(
+                            _matching_patterns(lowered, self.config.incomplete_patterns)
+                        )
+                    },
                 )
             )
 
@@ -853,11 +919,60 @@ class RepairHypothesisEngine:
                         "Require review for config or dependency mutation.",
                         "Run allowlisted validation tests after configuration change.",
                     ),
-                    metadata={"matched_patterns": list(_matching_patterns(lowered, self.config.configuration_patterns))},
+                    metadata={
+                        "matched_patterns": list(
+                            _matching_patterns(
+                                lowered, self.config.configuration_patterns
+                            )
+                        )
+                    },
                 )
             )
 
         return tuple(hypotheses)
+
+    def _pytest_failure_fallback_hypotheses(
+        self,
+        *,
+        evidence: tuple[AuthoringEvidence, ...],
+        target_paths: tuple[str, ...],
+        evidence_ids: tuple[str, ...],
+    ) -> tuple[RepairHypothesis, ...]:
+        if not _has_pytest_failure_evidence(evidence):
+            return ()
+
+        return (
+            RepairHypothesis.create(
+                failure_class=RepairFailureClass.ASSERTION_MISMATCH,
+                summary=(
+                    "Pytest reported direct failing-test evidence, but the bounded "
+                    "summary did not preserve a more specific deterministic pattern. "
+                    "Treat the repair as a source-behavior correction candidate, "
+                    "not as permission to weaken tests."
+                ),
+                expected_repair_shape=RepairShape.CORRECT_LOGIC_OR_EXPECTATION,
+                confidence=0.55,
+                risk_level=AuthoringRiskLevel.MODERATE,
+                target_paths=target_paths,
+                evidence_ids=evidence_ids,
+                validation_expectations=(
+                    "Prefer source behavior correction over test weakening.",
+                    "Run the failing pytest node and adjacent behavior tests.",
+                    "Escalate to review if the candidate mutates test expectations.",
+                ),
+                findings=(
+                    AuthoringFinding(
+                        code="authoring.hypothesis.pytest_failure_fallback",
+                        severity=AuthoringFindingSeverity.WARNING,
+                        summary=(
+                            "Direct pytest failure evidence was present without a "
+                            "specific deterministic failure-class match."
+                        ),
+                    ),
+                ),
+                metadata={"fallback": "pytest_failure"},
+            ),
+        )
 
     def _rank_hypotheses(
         self,
@@ -877,11 +992,34 @@ class RepairHypothesisEngine:
 
     def _is_governance_path(self, path: str) -> bool:
         lowered = path.lower().replace("\\", "/")
-        return any(pattern in lowered for pattern in self.config.governance_path_patterns)
+        return any(
+            pattern in lowered for pattern in self.config.governance_path_patterns
+        )
 
     def _is_test_path(self, path: str) -> bool:
         lowered = path.lower().replace("\\", "/")
         return any(pattern in lowered for pattern in self.config.test_path_patterns)
+
+
+def _has_pytest_failure_evidence(evidence: tuple[AuthoringEvidence, ...]) -> bool:
+    for item in evidence:
+        if (
+            item.source != "pytest"
+            or item.strength is not AuthoringEvidenceStrength.DIRECT
+        ):
+            continue
+        if any(
+            finding.code in {"pytest.failures_detected", "pytest.errors_detected"}
+            for finding in item.findings
+        ):
+            return True
+        failed_count = item.metadata.get("failed")
+        error_count = item.metadata.get("errors")
+        if isinstance(failed_count, int) and failed_count > 0:
+            return True
+        if isinstance(error_count, int) and error_count > 0:
+            return True
+    return False
 
 
 def _combined_evidence_text(evidence: tuple[AuthoringEvidence, ...]) -> str:
@@ -890,7 +1028,9 @@ def _combined_evidence_text(evidence: tuple[AuthoringEvidence, ...]) -> str:
     for item in evidence:
         parts.append(item.summary)
         parts.extend(finding.summary for finding in item.findings)
-        parts.extend(str(value) for value in item.metadata.values() if isinstance(value, str))
+        parts.extend(
+            str(value) for value in item.metadata.values() if isinstance(value, str)
+        )
 
     return "\n".join(parts)
 
@@ -968,7 +1108,7 @@ def _risk_sort_score(hypothesis: RepairHypothesis) -> int:
     if hypothesis.failure_class is RepairFailureClass.POLICY_OR_GOVERNANCE_RISK:
         return 1
     if hypothesis.failure_class is RepairFailureClass.TEST_WEAKENING_RISK:
-        return 2
+        return 20
     if hypothesis.failure_class is RepairFailureClass.INSUFFICIENT_EVIDENCE:
         return 50
     if hypothesis.failure_class is RepairFailureClass.UNKNOWN:
@@ -1031,7 +1171,9 @@ def _load_findings(value: Any) -> tuple[AuthoringFinding, ...]:
     return tuple(findings)
 
 
-def _dedupe_findings(findings: Iterable[AuthoringFinding]) -> tuple[AuthoringFinding, ...]:
+def _dedupe_findings(
+    findings: Iterable[AuthoringFinding],
+) -> tuple[AuthoringFinding, ...]:
     deduped: list[AuthoringFinding] = []
     seen: set[tuple[str, str | None, str]] = set()
 
@@ -1045,7 +1187,9 @@ def _dedupe_findings(findings: Iterable[AuthoringFinding]) -> tuple[AuthoringFin
     return tuple(deduped)
 
 
-def _normalize_pattern_tuple(values: Iterable[str], *, field_name: str) -> tuple[str, ...]:
+def _normalize_pattern_tuple(
+    values: Iterable[str], *, field_name: str
+) -> tuple[str, ...]:
     normalized: list[str] = []
     for value in values:
         if not isinstance(value, str):
