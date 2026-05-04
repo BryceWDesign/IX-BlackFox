@@ -30,6 +30,7 @@ from ix_blackfox.authoring import (
     PatchAuthoringResponseParserConfig,
     PatchProposalCompiler,
     PatchProposalCompilerConfig,
+    RankedRepairCandidate,
     RepairCandidateRanker,
     RepairCandidateRankerConfig,
     RepairCandidateSelectionReport,
@@ -90,7 +91,9 @@ class StaticPatchProposalProvider:
     def __post_init__(self) -> None:
         responses = tuple(response.strip() for response in self.responses)
         if not responses:
-            raise ValueError("StaticPatchProposalProvider requires at least one response.")
+            raise ValueError(
+                "StaticPatchProposalProvider requires at least one response."
+            )
         if any(not response for response in responses):
             raise ValueError("StaticPatchProposalProvider responses must not be empty.")
 
@@ -136,14 +139,30 @@ class AuthoredRepairRuntimeConfig:
     mode: AuthoringMode = AuthoringMode.MODEL_ASSISTED
     require_selected_candidate: bool = True
     max_raw_proposals: int = 4
-    context_config: AuthoringContextBuilderConfig = field(default_factory=AuthoringContextBuilderConfig)
-    evidence_config: FailureEvidenceExtractorConfig = field(default_factory=FailureEvidenceExtractorConfig)
-    decomposer_config: RepairTaskDecomposerConfig = field(default_factory=RepairTaskDecomposerConfig)
-    hypothesis_config: RepairHypothesisEngineConfig = field(default_factory=RepairHypothesisEngineConfig)
-    prompt_config: PatchAuthoringPromptRendererConfig = field(default_factory=PatchAuthoringPromptRendererConfig)
-    response_parser_config: PatchAuthoringResponseParserConfig = field(default_factory=PatchAuthoringResponseParserConfig)
-    compiler_config: PatchProposalCompilerConfig = field(default_factory=PatchProposalCompilerConfig)
-    ranker_config: RepairCandidateRankerConfig = field(default_factory=RepairCandidateRankerConfig)
+    context_config: AuthoringContextBuilderConfig = field(
+        default_factory=AuthoringContextBuilderConfig
+    )
+    evidence_config: FailureEvidenceExtractorConfig = field(
+        default_factory=FailureEvidenceExtractorConfig
+    )
+    decomposer_config: RepairTaskDecomposerConfig = field(
+        default_factory=RepairTaskDecomposerConfig
+    )
+    hypothesis_config: RepairHypothesisEngineConfig = field(
+        default_factory=RepairHypothesisEngineConfig
+    )
+    prompt_config: PatchAuthoringPromptRendererConfig = field(
+        default_factory=PatchAuthoringPromptRendererConfig
+    )
+    response_parser_config: PatchAuthoringResponseParserConfig = field(
+        default_factory=PatchAuthoringResponseParserConfig
+    )
+    compiler_config: PatchProposalCompilerConfig = field(
+        default_factory=PatchProposalCompilerConfig
+    )
+    ranker_config: RepairCandidateRankerConfig = field(
+        default_factory=RepairCandidateRankerConfig
+    )
     path_policy: ToolPathPolicy | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
@@ -184,17 +203,27 @@ class AuthoredRepairRunReport:
     hypotheses: RepairHypothesisReport | None = None
     prompt_contract: PatchAuthoringPromptContract | None = None
     proposals: tuple[PatchAuthoringProposal, ...] = field(default_factory=tuple)
-    compiled_candidates: tuple[CompiledPatchCandidate, ...] = field(default_factory=tuple)
+    compiled_candidates: tuple[CompiledPatchCandidate, ...] = field(
+        default_factory=tuple
+    )
     policy_reports: tuple[AuthoringPolicyReport, ...] = field(default_factory=tuple)
     selection_report: RepairCandidateSelectionReport | None = None
-    receipt_snapshot: AuthoringReceiptSnapshot = field(default_factory=AuthoringReceiptSnapshot)
+    receipt_snapshot: AuthoringReceiptSnapshot = field(
+        default_factory=AuthoringReceiptSnapshot
+    )
     errors: tuple[str, ...] = field(default_factory=tuple)
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "task_id", _normalize_identifier(self.task_id, label="task_id"))
-        object.__setattr__(self, "run_id", _normalize_identifier(self.run_id, label="run_id"))
-        object.__setattr__(self, "objective", _normalize_text(self.objective, label="objective"))
+        object.__setattr__(
+            self, "task_id", _normalize_identifier(self.task_id, label="task_id")
+        )
+        object.__setattr__(
+            self, "run_id", _normalize_identifier(self.run_id, label="run_id")
+        )
+        object.__setattr__(
+            self, "objective", _normalize_text(self.objective, label="objective")
+        )
         object.__setattr__(self, "evidence_reports", tuple(self.evidence_reports))
         object.__setattr__(self, "proposals", tuple(self.proposals))
         object.__setattr__(self, "compiled_candidates", tuple(self.compiled_candidates))
@@ -207,7 +236,7 @@ class AuthoredRepairRunReport:
         object.__setattr__(self, "metadata", dict(self.metadata))
 
     @property
-    def selected_ranked_candidate(self):
+    def selected_ranked_candidate(self) -> RankedRepairCandidate | None:
         if self.selection_report is None:
             return None
         return self.selection_report.selected_candidate
@@ -247,7 +276,10 @@ class AuthoredRepairRunReport:
 
     @property
     def succeeded(self) -> bool:
-        return self.status is AuthoredRepairStatus.AUTHORED and self.selected_patch is not None
+        return (
+            self.status is AuthoredRepairStatus.AUTHORED
+            and self.selected_patch is not None
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -269,13 +301,19 @@ class AuthoredRepairRunReport:
             if self.context_snapshot is None
             else self.context_snapshot.to_manifest_dict(),
             "evidence_reports": [report.to_dict() for report in self.evidence_reports],
-            "decomposition": None if self.decomposition is None else self.decomposition.to_dict(),
-            "hypotheses": None if self.hypotheses is None else self.hypotheses.to_dict(),
+            "decomposition": None
+            if self.decomposition is None
+            else self.decomposition.to_dict(),
+            "hypotheses": None
+            if self.hypotheses is None
+            else self.hypotheses.to_dict(),
             "prompt_contract": None
             if self.prompt_contract is None
             else self.prompt_contract.to_dict(),
             "proposals": [proposal.to_dict() for proposal in self.proposals],
-            "compiled_candidates": [candidate.to_dict() for candidate in self.compiled_candidates],
+            "compiled_candidates": [
+                candidate.to_dict() for candidate in self.compiled_candidates
+            ],
             "policy_reports": [report.to_dict() for report in self.policy_reports],
             "selection_report": None
             if self.selection_report is None
@@ -289,86 +327,110 @@ class AuthoredRepairRunReport:
 @dataclass(slots=True)
 class AuthoredRepairRuntime:
     """
-    Governed Wave 3 patch-authoring runtime.
+    Wave 3 governed patch-authoring runtime.
 
-    This runtime turns failure evidence into candidate patch diffs, but never
-    executes or applies them. The existing Wave 2 control plane remains the only
-    patch-test-verify authority.
+    This runtime creates patch candidates. It does not apply them and it does not
+    run tests. The existing Wave 2 engineering control plane remains responsible
+    for patch-test-verify-bundle execution.
     """
 
     config: AuthoredRepairRuntimeConfig
     provider: PatchProposalProvider = field(default_factory=NullPatchProposalProvider)
-    receipt_ledger: AuthoringReceiptLedger = field(default_factory=AuthoringReceiptLedger)
+    receipt_ledger: AuthoringReceiptLedger = field(
+        default_factory=AuthoringReceiptLedger
+    )
 
     def run(
         self,
         *,
         task_id: str,
+        run_id: str,
         objective: str,
-        run_id: str | None = None,
-        failing_test_output: str = "",
-        source_paths: Iterable[str] = (),
-        extra_evidence: Iterable[AuthoringEvidence] = (),
+        raw_test_output: str | None = None,
+        test_command: tuple[str, ...] = ("python", "-m", "pytest", "-q"),
+        test_return_code: int = 1,
+        test_timed_out: bool = False,
+        evidence: Iterable[AuthoringEvidence] = (),
         raw_proposal_responses: Iterable[str] = (),
+        metadata: Mapping[str, Any] | None = None,
     ) -> AuthoredRepairRunReport:
-        task_id = _normalize_identifier(task_id, label="task_id")
-        objective = _normalize_text(objective, label="objective")
-        run_id = _normalize_identifier(run_id or f"{task_id}-wave3", label="run_id")
-        source_paths = tuple(source_paths)
-        extra_evidence_tuple = tuple(extra_evidence)
-        raw_response_tuple = tuple(raw_proposal_responses)
-
-        request = AuthoringRequest(
-            request_id=f"{run_id}-request",
+        request = AuthoringRequest.create(
+            task_id=task_id,
             objective=objective,
-            failing_test_output=failing_test_output,
-            source_paths=source_paths,
-            constraints=(
-                "Wave 3 may author patch candidates only.",
-                "Wave 2 remains responsible for patch application, execution, and acceptance.",
-                "Model output is untrusted until parsed, compiled, policy-gated, ranked, and reviewed.",
-            ),
             mode=self.config.mode,
+            requested_by="runtime.authoring_repair",
             metadata={
-                "runtime": "AuthoredRepairRuntime",
-                "task_id": task_id,
                 "run_id": run_id,
-                **dict(self.config.metadata),
+                "runtime": "AuthoredRepairRuntime",
+                **dict(metadata or {}),
             },
         )
 
+        errors: list[str] = []
+        context_snapshot: AuthoringContextSnapshot | None = None
+        evidence_reports: list[FailureEvidenceReport] = []
+        decomposition: RepairDecompositionPlan | None = None
+        hypotheses: RepairHypothesisReport | None = None
+        prompt_contract: PatchAuthoringPromptContract | None = None
+        proposals: list[PatchAuthoringProposal] = []
+        compiled_candidates: list[CompiledPatchCandidate] = []
+        policy_reports: list[AuthoringPolicyReport] = []
+        selection_report: RepairCandidateSelectionReport | None = None
+
         try:
-            self.receipt_ledger.record_request_created(request)
-            context_snapshot = self._build_context_snapshot(
-                request=request,
-                source_paths=source_paths,
+            context_snapshot = self._collect_context(request=request)
+            request = AuthoringRequest(
+                request_id=request.request_id,
+                objective=request.objective,
+                mode=request.mode,
+                status=request.status,
+                context=context_snapshot.context,
+                evidence=request.evidence,
+                subtasks=request.subtasks,
+                findings=request.findings,
+                metadata=request.metadata,
             )
-            evidence_reports = self._extract_evidence(
+
+            evidence_reports = self._collect_evidence_reports(
                 request=request,
-                failing_test_output=failing_test_output,
-                source_paths=source_paths,
-                extra_evidence=extra_evidence_tuple,
+                raw_test_output=raw_test_output,
+                test_command=test_command,
+                test_return_code=test_return_code,
+                test_timed_out=test_timed_out,
+                evidence=tuple(evidence),
             )
-            all_evidence = tuple(report.evidence for report in evidence_reports) + extra_evidence_tuple
-            decomposition = self._decompose(request=request, evidence=all_evidence)
-            hypotheses = self._build_hypotheses(
+            request = self._attach_evidence(
+                request=request,
+                evidence_reports=tuple(evidence_reports),
+                extra_evidence=tuple(evidence),
+            )
+
+            decomposition = self._decompose(request)
+            request = decomposition.apply_to_request(request)
+
+            hypotheses = self._generate_hypotheses(
                 request=request,
                 decomposition=decomposition,
-                evidence_reports=evidence_reports,
             )
+
             prompt_contract = self._render_prompt(
                 request=request,
                 context_snapshot=context_snapshot,
-                evidence_reports=evidence_reports,
+                decomposition=decomposition,
                 hypotheses=hypotheses,
-                extra_evidence=extra_evidence_tuple,
             )
-            raw_responses = self._collect_raw_responses(
+
+            raw_responses = self._proposal_responses(
                 prompt_contract=prompt_contract,
-                raw_proposal_responses=raw_response_tuple,
+                raw_proposal_responses=tuple(raw_proposal_responses),
             )
 
             if not raw_responses:
+                self.receipt_ledger.record_authoring_failed(
+                    request_id=request.request_id,
+                    failure_phase="proposal_provider",
+                    failure_reason="No raw proposal responses were produced.",
+                )
                 return self._report(
                     task_id=task_id,
                     run_id=run_id,
@@ -380,70 +442,36 @@ class AuthoredRepairRuntime:
                     decomposition=decomposition,
                     hypotheses=hypotheses,
                     prompt_contract=prompt_contract,
-                    errors=("No patch proposal responses were produced.",),
-                    metadata={
-                        "raw_response_count": 0,
-                        "extra_evidence_count": len(extra_evidence_tuple),
-                    },
+                    errors=("No raw proposal responses were produced.",),
+                    metadata=metadata,
                 )
 
-            proposals = self._parse_proposals(request=request, raw_responses=raw_responses)
-            if not proposals:
-                return self._report(
-                    task_id=task_id,
-                    run_id=run_id,
-                    objective=objective,
-                    status=AuthoredRepairStatus.NO_CANDIDATE,
-                    request=request,
-                    context_snapshot=context_snapshot,
-                    evidence_reports=evidence_reports,
-                    decomposition=decomposition,
-                    hypotheses=hypotheses,
-                    prompt_contract=prompt_contract,
-                    errors=("No raw proposal could be parsed into a valid candidate.",),
-                    metadata={
-                        "raw_response_count": len(raw_responses),
-                        "parsed_proposal_count": 0,
-                        "extra_evidence_count": len(extra_evidence_tuple),
-                    },
-                )
+            proposals = self._parse_proposals(
+                request=request,
+                raw_responses=raw_responses,
+            )
 
-            candidates = self._compile_proposals(request=request, proposals=tuple(proposals))
-            if not candidates:
-                return self._report(
-                    task_id=task_id,
-                    run_id=run_id,
-                    objective=objective,
-                    status=AuthoredRepairStatus.NO_CANDIDATE,
-                    request=request,
-                    context_snapshot=context_snapshot,
-                    evidence_reports=evidence_reports,
-                    decomposition=decomposition,
-                    hypotheses=hypotheses,
-                    prompt_contract=prompt_contract,
-                    proposals=tuple(proposals),
-                    errors=("No parsed proposal compiled into a patch candidate.",),
-                    metadata={
-                        "raw_response_count": len(raw_responses),
-                        "parsed_proposal_count": len(proposals),
-                        "compiled_candidate_count": 0,
-                        "extra_evidence_count": len(extra_evidence_tuple),
-                    },
-                )
+            compiled_candidates = self._compile_proposals(
+                request=request,
+                proposals=tuple(proposals),
+            )
 
             policy_reports = self._evaluate_policy(
                 request=request,
                 proposals=tuple(proposals),
-                candidates=tuple(candidates),
-                evidence=all_evidence,
+                candidates=tuple(compiled_candidates),
+                evidence=request.evidence,
             )
-            selection_report = self._rank_candidates(
-                candidates=tuple(candidates),
-                proposals=tuple(proposals),
-                policy_reports=tuple(policy_reports),
-                evidence=all_evidence,
-                hypotheses=hypotheses,
-            )
+
+            if compiled_candidates:
+                selection_report = self._rank_candidates(
+                    candidates=tuple(compiled_candidates),
+                    proposals=tuple(proposals),
+                    policy_reports=tuple(policy_reports),
+                    evidence=request.evidence,
+                    hypotheses=hypotheses,
+                )
+
             status = self._status_from_selection(selection_report)
 
             return self._report(
@@ -457,113 +485,153 @@ class AuthoredRepairRuntime:
                 decomposition=decomposition,
                 hypotheses=hypotheses,
                 prompt_contract=prompt_contract,
-                proposals=tuple(proposals),
-                compiled_candidates=tuple(candidates),
-                policy_reports=tuple(policy_reports),
+                proposals=proposals,
+                compiled_candidates=compiled_candidates,
+                policy_reports=policy_reports,
                 selection_report=selection_report,
-                metadata={
-                    "raw_response_count": len(raw_responses),
-                    "parsed_proposal_count": len(proposals),
-                    "compiled_candidate_count": len(candidates),
-                    "policy_report_count": len(policy_reports),
-                    "extra_evidence_count": len(extra_evidence_tuple),
-                },
+                metadata=metadata,
             )
 
-        except Exception as exc:  # pragma: no cover - defensive terminal safety net.
-            return self._report(
-                task_id=task_id,
-                run_id=run_id,
-                objective=objective,
-                status=AuthoredRepairStatus.FAILED,
-                request=request,
-                errors=(str(exc),),
-                metadata={"exception_type": type(exc).__name__},
+        except AuthoringError as exc:
+            errors.append(str(exc))
+            self.receipt_ledger.record_authoring_failed(
+                request_id=request.request_id,
+                failure_phase="authoring_runtime",
+                failure_reason=str(exc),
+            )
+        except Exception as exc:
+            errors.append(str(exc))
+            self.receipt_ledger.record_authoring_failed(
+                request_id=request.request_id,
+                failure_phase="unexpected_authoring_runtime_error",
+                failure_reason=str(exc),
             )
 
-    def _build_context_snapshot(
+        return self._report(
+            task_id=task_id,
+            run_id=run_id,
+            objective=objective,
+            status=AuthoredRepairStatus.FAILED,
+            request=request,
+            context_snapshot=context_snapshot,
+            evidence_reports=evidence_reports,
+            decomposition=decomposition,
+            hypotheses=hypotheses,
+            prompt_contract=prompt_contract,
+            proposals=proposals,
+            compiled_candidates=compiled_candidates,
+            policy_reports=policy_reports,
+            selection_report=selection_report,
+            errors=tuple(errors),
+            metadata=metadata,
+        )
+
+    def _collect_context(
         self,
         *,
         request: AuthoringRequest,
-        source_paths: tuple[str, ...],
     ) -> AuthoringContextSnapshot:
         builder = AuthoringContextBuilder(
             workspace_root=self.config.workspace_root,
             config=self.config.context_config,
             path_policy=self.config.path_policy,
         )
-        snapshot = builder.build(source_paths=source_paths or self.config.include_paths)
-        self.receipt_ledger.record_context_built(
+        snapshot = builder.build(include_paths=self.config.include_paths)
+        self.receipt_ledger.record_context_collected(
             request_id=request.request_id,
             snapshot=snapshot,
         )
         return snapshot
 
-    def _extract_evidence(
+    def _collect_evidence_reports(
         self,
         *,
         request: AuthoringRequest,
-        failing_test_output: str,
-        source_paths: tuple[str, ...],
-        extra_evidence: tuple[AuthoringEvidence, ...],
-    ) -> tuple[FailureEvidenceReport, ...]:
+        raw_test_output: str | None,
+        test_command: tuple[str, ...],
+        test_return_code: int,
+        test_timed_out: bool,
+        evidence: tuple[AuthoringEvidence, ...],
+    ) -> list[FailureEvidenceReport]:
         extractor = FailureEvidenceExtractor(config=self.config.evidence_config)
-        evidence_reports: list[FailureEvidenceReport] = []
+        reports: list[FailureEvidenceReport] = []
 
-        primary_report = extractor.extract(
-            request_id=request.request_id,
-            text=failing_test_output,
-            source_hint="failing_test_output",
-            related_paths=source_paths,
-        )
-        evidence_reports.append(primary_report)
-        self.receipt_ledger.record_evidence_extracted(
-            request_id=request.request_id,
-            report=primary_report,
-        )
-
-        for index, evidence in enumerate(extra_evidence, start=1):
-            report = FailureEvidenceReport(
-                report_id=f"{request.request_id}-extra-evidence-{index}",
-                evidence=evidence,
-                raw_excerpt=evidence.summary,
-                matched_signals=evidence.tags,
-                ignored_signals=(),
+        if raw_test_output is not None and raw_test_output.strip():
+            report = extractor.from_pytest_text(
+                text=raw_test_output,
+                command=test_command,
+                return_code=test_return_code,
+                timed_out=test_timed_out,
+                metadata={"source": "authored_repair_runtime"},
             )
-            evidence_reports.append(report)
+            reports.append(report)
+            self.receipt_ledger.record_evidence_extracted(
+                request_id=request.request_id,
+                report=report,
+            )
+            return reports
+
+        if not evidence:
+            report = extractor.from_objective_only(
+                objective=request.objective.summary,
+                metadata={"source": "authored_repair_runtime"},
+            )
+            reports.append(report)
             self.receipt_ledger.record_evidence_extracted(
                 request_id=request.request_id,
                 report=report,
             )
 
-        return tuple(evidence_reports)
+        return reports
 
-    def _decompose(
+    def _attach_evidence(
         self,
         *,
         request: AuthoringRequest,
-        evidence: tuple[AuthoringEvidence, ...],
-    ) -> RepairDecompositionPlan:
+        evidence_reports: tuple[FailureEvidenceReport, ...],
+        extra_evidence: tuple[AuthoringEvidence, ...],
+    ) -> AuthoringRequest:
+        evidence_items = (
+            tuple(report.evidence for report in evidence_reports) + extra_evidence
+        )
+        return AuthoringRequest(
+            request_id=request.request_id,
+            objective=request.objective,
+            mode=request.mode,
+            status=request.status,
+            context=request.context,
+            evidence=evidence_items,
+            subtasks=request.subtasks,
+            findings=request.findings,
+            metadata={
+                **dict(request.metadata),
+                "evidence_count": len(evidence_items),
+                "has_direct_evidence": any(
+                    item.strength is AuthoringEvidenceStrength.DIRECT
+                    for item in evidence_items
+                ),
+            },
+        )
+
+    def _decompose(self, request: AuthoringRequest) -> RepairDecompositionPlan:
         decomposer = RepairTaskDecomposer(config=self.config.decomposer_config)
-        plan = decomposer.decompose(request=request, evidence=evidence)
-        self.receipt_ledger.record_decomposition_completed(
+        plan = decomposer.decompose_request(request)
+        self.receipt_ledger.record_decomposition_created(
             request_id=request.request_id,
             plan=plan,
         )
         return plan
 
-    def _build_hypotheses(
+    def _generate_hypotheses(
         self,
         *,
         request: AuthoringRequest,
         decomposition: RepairDecompositionPlan,
-        evidence_reports: tuple[FailureEvidenceReport, ...],
     ) -> RepairHypothesisReport:
         engine = RepairHypothesisEngine(config=self.config.hypothesis_config)
         report = engine.generate(
-            request_id=request.request_id,
+            request=request,
             decomposition=decomposition,
-            evidence_reports=evidence_reports,
         )
         self.receipt_ledger.record_hypotheses_generated(
             request_id=request.request_id,
@@ -576,60 +644,30 @@ class AuthoredRepairRuntime:
         *,
         request: AuthoringRequest,
         context_snapshot: AuthoringContextSnapshot,
-        evidence_reports: tuple[FailureEvidenceReport, ...],
+        decomposition: RepairDecompositionPlan,
         hypotheses: RepairHypothesisReport,
-        extra_evidence: tuple[AuthoringEvidence, ...],
     ) -> PatchAuthoringPromptContract:
         renderer = PatchAuthoringPromptRenderer(config=self.config.prompt_config)
-        evidence_items = tuple(report.evidence for report in evidence_reports) + extra_evidence
         contract = renderer.render(
-            request=self._request_with_evidence(
-                request=request,
-                evidence_reports=evidence_reports,
-                extra_evidence=extra_evidence,
-            ),
+            request=request,
             context_snapshot=context_snapshot,
-            decomposition=self._decompose(
-                request=request,
-                evidence=evidence_items,
-            ),
+            decomposition=decomposition,
             hypotheses=hypotheses,
         )
-        self.receipt_ledger.record_prompt_rendered(
+        self.receipt_ledger.record_prompt_contract_rendered(
             request_id=request.request_id,
             contract=contract,
         )
         return contract
 
-    def _request_with_evidence(
-        self,
-        *,
-        request: AuthoringRequest,
-        evidence_reports: tuple[FailureEvidenceReport, ...],
-        extra_evidence: tuple[AuthoringEvidence, ...],
-    ) -> AuthoringRequest:
-        evidence_items = tuple(report.evidence for report in evidence_reports) + extra_evidence
-        return AuthoringRequest(
-            request_id=request.request_id,
-            objective=request.objective,
-            failing_test_output=request.failing_test_output,
-            source_paths=request.source_paths,
-            constraints=request.constraints,
-            mode=request.mode,
-            evidence=evidence_items,
-            metadata=request.metadata,
-        )
-
-    def _collect_raw_responses(
+    def _proposal_responses(
         self,
         *,
         prompt_contract: PatchAuthoringPromptContract,
         raw_proposal_responses: tuple[str, ...],
     ) -> tuple[str, ...]:
         direct_responses = tuple(
-            response.strip()
-            for response in raw_proposal_responses
-            if response.strip()
+            response.strip() for response in raw_proposal_responses if response.strip()
         )
         provider_responses = tuple(
             response.strip()
@@ -775,10 +813,9 @@ class AuthoredRepairRuntime:
         if selection_report.selected_candidate is not None:
             return AuthoredRepairStatus.AUTHORED
 
-        if (
+        if selection_report.blocked_candidates and len(
             selection_report.blocked_candidates
-            and len(selection_report.blocked_candidates) == len(selection_report.ranked_candidates)
-        ):
+        ) == len(selection_report.ranked_candidates):
             return AuthoredRepairStatus.BLOCKED
 
         if selection_report.review_required_candidates:
