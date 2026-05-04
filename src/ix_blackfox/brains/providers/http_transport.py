@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import socket
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -83,7 +84,9 @@ def _perform_json_request(
     data: bytes | None = None
     if body is not None:
         request_headers.setdefault("Content-Type", "application/json")
-        data = json.dumps(body, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        data = json.dumps(body, separators=(",", ":"), ensure_ascii=False).encode(
+            "utf-8"
+        )
 
     request = Request(
         url=url,
@@ -107,17 +110,13 @@ def _perform_json_request(
             payload.setdefault("status_code", exc.code)
             payload.setdefault("reason", str(exc.reason))
             return payload
-        raise ConnectionError(
-            f"HTTP {exc.code} returned from {url}."
-        ) from exc
+        raise ConnectionError(f"HTTP {exc.code} returned from {url}.") from exc
     except URLError as exc:
         reason = exc.reason
         if isinstance(reason, TimeoutError | socket.timeout):
             raise TimeoutError(f"Request to {url} timed out.") from exc
         raise ConnectionError(f"Request to {url} failed: {reason}") from exc
-    except TimeoutError:
-        raise
-    except socket.timeout as exc:
+    except TimeoutError as exc:
         raise TimeoutError(f"Request to {url} timed out.") from exc
 
 
