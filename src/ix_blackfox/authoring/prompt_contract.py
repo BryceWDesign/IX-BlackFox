@@ -38,7 +38,9 @@ class PromptContractMessage:
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "content", _normalize_text(self.content, label="content"))
+        object.__setattr__(
+            self, "content", _normalize_text(self.content, label="content")
+        )
         object.__setattr__(self, "metadata", dict(self.metadata))
 
     def to_dict(self) -> dict[str, Any]:
@@ -53,7 +55,9 @@ class PromptContractMessage:
         return cls(
             role=PromptMessageRole(_require_text(payload, "role")),
             content=_require_text(payload, "content"),
-            metadata=_coerce_mapping(payload.get("metadata", {}), field_name="metadata"),
+            metadata=_coerce_mapping(
+                payload.get("metadata", {}), field_name="metadata"
+            ),
         )
 
 
@@ -220,24 +224,36 @@ class PatchAuthoringPromptContract:
         )
         messages = tuple(self.messages)
         if not messages:
-            raise ValueError("PatchAuthoringPromptContract requires at least one message.")
+            raise ValueError(
+                "PatchAuthoringPromptContract requires at least one message."
+            )
         object.__setattr__(self, "messages", messages)
-        object.__setattr__(self, "context_digest", _normalize_optional_digest(self.context_digest))
-        object.__setattr__(self, "evidence_digest", _normalize_optional_digest(self.evidence_digest))
+        object.__setattr__(
+            self, "context_digest", _normalize_optional_digest(self.context_digest)
+        )
+        object.__setattr__(
+            self, "evidence_digest", _normalize_optional_digest(self.evidence_digest)
+        )
         object.__setattr__(
             self,
             "decomposition_plan_id",
-            _normalize_optional_identifier(self.decomposition_plan_id, label="decomposition_plan_id"),
+            _normalize_optional_identifier(
+                self.decomposition_plan_id, label="decomposition_plan_id"
+            ),
         )
         object.__setattr__(
             self,
             "hypothesis_report_id",
-            _normalize_optional_identifier(self.hypothesis_report_id, label="hypothesis_report_id"),
+            _normalize_optional_identifier(
+                self.hypothesis_report_id, label="hypothesis_report_id"
+            ),
         )
         object.__setattr__(
             self,
             "selected_hypothesis_id",
-            _normalize_optional_identifier(self.selected_hypothesis_id, label="selected_hypothesis_id"),
+            _normalize_optional_identifier(
+                self.selected_hypothesis_id, label="selected_hypothesis_id"
+            ),
         )
         object.__setattr__(self, "metadata", dict(self.metadata))
 
@@ -309,12 +325,20 @@ class PatchAuthoringPromptContract:
             mode=AuthoringMode(_require_text(payload, "mode")),
             context_digest=_optional_text_from_payload(payload, "context_digest"),
             evidence_digest=_optional_text_from_payload(payload, "evidence_digest"),
-            decomposition_plan_id=_optional_text_from_payload(payload, "decomposition_plan_id"),
-            hypothesis_report_id=_optional_text_from_payload(payload, "hypothesis_report_id"),
-            selected_hypothesis_id=_optional_text_from_payload(payload, "selected_hypothesis_id"),
+            decomposition_plan_id=_optional_text_from_payload(
+                payload, "decomposition_plan_id"
+            ),
+            hypothesis_report_id=_optional_text_from_payload(
+                payload, "hypothesis_report_id"
+            ),
+            selected_hypothesis_id=_optional_text_from_payload(
+                payload, "selected_hypothesis_id"
+            ),
             messages=tuple(messages),
             response_schema=PatchAuthoringResponseSchema(schema_version=schema_version),
-            metadata=_coerce_mapping(payload.get("metadata", {}), field_name="metadata"),
+            metadata=_coerce_mapping(
+                payload.get("metadata", {}), field_name="metadata"
+            ),
         )
 
 
@@ -384,9 +408,7 @@ class PatchAuthoringPromptRenderer:
             raise ValueError(f"Unsupported authoring mode: {request.mode}")
 
         context_digest = (
-            None
-            if context_snapshot is None
-            else context_snapshot.context.digest
+            None if context_snapshot is None else context_snapshot.context.digest
         )
         evidence_digest = _digest_evidence(request.evidence)
 
@@ -422,12 +444,18 @@ class PatchAuthoringPromptRenderer:
             response_schema=PatchAuthoringResponseSchema(),
             context_digest=context_digest,
             evidence_digest=evidence_digest,
-            decomposition_plan_id=None if decomposition is None else decomposition.plan_id,
+            decomposition_plan_id=None
+            if decomposition is None
+            else decomposition.plan_id,
             hypothesis_report_id=None if hypotheses is None else hypotheses.report_id,
-            selected_hypothesis_id=None if hypotheses is None else hypotheses.selected_hypothesis_id,
+            selected_hypothesis_id=None
+            if hypotheses is None
+            else hypotheses.selected_hypothesis_id,
             metadata={
                 "renderer": "PatchAuthoringPromptRenderer",
-                "context_document_count": 0 if context_snapshot is None else len(context_snapshot.documents),
+                "context_document_count": 0
+                if context_snapshot is None
+                else len(context_snapshot.documents),
                 "evidence_count": len(request.evidence),
                 "has_decomposition": decomposition is not None,
                 "has_hypotheses": hypotheses is not None,
@@ -563,7 +591,9 @@ class PatchAuthoringPromptRenderer:
         }
         return _canonical_json(payload)
 
-    def _render_decomposition(self, decomposition: RepairDecompositionPlan | None) -> str:
+    def _render_decomposition(
+        self, decomposition: RepairDecompositionPlan | None
+    ) -> str:
         if decomposition is None:
             return "No decomposition plan was supplied."
         return _bounded_text(
