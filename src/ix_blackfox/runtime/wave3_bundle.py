@@ -45,7 +45,9 @@ class Wave3EvidenceArtifact:
         object.__setattr__(self, "path", _normalize_text(self.path, label="path"))
         object.__setattr__(self, "sha256", _normalize_sha256(self.sha256))
         object.__setattr__(
-            self, "media_type", _normalize_text(self.media_type, label="media_type")
+            self,
+            "media_type",
+            _normalize_text(self.media_type, label="media_type"),
         )
         object.__setattr__(self, "metadata", dict(self.metadata))
 
@@ -71,7 +73,8 @@ class Wave3EvidenceArtifact:
             size_bytes=_require_int(payload, "size_bytes"),
             media_type=_require_text(payload, "media_type"),
             metadata=_coerce_mapping(
-                payload.get("metadata", {}), field_name="metadata"
+                payload.get("metadata", {}),
+                field_name="metadata",
             ),
         )
 
@@ -81,9 +84,9 @@ class Wave3EvidencePackageManifest:
     """
     Manifest for a persisted Wave 3 evidence package.
 
-    The package is separate from the Wave 2 run bundle. It preserves the
-    authored repair layer, authoring receipts, acceptance report, and linked
-    Wave 2 report together for review.
+    The package is intentionally separate from the Wave 2 run bundle. It
+    preserves the authored repair layer, authoring receipts, Wave 3 acceptance
+    report, and linked Wave 2 report together for review.
     """
 
     package_id: str
@@ -106,13 +109,19 @@ class Wave3EvidencePackageManifest:
             _normalize_identifier(self.package_id, label="package_id"),
         )
         object.__setattr__(
-            self, "run_id", _normalize_identifier(self.run_id, label="run_id")
+            self,
+            "run_id",
+            _normalize_identifier(self.run_id, label="run_id"),
         )
         object.__setattr__(
-            self, "task_id", _normalize_identifier(self.task_id, label="task_id")
+            self,
+            "task_id",
+            _normalize_identifier(self.task_id, label="task_id"),
         )
         object.__setattr__(
-            self, "root_path", _normalize_text(self.root_path, label="root_path")
+            self,
+            "root_path",
+            _normalize_text(self.root_path, label="root_path"),
         )
         object.__setattr__(
             self,
@@ -123,14 +132,16 @@ class Wave3EvidencePackageManifest:
             self,
             "selected_patch_id",
             _normalize_optional_identifier(
-                self.selected_patch_id, label="selected_patch_id"
+                self.selected_patch_id,
+                label="selected_patch_id",
             ),
         )
         object.__setattr__(
             self,
             "selected_candidate_id",
             _normalize_optional_identifier(
-                self.selected_candidate_id, label="selected_candidate_id"
+                self.selected_candidate_id,
+                label="selected_candidate_id",
             ),
         )
         object.__setattr__(
@@ -138,6 +149,7 @@ class Wave3EvidencePackageManifest:
             "authoring_chain_digest",
             _normalize_optional_sha256(self.authoring_chain_digest),
         )
+
         artifacts = tuple(self.artifacts)
         object.__setattr__(self, "artifacts", artifacts)
         object.__setattr__(self, "created_at", _normalize_datetime(self.created_at))
@@ -150,10 +162,11 @@ class Wave3EvidencePackageManifest:
         valid_counts = {len(artifacts)}
         if manifest_included:
             valid_counts.add(len(artifacts) - 1)
+
         if self.artifact_count not in valid_counts:
             raise ValueError(
-                "artifact_count must match persisted core artifacts, "
-                "excluding the package manifest when that self-artifact is included."
+                "artifact_count must match persisted core artifacts, excluding "
+                "the package manifest when the manifest self-artifact is included."
             )
 
     @property
@@ -196,16 +209,19 @@ class Wave3EvidencePackageManifest:
             acceptance_status=_require_text(payload, "acceptance_status"),
             selected_patch_id=_optional_text_from_payload(payload, "selected_patch_id"),
             selected_candidate_id=_optional_text_from_payload(
-                payload, "selected_candidate_id"
+                payload,
+                "selected_candidate_id",
             ),
             authoring_chain_digest=_optional_text_from_payload(
-                payload, "authoring_chain_digest"
+                payload,
+                "authoring_chain_digest",
             ),
             artifact_count=_require_int(payload, "artifact_count"),
             artifacts=_load_artifacts(payload.get("artifacts", ())),
             created_at=_datetime_from_payload(payload, "created_at"),
             metadata=_coerce_mapping(
-                payload.get("metadata", {}), field_name="metadata"
+                payload.get("metadata", {}),
+                field_name="metadata",
             ),
         )
 
@@ -235,7 +251,7 @@ class Wave3EvidencePackageWriter:
     """
     Persist Wave 3 authored-repair evidence to disk.
 
-    This writer does not evaluate success. It packages the evidence already
+    This writer does not decide success. It packages the evidence already
     produced by the authored repair runtime, Wave 2 control plane, and Wave 3
     acceptance validator.
     """
@@ -255,9 +271,7 @@ class Wave3EvidencePackageWriter:
         acceptance_report: Wave3AcceptanceReport,
         metadata: Mapping[str, Any] | None = None,
     ) -> Wave3EvidencePackageManifest:
-        package_root = (
-            self.root_dir / authored_report.run_id / self.config.package_dir_name
-        )
+        package_root = self.root_dir / authored_report.run_id / self.config.package_dir_name
         if package_root.exists() and not self.config.overwrite_existing:
             raise FileExistsError(
                 f"Wave 3 evidence package already exists: {package_root}"
@@ -282,15 +296,16 @@ class Wave3EvidencePackageWriter:
             )
         )
 
+        receipt_snapshot = authored_report.authored_repair_report.receipt_snapshot
         artifacts.append(
             self._write_json_artifact(
                 package_root=package_root,
                 kind=Wave3EvidenceArtifactKind.AUTHORING_RECEIPTS,
                 filename="authoring-receipts.json",
-                payload=authored_report.authored_repair_report.receipt_snapshot.to_dict(),
+                payload=receipt_snapshot.to_dict(),
                 metadata={
-                    "receipt_count": authored_report.authored_repair_report.receipt_snapshot.count,
-                    "latest_chain_digest": authored_report.authored_repair_report.receipt_snapshot.latest_chain_digest,
+                    "receipt_count": receipt_snapshot.count,
+                    "latest_chain_digest": receipt_snapshot.latest_chain_digest,
                 },
             )
         )
@@ -344,17 +359,22 @@ class Wave3EvidencePackageWriter:
             )
         )
 
+        selected_candidate = (
+            authored_report.authored_repair_report.selected_candidate
+        )
+        selected_patch = authored_report.authored_repair_report.selected_patch
+
         manifest_without_self = Wave3EvidencePackageManifest(
             package_id=f"wave3-evidence-package-{uuid4().hex}",
             run_id=authored_report.run_id,
             task_id=authored_report.task_id,
             root_path=str(package_root),
             acceptance_status=acceptance_report.status.value,
-            selected_patch_id=authored_report.selected_patch_id,
+            selected_patch_id=None if selected_patch is None else selected_patch.patch_id,
             selected_candidate_id=None
-            if authored_report.authored_repair_report.selected_candidate is None
-            else authored_report.authored_repair_report.selected_candidate.candidate_id,
-            authoring_chain_digest=authored_report.authored_repair_report.receipt_snapshot.latest_chain_digest,
+            if selected_candidate is None
+            else selected_candidate.candidate_id,
+            authoring_chain_digest=receipt_snapshot.latest_chain_digest,
             artifact_count=len(artifacts),
             artifacts=tuple(artifacts),
             created_at=datetime.now(tz=UTC),
@@ -378,7 +398,6 @@ class Wave3EvidencePackageWriter:
             },
         )
 
-        final_artifacts = (*artifacts, manifest_artifact)
         return Wave3EvidencePackageManifest(
             package_id=manifest_without_self.package_id,
             run_id=manifest_without_self.run_id,
@@ -389,7 +408,7 @@ class Wave3EvidencePackageWriter:
             selected_candidate_id=manifest_without_self.selected_candidate_id,
             authoring_chain_digest=manifest_without_self.authoring_chain_digest,
             artifact_count=manifest_without_self.artifact_count,
-            artifacts=final_artifacts,
+            artifacts=(*artifacts, manifest_artifact),
             created_at=manifest_without_self.created_at,
             metadata=manifest_without_self.metadata,
         )
@@ -439,6 +458,7 @@ class Wave3EvidencePackageWriter:
         authored_runtime_report = authored_report.authored_repair_report
         selected_candidate = authored_runtime_report.selected_candidate
         selected_patch = authored_runtime_report.selected_patch
+        receipt_snapshot = authored_runtime_report.receipt_snapshot
 
         return {
             "schema_version": "wave3.evidence_index.v1",
@@ -462,8 +482,8 @@ class Wave3EvidencePackageWriter:
             if selected_patch is None
             else selected_patch.digest,
             "authoring_request_id": authored_runtime_report.request.request_id,
-            "authoring_receipt_count": authored_runtime_report.receipt_snapshot.count,
-            "authoring_chain_digest": authored_runtime_report.receipt_snapshot.latest_chain_digest,
+            "authoring_receipt_count": receipt_snapshot.count,
+            "authoring_chain_digest": receipt_snapshot.latest_chain_digest,
             "proposal_count": len(authored_runtime_report.proposals),
             "compiled_candidate_count": len(
                 authored_runtime_report.compiled_candidates
