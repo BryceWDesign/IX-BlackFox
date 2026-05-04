@@ -7,7 +7,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum, auto
 from pathlib import Path
-from typing import Any, Self
+from typing import Any
 
 from ix_blackfox.authoring.errors import AuthoringContextError
 from ix_blackfox.authoring.models import AuthoringContext, AuthoringContextFile
@@ -287,13 +287,18 @@ class AuthoringContextBuilder:
                 f"Workspace root is not a directory: {self.workspace_root}"
             )
 
-        self.path_policy = path_policy or self.config.build_path_policy()
+        self.path_policy = path_policy or ToolPathPolicy(
+            blocked_roots=(),
+            allow_absolute_paths=False,
+        )
         self.resolver = WorkspacePathResolver(
             workspace_root=self.workspace_root,
             path_policy=self.path_policy,
         )
 
-    def build(self, include_paths: Iterable[str] | None = None) -> AuthoringContextSnapshot:
+    def build(
+        self, include_paths: Iterable[str] | None = None
+    ) -> AuthoringContextSnapshot:
         requested_paths = tuple(include_paths or self.config.include_paths)
         if not requested_paths:
             raise AuthoringContextError("At least one include path is required.")
@@ -447,7 +452,9 @@ class AuthoringContextBuilder:
                 )
             )
 
-        return tuple(sorted(candidates, key=lambda path: self.resolver.relative_path(path)))
+        return tuple(
+            sorted(candidates, key=lambda path: self.resolver.relative_path(path))
+        )
 
     def _walk_directory(
         self,
@@ -506,22 +513,22 @@ class AuthoringContextBuilder:
             )
             return None
 
-        if not self.config.include_hidden and _has_hidden_path_part(relative_path):
-            skipped.append(
-                SkippedContextPath(
-                    path=relative_path,
-                    reason=ContextSkipReason.HIDDEN_PATH,
-                    detail="Hidden paths are excluded by default.",
-                )
-            )
-            return None
-
         if self._is_secret_like(relative_path):
             skipped.append(
                 SkippedContextPath(
                     path=relative_path,
                     reason=ContextSkipReason.SECRET_LIKE_PATH,
                     detail="Path matched secret-like file or directory patterns.",
+                )
+            )
+            return None
+
+        if not self.config.include_hidden and _has_hidden_path_part(relative_path):
+            skipped.append(
+                SkippedContextPath(
+                    path=relative_path,
+                    reason=ContextSkipReason.HIDDEN_PATH,
+                    detail="Hidden paths are excluded by default.",
                 )
             )
             return None
@@ -680,7 +687,9 @@ def _looks_binary(raw_bytes: bytes) -> bool:
     return control_bytes > max(4, len(sample) // 20)
 
 
-def _path_parts_start_with(path_parts: tuple[str, ...], root_parts: tuple[str, ...]) -> bool:
+def _path_parts_start_with(
+    path_parts: tuple[str, ...], root_parts: tuple[str, ...]
+) -> bool:
     if not root_parts:
         return False
     if len(path_parts) < len(root_parts):
