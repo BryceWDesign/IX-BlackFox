@@ -7,8 +7,8 @@ from ix_blackfox.brains.manifest import BrainManifest
 from ix_blackfox.brains.models import (
     BrainContextWindow,
     BrainExecutionLimits,
-    BrainModelProfile,
     BrainModalityProfile,
+    BrainModelProfile,
 )
 
 
