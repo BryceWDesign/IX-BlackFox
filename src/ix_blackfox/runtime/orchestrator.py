@@ -1297,7 +1297,7 @@ class BlackFoxRuntime:
         produced_artifacts: list[str] = []
         artifact_paths: dict[str, str] = {}
         evidence_ids: list[str] = []
-                if pack_result is not None:
+        if pack_result is not None:
             materializations = artifact_materializations or {}
             for artifact_name in pack_result.artifacts:
                 artifact_path = materializations.get(artifact_name)
