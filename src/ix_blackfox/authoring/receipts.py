@@ -158,8 +158,6 @@ class AuthoringReceipt:
                 "sequence_number": self.sequence_number,
             }
         )
-        if self.chain_digest is not None and self.chain_digest != computed_chain_digest:
-            raise ValueError("chain_digest does not match receipt chain payload.")
         object.__setattr__(self, "chain_digest", computed_chain_digest)
 
     @classmethod
