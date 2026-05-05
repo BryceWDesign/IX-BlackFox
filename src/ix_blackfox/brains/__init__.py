@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Multi-brain runtime contracts for IX-BlackFox.
 
@@ -11,13 +9,15 @@ catalog helpers, provider adapters, safety evidence models, escalation
 policy, and rendering primitives live here.
 """
 
+from __future__ import annotations
+
 from ix_blackfox.brains.budgets import (
     BrainContextBudget,
     BrainCostClass,
     BrainEscalationBudget,
     BrainInferenceBudget,
-    BrainLatencyClass,
     BrainLatencyBudget,
+    BrainLatencyClass,
 )
 from ix_blackfox.brains.catalog import (
     BrainCatalog,
@@ -53,8 +53,8 @@ from ix_blackfox.brains.manifest import BrainManifest, BrainManifestSnapshot
 from ix_blackfox.brains.models import (
     BrainContextWindow,
     BrainExecutionLimits,
-    BrainModelProfile,
     BrainModalityProfile,
+    BrainModelProfile,
 )
 from ix_blackfox.brains.policy import (
     BrainRoutingPolicy,
@@ -75,7 +75,11 @@ from ix_blackfox.brains.renderers import (
     NormalizedConversation,
     PlainTranscriptRenderer,
 )
-from ix_blackfox.brains.router import BrainRouteCandidate, BrainRouter, BrainRoutingDecision
+from ix_blackfox.brains.router import (
+    BrainRouteCandidate,
+    BrainRouter,
+    BrainRoutingDecision,
+)
 from ix_blackfox.brains.safety import (
     SafeguardAssessment,
     SafeguardDisposition,
