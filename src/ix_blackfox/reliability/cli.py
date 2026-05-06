@@ -20,8 +20,8 @@ from ix_blackfox.reliability.models import (
 )
 from ix_blackfox.reliability.runner import (
     ReliabilityLabRunConfig,
-    ReliabilityLabRunResult,
     ReliabilityLabRunner,
+    ReliabilityLabRunResult,
 )
 from ix_blackfox.reliability.scenarios import (
     WAVE4_FULL_SUITE_ID,
