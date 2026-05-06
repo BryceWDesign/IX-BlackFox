@@ -40,15 +40,15 @@ from ix_blackfox.reliability.models import (
 )
 from ix_blackfox.reliability.runner import (
     ReliabilityLabRunConfig,
-    ReliabilityLabRunResult,
     ReliabilityLabRunner,
+    ReliabilityLabRunResult,
 )
 from ix_blackfox.reliability.scenarios import (
-    ReliabilityScenarioRegistry,
-    ReliabilityScenarioRegistryError,
     WAVE4_ADVERSARIAL_SUITE_ID,
     WAVE4_CORE_SUITE_ID,
     WAVE4_FULL_SUITE_ID,
+    ReliabilityScenarioRegistry,
+    ReliabilityScenarioRegistryError,
     build_wave4_adversarial_suite,
     build_wave4_core_suite,
     build_wave4_full_suite,
