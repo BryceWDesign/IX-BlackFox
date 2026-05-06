@@ -13,11 +13,11 @@ from ix_blackfox.tools import (
     ToolPolicyEvaluator,
     ToolSideEffect,
 )
+from ix_blackfox.tools.contracts import ToolInvocationRequest
 from ix_blackfox.tools.manifest import (
     ToolApprovalMode,
     ToolManifest,
 )
-from ix_blackfox.tools.contracts import ToolInvocationRequest
 
 
 def test_policy_document_parses_default_governed_policy_text() -> None:
