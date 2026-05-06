@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Provider abstraction layer for IX-BlackFox brains.
 
@@ -7,6 +5,8 @@ This package defines the stable provider interface that concrete
 adapters such as Ollama, vLLM, and OpenAI-compatible backends will
 implement.
 """
+
+from __future__ import annotations
 
 from ix_blackfox.brains.providers.base import (
     BrainProvider,
