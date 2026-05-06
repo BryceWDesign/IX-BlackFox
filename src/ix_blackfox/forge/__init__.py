@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 """
 Forge subsystem.
 
 Forge is the programming workbench of BlackFox. It ingests code, inspects
 symbols, plans patches, executes builds and tests, and verifies results
-inside controlled environments. The first concrete layers are workspace
+inside controlled environments. The concrete layers include workspace
 management for isolated file operations, file-graph scanning for stable
 repository inventory, static Python code analysis, structured patch
 planning, governed patch-intent bridging, controlled command execution,
@@ -43,6 +45,8 @@ from ix_blackfox.forge.governed_command_runner import (
 )
 from ix_blackfox.forge.governed_patch_intents import (
     ForgePatchIntentBridge,
+    GovernedPatchIntent,
+    GovernedPatchIntentBuilder,
     GovernedPatchIntentBundle,
 )
 from ix_blackfox.forge.patch_plan import (
@@ -91,6 +95,8 @@ __all__ = [
     "ForgeWorkspaceManager",
     "GovernedCommandRunResult",
     "GovernedForgeCommandRunner",
+    "GovernedPatchIntent",
+    "GovernedPatchIntentBuilder",
     "GovernedPatchIntentBundle",
     "PatchOperation",
     "PatchOperationType",
