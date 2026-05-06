@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 
-from ix_blackfox.brains.receipts import BrainInvocationReceipt, BrainInvocationReceiptLedger
+from ix_blackfox.brains.receipts import (
+    BrainInvocationReceipt,
+    BrainInvocationReceiptLedger,
+)
 from ix_blackfox.governance import (
     ApprovalStatus,
     GovernanceReceiptLedger,
