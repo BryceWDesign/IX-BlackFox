@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Rendering helpers for the BlackFox brain plane.
 
@@ -7,6 +5,8 @@ These helpers normalize internal conversational state before provider
 serialization and offer both a Harmony-oriented renderer and a plain
 transcript fallback for safer degraded-mode behavior.
 """
+
+from __future__ import annotations
 
 from ix_blackfox.brains.renderers.harmony import (
     HarmonyRenderConfig,
