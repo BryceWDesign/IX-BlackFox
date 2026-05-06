@@ -7,12 +7,12 @@ from pathlib import Path
 import pytest
 
 from ix_blackfox.runtime import (
+    RunBundleArtifactKind,
+    RunBundleExporter,
     RunBundleExportFormat,
     RunBundleExportRequest,
-    RunBundleExporter,
     RunBundleLayout,
     RunBundleWriter,
-    RunBundleArtifactKind,
 )
 
 
