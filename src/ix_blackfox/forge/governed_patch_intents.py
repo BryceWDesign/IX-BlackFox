@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ix_blackfox.forge.patch_plan import (
     PatchOperation,
@@ -18,281 +18,148 @@ from ix_blackfox.governance import (
 
 
 @dataclass(frozen=True, slots=True)
-class GovernedPatchIntentBundle:
+class GovernedPatchIntent:
     """
-    One governed patch-operation bundle.
+    Pair a forge patch plan with deterministic governance intent.
 
-    This bundle keeps the original patch operation adjacent to the
-    normalized governance artifacts that later policy and execution
-    layers will consume.
-    """
-
-    operation: PatchOperation
-    intent: ActionIntent
-    risk: ActionRiskProfile
-
-
-class ForgePatchIntentBridge:
-    """
-    Deterministic bridge from patch plans to governed action intents.
-
-    The bridge does not execute anything. It converts each patch
-    operation into a normalized action intent and a first-pass risk
-    profile so governance policy can reason about file mutations in a
-    stable, explicit way.
+    This is the boundary object that lets the local forge present patch
+    work to Wave 2 governance without bypassing policy, receipt, or
+    human-review controls.
     """
 
-    def build_bundles(
-        self,
-        *,
-        task_id: str,
-        plan: PatchPlan,
-        requested_by: str | None = None,
-        labels: tuple[str, ...] = (),
-        metadata: dict[str, object] | None = None,
-    ) -> tuple[GovernedPatchIntentBundle, ...]:
+    patch_plan: PatchPlan
+    action_intent: ActionIntent
+
+
+class GovernedPatchIntentBuilder:
+    """
+    Convert forge patch plans into explicit governance intents.
+
+    The builder intentionally treats every write-capable patch plan as
+    at least medium risk and human-reviewable by default. Later waves can
+    tune policy pack thresholds, but the default posture remains
+    conservative and auditable.
+    """
+
+    def build(self, patch_plan: PatchPlan) -> GovernedPatchIntent:
         """
-        Convert one patch plan into governed action bundles.
+        Build a governed intent for one patch plan.
         """
-        bundles: list[GovernedPatchIntentBundle] = []
-        normalized_metadata = dict(metadata or {})
+        risk_profile = self._risk_profile_for_patch_plan(patch_plan)
+        action_intent = ActionIntent(
+            action_id=f"patch-plan:{patch_plan.plan_id}",
+            actor="ix-blackfox-forge",
+            kind=ActionKind.MODIFY_FILE,
+            target=patch_plan.target_path,
+            description=patch_plan.summary,
+            risk_profile=risk_profile,
+            metadata={
+                "plan_id": patch_plan.plan_id,
+                "priority": patch_plan.priority.value,
+                "operation_count": str(len(patch_plan.operations)),
+            },
+        )
+        return GovernedPatchIntent(
+            patch_plan=patch_plan,
+            action_intent=action_intent,
+        )
 
-        for index, operation in enumerate(plan.operations):
-            intent_metadata = {
-                **normalized_metadata,
-                "plan_id": plan.plan_id,
-                "operation_index": index,
-                "operation_type": operation.operation_type.value,
-                "patch_priority": operation.priority.value,
+    def build_many(self, patch_plans: tuple[PatchPlan, ...]) -> tuple[GovernedPatchIntent, ...]:
+        """
+        Build governed intents for many patch plans.
+        """
+        return tuple(self.build(patch_plan) for patch_plan in patch_plans)
+
+    def _risk_profile_for_patch_plan(self, patch_plan: PatchPlan) -> ActionRiskProfile:
+        changed_line_total = sum(
+            operation.expected_line_delta for operation in patch_plan.operations
+        )
+        destructive_operations = tuple(
+            operation
+            for operation in patch_plan.operations
+            if operation.operation_type
+            in {
+                PatchOperationType.DELETE_RANGE,
+                PatchOperationType.REPLACE_RANGE,
+                PatchOperationType.REPLACE_FILE,
             }
-            intent = ActionIntent.create(
-                task_id=task_id,
-                action_kind=ActionKind.FILE_WRITE,
-                summary=operation.summary,
-                rationale=operation.rationale,
-                target_locator=operation.relative_path,
-                requested_by=requested_by,
-                labels=_bundle_labels(operation=operation, labels=labels),
-                metadata=intent_metadata,
-            )
-            risk = _build_risk_profile(intent=intent, operation=operation)
-            bundles.append(
-                GovernedPatchIntentBundle(
-                    operation=operation,
-                    intent=intent,
-                    risk=risk,
-                )
-            )
+        )
+        creates_file = any(
+            operation.operation_type is PatchOperationType.CREATE_FILE
+            for operation in patch_plan.operations
+        )
 
-        return tuple(bundles)
+        risk_level = self._risk_level(
+            patch_plan=patch_plan,
+            changed_line_total=changed_line_total,
+            destructive_operations=destructive_operations,
+            creates_file=creates_file,
+        )
 
+        factors: list[RiskFactor] = [
+            RiskFactor.FILESYSTEM_WRITE,
+        ]
+        if destructive_operations:
+            factors.append(RiskFactor.DESTRUCTIVE_OPERATION)
+        if creates_file:
+            factors.append(RiskFactor.EXTERNAL_SIDE_EFFECT)
+        if patch_plan.priority is PatchPriority.URGENT:
+            factors.append(RiskFactor.IRREVERSIBLE_OPERATION)
 
-def _build_risk_profile(
-    *,
-    intent: ActionIntent,
-    operation: PatchOperation,
-) -> ActionRiskProfile:
-    risk_level = _derive_risk_level(operation=operation)
-    factors = tuple(_derive_risk_factors(operation=operation, risk_level=risk_level))
-    requires_approval = (
-        operation.operation_type == PatchOperationType.DELETE
-        or risk_level in {RiskLevel.HIGH, RiskLevel.CRITICAL}
-    )
-
-    return ActionRiskProfile(
-        intent_id=intent.intent_id,
-        risk_level=risk_level,
-        requires_approval=requires_approval,
-        factors=factors,
-        tags=_risk_tags(operation=operation, risk_level=risk_level),
-    )
-
-
-def _derive_risk_level(*, operation: PatchOperation) -> RiskLevel:
-    base_risk = _base_risk_for_path_and_operation(operation=operation)
-    if operation.priority == PatchPriority.CRITICAL:
-        return _escalate_risk(base_risk)
-    if operation.priority == PatchPriority.HIGH and base_risk == RiskLevel.LOW:
-        return RiskLevel.MODERATE
-    return base_risk
-
-
-def _base_risk_for_path_and_operation(*, operation: PatchOperation) -> RiskLevel:
-    relative_path = operation.relative_path
-
-    if _is_test_path(relative_path):
-        if operation.operation_type == PatchOperationType.DELETE:
-            return RiskLevel.MODERATE
-        return RiskLevel.LOW
-
-    if _is_docs_path(relative_path):
-        if operation.operation_type == PatchOperationType.DELETE:
-            return RiskLevel.MODERATE
-        return RiskLevel.LOW
-
-    if relative_path.startswith("src/"):
-        if operation.operation_type == PatchOperationType.DELETE:
-            return RiskLevel.HIGH
-        return RiskLevel.MODERATE
-
-    if operation.operation_type == PatchOperationType.DELETE:
-        return RiskLevel.HIGH
-    return RiskLevel.MODERATE
-
-
-def _derive_risk_factors(
-    *,
-    operation: PatchOperation,
-    risk_level: RiskLevel,
-) -> list[RiskFactor]:
-    factors: list[RiskFactor] = [
-        RiskFactor(
-            code=f"patch-{operation.operation_type.value}",
-            description=(
-                f"Patch plan proposes a {operation.operation_type.value.lower()} "
-                "operation against a tracked workspace path."
+        return ActionRiskProfile(
+            level=risk_level,
+            factors=tuple(dict.fromkeys(factors)),
+            requires_human_review=True,
+            rationale=self._rationale(
+                patch_plan=patch_plan,
+                risk_level=risk_level,
+                changed_line_total=changed_line_total,
+                destructive_operations=destructive_operations,
             ),
         )
-    ]
 
-    if operation.relative_path.startswith("src/"):
-        factors.append(
-            RiskFactor(
-                code="tracked-source-mutation",
-                description="Operation targets tracked application source code.",
+    def _risk_level(
+        self,
+        *,
+        patch_plan: PatchPlan,
+        changed_line_total: int,
+        destructive_operations: tuple[PatchOperation, ...],
+        creates_file: bool,
+    ) -> RiskLevel:
+        if patch_plan.priority is PatchPriority.URGENT:
+            return RiskLevel.HIGH
+        if any(
+            operation.operation_type is PatchOperationType.REPLACE_FILE
+            for operation in destructive_operations
+        ):
+            return RiskLevel.HIGH
+        if len(patch_plan.operations) >= 5:
+            return RiskLevel.HIGH
+        if changed_line_total >= 80:
+            return RiskLevel.HIGH
+        if destructive_operations:
+            return RiskLevel.MEDIUM
+        if creates_file:
+            return RiskLevel.MEDIUM
+        return RiskLevel.MEDIUM
+
+    def _rationale(
+        self,
+        *,
+        patch_plan: PatchPlan,
+        risk_level: RiskLevel,
+        changed_line_total: int,
+        destructive_operations: tuple[PatchOperation, ...],
+    ) -> str:
+        details = [
+            f"Patch plan {patch_plan.plan_id} targets {patch_plan.target_path}.",
+            f"Risk level is {risk_level.value}.",
+            f"Operation count: {len(patch_plan.operations)}.",
+            f"Expected line delta: {changed_line_total}.",
+        ]
+        if destructive_operations:
+            details.append(
+                f"Destructive operation count: {len(destructive_operations)}."
             )
-        )
-    elif _is_test_path(operation.relative_path):
-        factors.append(
-            RiskFactor(
-                code="test-scope-mutation",
-                description="Operation is limited to test-scope files.",
-            )
-        )
-    elif _is_docs_path(operation.relative_path):
-        factors.append(
-            RiskFactor(
-                code="documentation-mutation",
-                description="Operation targets documentation or guidance artifacts.",
-            )
-        )
-    else:
-        factors.append(
-            RiskFactor(
-                code="workspace-mutation",
-                description="Operation mutates a tracked workspace path.",
-            )
-        )
-
-    if operation.priority == PatchPriority.CRITICAL:
-        factors.append(
-            RiskFactor(
-                code="critical-patch-priority",
-                description="Patch planner marked the operation as critical priority.",
-            )
-        )
-    elif operation.priority == PatchPriority.HIGH:
-        factors.append(
-            RiskFactor(
-                code="high-patch-priority",
-                description="Patch planner marked the operation as high priority.",
-            )
-        )
-
-    if operation.operation_type == PatchOperationType.DELETE:
-        factors.append(
-            RiskFactor(
-                code="destructive-file-mutation",
-                description="Operation deletes a tracked file path.",
-            )
-        )
-
-    if risk_level in {RiskLevel.HIGH, RiskLevel.CRITICAL}:
-        factors.append(
-            RiskFactor(
-                code="review-sensitive-mutation",
-                description="Operation crosses the threshold for governed review.",
-            )
-        )
-
-    return factors
-
-
-def _bundle_labels(
-    *,
-    operation: PatchOperation,
-    labels: tuple[str, ...],
-) -> tuple[str, ...]:
-    combined = [
-        "patch-plan",
-        "forge-patch",
-        operation.operation_type.value.lower(),
-        operation.priority.value.lower(),
-        *labels,
-    ]
-    normalized: list[str] = []
-    seen: set[str] = set()
-
-    for raw_label in combined:
-        cleaned = raw_label.strip().lower()
-        if not cleaned:
-            continue
-        if cleaned not in seen:
-            normalized.append(cleaned)
-            seen.add(cleaned)
-
-    return tuple(normalized)
-
-
-def _risk_tags(
-    *,
-    operation: PatchOperation,
-    risk_level: RiskLevel,
-) -> tuple[str, ...]:
-    tags = [
-        "forge-patch",
-        f"risk-{risk_level.value.lower()}",
-        f"priority-{operation.priority.value.lower()}",
-        f"op-{operation.operation_type.value.lower()}",
-    ]
-    if operation.relative_path.startswith("src/"):
-        tags.append("scope-source")
-    elif _is_test_path(operation.relative_path):
-        tags.append("scope-tests")
-    elif _is_docs_path(operation.relative_path):
-        tags.append("scope-docs")
-    else:
-        tags.append("scope-workspace")
-
-    normalized: list[str] = []
-    seen: set[str] = set()
-
-    for raw_tag in tags:
-        cleaned = raw_tag.strip().lower()
-        if not cleaned:
-            continue
-        if cleaned not in seen:
-            normalized.append(cleaned)
-            seen.add(cleaned)
-
-    return tuple(normalized)
-
-
-def _is_test_path(relative_path: str) -> bool:
-    normalized = relative_path.replace("\\", "/")
-    return normalized.startswith("tests/") or "/tests/" in normalized or normalized.startswith(
-        "input/tests/"
-    )
-
-
-def _is_docs_path(relative_path: str) -> bool:
-    normalized = relative_path.replace("\\", "/")
-    return normalized.startswith("docs/") or normalized.endswith(".md")
-
-
-def _escalate_risk(level: RiskLevel) -> RiskLevel:
-    if level == RiskLevel.LOW:
-        return RiskLevel.MODERATE
-    if level == RiskLevel.MODERATE:
-        return RiskLevel.HIGH
-    return level
+        details.append("Human review is required before applying generated patches.")
+        return " ".join(details)
