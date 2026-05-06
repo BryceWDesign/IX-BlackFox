@@ -10,12 +10,12 @@ from ix_blackfox.tools import (
     ParsedTestRunStatus,
     PatchDiff,
     PatchFileChange,
+    ToolCapability,
     ToolFailure,
     ToolFailureKind,
     ToolInvocationRequest,
     ToolInvocationResult,
     ToolInvocationStatus,
-    ToolCapability,
 )
 
 
