@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -19,594 +19,558 @@ from ix_blackfox.tools.manifest import (
     ToolApprovalMode,
     ToolCapability,
     ToolManifest,
-    ToolPathPolicy,
+    ToolParameter,
+    ToolRiskLevel,
     ToolSideEffect,
 )
-from ix_blackfox.tools.patch import (
-    PatchDiff,
-    PatchFileChange,
-    PatchFileChangeKind,
-)
-from ix_blackfox.tools.receipts import ToolInvocationReceiptLedger
-from ix_blackfox.tools.workspace import WorkspacePathResolver, WorkspacePathViolation
-
-
-class PatchApplyWorkspaceError(RuntimeError):
-    """
-    Raised when a patch cannot be safely applied to a governed workspace.
-    """
 
 
 @dataclass(frozen=True, slots=True)
-class PatchApplyFileResult:
+class PatchApplyFileChange:
     """
-    Result for one file mutation applied by the patch tool.
+    One file-level change produced by the patch application tool.
     """
 
     path: str
-    change_kind: PatchFileChangeKind
     before_sha256: str | None
     after_sha256: str | None
-    bytes_written: int
-    status: str
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "path": self.path,
-            "change_kind": self.change_kind.value,
-            "before_sha256": self.before_sha256,
-            "after_sha256": self.after_sha256,
-            "bytes_written": self.bytes_written,
-            "status": self.status,
-        }
+    action: str
 
 
 @dataclass(frozen=True, slots=True)
-class PatchApplyTool:
+class PatchApplyOperation:
     """
-    Governed patch application tool for reserved BlackFox workspaces.
+    One normalized patch-apply operation.
 
-    The tool applies complete before/after patch changes only inside a workspace
-    root controlled by BlackFox. By default, the workspace must contain a marker
-    file named ``.blackfox-workspace`` so this tool cannot silently mutate an
-    arbitrary directory that merely happens to be passed as a path.
-
-    This tool still does not grant itself execution permission. The tool gateway
-    must evaluate policy and approval before calling ``invoke``.
+    Attributes
+    ----------
+    operation:
+        Operation type. Supported values are create_file, replace_file,
+        replace_text, and delete_file.
+    path:
+        Workspace-relative target file path.
+    content:
+        New full file content for create_file or replace_file.
+    old_text:
+        Exact text to replace for replace_text.
+    new_text:
+        Replacement text for replace_text.
+    expected_sha256:
+        Optional expected current SHA-256 digest for optimistic concurrency.
     """
 
-    workspace_root: Path
-    path_policy: ToolPathPolicy | None = None
-    require_workspace_marker: bool = True
-    workspace_marker_name: str = ".blackfox-workspace"
-    encoding: str = "utf-8"
-    artifact_store: ToolArtifactStore | None = None
-    receipt_ledger: ToolInvocationReceiptLedger | None = None
-
-    tool_id: str = "blackfox.workspace.apply_patch"
+    operation: str
+    path: str
+    content: str | None = None
+    old_text: str | None = None
+    new_text: str | None = None
+    expected_sha256: str | None = None
 
     def __post_init__(self) -> None:
-        if not self.workspace_marker_name.strip():
-            raise ValueError("workspace_marker_name must not be empty.")
+        normalized_operation = _normalize_operation(self.operation)
+        normalized_path = _normalize_relative_path(self.path)
+        normalized_expected_sha256 = _normalize_optional_sha256(self.expected_sha256)
+
+        object.__setattr__(self, "operation", normalized_operation)
+        object.__setattr__(self, "path", normalized_path)
+        object.__setattr__(self, "expected_sha256", normalized_expected_sha256)
+
+        if normalized_operation in {"create_file", "replace_file"}:
+            if self.content is None:
+                raise ValueError(f"{normalized_operation} requires content.")
+
+        if normalized_operation == "replace_text":
+            if self.old_text is None:
+                raise ValueError("replace_text requires old_text.")
+            if self.new_text is None:
+                raise ValueError("replace_text requires new_text.")
+
+        if normalized_operation == "delete_file" and self.content is not None:
+            raise ValueError("delete_file must not include content.")
+
+
+@dataclass(frozen=True, slots=True)
+class PatchApplyPlan:
+    """
+    Normalized patch-apply plan accepted by the tool.
+    """
+
+    operations: tuple[PatchApplyOperation, ...]
+    plan_id: str | None = None
+    metadata: Mapping[str, Any] | None = None
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, Any]) -> PatchApplyPlan:
+        raw_operations = payload.get("operations")
+        if not isinstance(raw_operations, list | tuple):
+            raise ValueError("Patch apply payload requires an operations list.")
+
+        operations = tuple(
+            PatchApplyOperation(
+                operation=_require_text(item, "operation"),
+                path=_require_text(item, "path"),
+                content=_optional_text(item, "content"),
+                old_text=_optional_text(item, "old_text"),
+                new_text=_optional_text(item, "new_text"),
+                expected_sha256=_optional_text(item, "expected_sha256"),
+            )
+            for item in raw_operations
+            if isinstance(item, Mapping)
+        )
+
+        if len(operations) != len(raw_operations):
+            raise ValueError("Patch apply operations must all be mapping objects.")
+        if not operations:
+            raise ValueError("Patch apply plan must include at least one operation.")
+
+        raw_metadata = payload.get("metadata")
+        metadata: Mapping[str, Any] | None
+        if raw_metadata is None:
+            metadata = None
+        elif isinstance(raw_metadata, Mapping):
+            metadata = dict(raw_metadata)
+        else:
+            raise ValueError("Patch apply metadata must be a mapping when provided.")
+
+        return cls(
+            operations=operations,
+            plan_id=_optional_text(payload, "plan_id"),
+            metadata=metadata,
+        )
+
+    def __post_init__(self) -> None:
+        if not self.operations:
+            raise ValueError("Patch apply plan must include at least one operation.")
+        if self.plan_id is not None and not self.plan_id.strip():
+            raise ValueError("Patch apply plan_id must not be empty when provided.")
+        object.__setattr__(self, "operations", tuple(self.operations))
+        object.__setattr__(
+            self,
+            "metadata",
+            None if self.metadata is None else dict(self.metadata),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PatchApplyReport:
+    """
+    Structured result from applying a patch plan.
+    """
+
+    plan_id: str | None
+    applied: bool
+    dry_run: bool
+    file_changes: tuple[PatchApplyFileChange, ...]
+    message: str
+    artifact_path: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "plan_id": self.plan_id,
+            "applied": self.applied,
+            "dry_run": self.dry_run,
+            "file_changes": [
+                {
+                    "path": change.path,
+                    "before_sha256": change.before_sha256,
+                    "after_sha256": change.after_sha256,
+                    "action": change.action,
+                }
+                for change in self.file_changes
+            ],
+            "message": self.message,
+            "artifact_path": self.artifact_path,
+        }
+
+
+class PatchApplyTool:
+    """
+    Governed local patch application tool.
+
+    This tool is intentionally conservative:
+    - all paths must remain beneath the workspace root
+    - replacement operations require exact old_text matches
+    - optional expected SHA-256 guards are honored
+    - dry-run mode computes planned changes without writing files
+    """
+
+    tool_name = "patch.apply"
+
+    def __init__(
+        self,
+        *,
+        workspace_root: Path,
+        artifact_store: ToolArtifactStore | None = None,
+    ) -> None:
+        self._workspace_root = workspace_root.expanduser().resolve()
+        self._artifact_store = artifact_store
 
     @property
-    def manifest(self) -> ToolManifest:
-        return build_patch_apply_manifest(
-            path_policy=self.path_policy or _default_patch_path_policy(),
+    def workspace_root(self) -> Path:
+        return self._workspace_root
+
+    @classmethod
+    def manifest(cls) -> ToolManifest:
+        return ToolManifest(
+            name=cls.tool_name,
+            version="0.1.0",
+            description="Apply bounded workspace-local patch plans with dry-run support.",
+            parameters=(
+                ToolParameter(
+                    name="operations",
+                    type_name="array",
+                    description=(
+                        "Patch operations. Each item requires operation and path. "
+                        "Supported operations: create_file, replace_file, replace_text, delete_file."
+                    ),
+                    required=True,
+                ),
+                ToolParameter(
+                    name="plan_id",
+                    type_name="string",
+                    description="Optional caller-supplied patch plan identifier.",
+                    required=False,
+                ),
+                ToolParameter(
+                    name="dry_run",
+                    type_name="boolean",
+                    description="When true, validate and report planned changes without writing files.",
+                    required=False,
+                    default=True,
+                ),
+            ),
+            capabilities=(
+                ToolCapability.FILE_WRITE,
+                ToolCapability.PATCH_APPLY,
+                ToolCapability.ARTIFACT_WRITE,
+            ),
+            side_effects=(
+                ToolSideEffect.FILESYSTEM_WRITE,
+                ToolSideEffect.ARTIFACT_WRITE,
+            ),
+            risk_level=ToolRiskLevel.HIGH,
+            approval_mode=ToolApprovalMode.ALWAYS_REQUIRED,
+            tags=("patch", "filesystem", "workspace", "governed"),
         )
 
     def invoke(self, request: ToolInvocationRequest) -> ToolInvocationResult:
-        if request.tool_id != self.tool_id:
+        if request.tool_name != self.tool_name:
             return _failed_result(
                 request=request,
-                status=ToolInvocationStatus.FAILED,
-                kind=ToolFailureKind.INVALID_REQUEST,
                 message=(
-                    f"PatchApplyTool expected tool_id {self.tool_id!r}; "
-                    f"got {request.tool_id!r}."
+                    f"PatchApplyTool cannot handle tool_name={request.tool_name!r}."
                 ),
+                kind=ToolFailureKind.INVALID_ARGUMENT,
             )
-
-        if request.capability is not ToolCapability.PATCH_APPLY:
-            return _failed_result(
-                request=request,
-                status=ToolInvocationStatus.FAILED,
-                kind=ToolFailureKind.UNSUPPORTED_CAPABILITY,
-                message="PatchApplyTool only supports PATCH_APPLY capability.",
-            )
-
-        self._record_started(request)
 
         try:
-            workspace_root = self._validated_workspace_root()
-            patch_diff = _patch_from_arguments(request.arguments)
-            validation = patch_diff.validate()
-
-            if not validation.is_valid:
-                result = _failed_result(
-                    request=request,
-                    status=ToolInvocationStatus.BLOCKED,
-                    kind=ToolFailureKind.INVALID_REQUEST,
-                    message="Patch validation failed; refusing to apply patch.",
-                    metadata={
-                        "patch_id": patch_diff.patch_id,
-                        "validation": validation.to_dict(),
-                    },
-                )
-                self._record_result(request=request, result=result)
-                return result
-
-            resolver = WorkspacePathResolver(
-                workspace_root=workspace_root,
-                path_policy=self.path_policy or _default_patch_path_policy(),
-            )
-            applied_results = self._apply_patch(
-                patch_diff=patch_diff,
-                resolver=resolver,
-            )
-            unified_diff = patch_diff.to_unified_diff()
-            diff_digest = hashlib.sha256(unified_diff.encode(self.encoding)).hexdigest()
-            persisted_artifacts = self._persist_patch_artifacts(
-                patch_diff=patch_diff,
-                unified_diff=unified_diff,
-                applied_results=applied_results,
-            )
-
-            result = ToolInvocationResult.succeeded(
+            dry_run = _coerce_bool(request.arguments.get("dry_run"), default=True)
+            plan = PatchApplyPlan.from_payload(request.arguments)
+            report = self.apply_plan(plan, dry_run=dry_run)
+        except Exception as error:
+            return _failed_result(
                 request=request,
-                output={
-                    "patch_id": patch_diff.patch_id,
-                    "patch_digest": patch_diff.digest,
-                    "summary": patch_diff.summary,
-                    "file_count": patch_diff.file_count,
-                    "changed_paths": list(patch_diff.changed_paths),
-                    "total_line_delta": patch_diff.total_line_delta,
-                    "validation": validation.to_dict(),
-                    "applied_files": [
-                        applied_result.to_dict()
-                        for applied_result in applied_results
-                    ],
-                    "unified_diff_sha256": diff_digest,
-                    "artifact_uris": [
-                        artifact.uri for artifact in persisted_artifacts
-                    ],
-                },
-                artifacts=persisted_artifacts,
-                metadata={
-                    "workspace_root": str(workspace_root),
-                    "workspace_marker": self.workspace_marker_name,
-                    "tool_id": self.tool_id,
-                },
-            )
-            self._record_result(request=request, result=result)
-            self._record_artifacts(result=result)
-            return result
-
-        except WorkspacePathViolation as exc:
-            result = _failed_result(
-                request=request,
-                status=ToolInvocationStatus.BLOCKED,
-                kind=ToolFailureKind.PATH_VIOLATION,
-                message=str(exc),
-            )
-            self._record_result(request=request, result=result)
-            return result
-        except PatchApplyWorkspaceError as exc:
-            result = _failed_result(
-                request=request,
-                status=ToolInvocationStatus.BLOCKED,
+                message=str(error),
                 kind=ToolFailureKind.EXECUTION_ERROR,
-                message=str(exc),
             )
-            self._record_result(request=request, result=result)
-            return result
-        except Exception as exc:
-            result = _failed_result(
-                request=request,
-                status=ToolInvocationStatus.FAILED,
-                kind=ToolFailureKind.EXECUTION_ERROR,
-                message=f"Patch application failed: {exc}",
+
+        artifact: ToolOutputArtifact | None = None
+        if self._artifact_store is not None:
+            written_artifact = self._artifact_store.write_json(
+                tool_name=self.tool_name,
+                label="patch-apply-report",
+                payload=report.to_dict(),
+                metadata={"invocation_id": request.invocation_id},
             )
-            self._record_result(request=request, result=result)
-            return result
+            artifact = ToolOutputArtifact(
+                name=written_artifact.name,
+                path=written_artifact.path,
+                sha256=written_artifact.sha256,
+                media_type=written_artifact.media_type,
+                metadata=written_artifact.metadata,
+            )
+            report = PatchApplyReport(
+                plan_id=report.plan_id,
+                applied=report.applied,
+                dry_run=report.dry_run,
+                file_changes=report.file_changes,
+                message=report.message,
+                artifact_path=artifact.path,
+            )
 
-    def _validated_workspace_root(self) -> Path:
-        root = self.workspace_root.expanduser().resolve()
+        return ToolInvocationResult(
+            invocation_id=request.invocation_id,
+            tool_name=self.tool_name,
+            status=ToolInvocationStatus.SUCCEEDED,
+            output=report.to_dict(),
+            artifacts=() if artifact is None else (artifact,),
+        )
 
-        if not root.exists():
-            raise PatchApplyWorkspaceError(f"Workspace root does not exist: {root}")
-        if not root.is_dir():
-            raise PatchApplyWorkspaceError(f"Workspace root is not a directory: {root}")
+    def apply_plan(
+        self,
+        plan: PatchApplyPlan,
+        *,
+        dry_run: bool = True,
+    ) -> PatchApplyReport:
+        changes: list[PatchApplyFileChange] = []
 
-        if self.require_workspace_marker:
-            marker_path = root / self.workspace_marker_name
-            if not marker_path.exists() or not marker_path.is_file():
-                raise PatchApplyWorkspaceError(
-                    "Patch application requires a reserved BlackFox workspace marker: "
-                    f"{marker_path}"
+        for operation in plan.operations:
+            target_path = self._resolve_workspace_path(operation.path)
+            before_hash = _sha256_file(target_path) if target_path.exists() else None
+
+            if operation.expected_sha256 is not None and before_hash != operation.expected_sha256:
+                raise ValueError(
+                    "Patch operation expected_sha256 mismatch for "
+                    f"{operation.path}: expected {operation.expected_sha256}, got {before_hash}."
                 )
 
-        return root
+            if operation.operation == "create_file":
+                change = self._create_file(
+                    target_path=target_path,
+                    relative_path=operation.path,
+                    content=operation.content or "",
+                    before_hash=before_hash,
+                    dry_run=dry_run,
+                )
+            elif operation.operation == "replace_file":
+                change = self._replace_file(
+                    target_path=target_path,
+                    relative_path=operation.path,
+                    content=operation.content or "",
+                    before_hash=before_hash,
+                    dry_run=dry_run,
+                )
+            elif operation.operation == "replace_text":
+                change = self._replace_text(
+                    target_path=target_path,
+                    relative_path=operation.path,
+                    old_text=operation.old_text or "",
+                    new_text=operation.new_text or "",
+                    before_hash=before_hash,
+                    dry_run=dry_run,
+                )
+            elif operation.operation == "delete_file":
+                change = self._delete_file(
+                    target_path=target_path,
+                    relative_path=operation.path,
+                    before_hash=before_hash,
+                    dry_run=dry_run,
+                )
+            else:  # pragma: no cover - guarded by PatchApplyOperation
+                raise ValueError(f"Unsupported patch operation: {operation.operation}.")
 
-    def _apply_patch(
+            changes.append(change)
+
+        applied = not dry_run
+        return PatchApplyReport(
+            plan_id=plan.plan_id,
+            applied=applied,
+            dry_run=dry_run,
+            file_changes=tuple(changes),
+            message=(
+                f"Validated {len(changes)} patch operation(s) without writing files."
+                if dry_run
+                else f"Applied {len(changes)} patch operation(s)."
+            ),
+        )
+
+    def _create_file(
         self,
         *,
-        patch_diff: PatchDiff,
-        resolver: WorkspacePathResolver,
-    ) -> tuple[PatchApplyFileResult, ...]:
-        applied: list[PatchApplyFileResult] = []
-
-        for change in patch_diff.file_changes:
-            target_path = resolver.resolve(change.path)
-
-            if change.change_kind is PatchFileChangeKind.ADD:
-                applied.append(self._apply_add(change=change, target_path=target_path))
-                continue
-
-            if change.change_kind is PatchFileChangeKind.MODIFY:
-                applied.append(
-                    self._apply_modify(change=change, target_path=target_path)
-                )
-                continue
-
-            if change.change_kind is PatchFileChangeKind.DELETE:
-                applied.append(
-                    self._apply_delete(change=change, target_path=target_path)
-                )
-                continue
-
-            raise PatchApplyWorkspaceError(
-                f"Unsupported patch change kind: {change.change_kind.value}"
-            )
-
-        return tuple(applied)
-
-    def _apply_add(
-        self,
-        *,
-        change: PatchFileChange,
         target_path: Path,
-    ) -> PatchApplyFileResult:
+        relative_path: str,
+        content: str,
+        before_hash: str | None,
+        dry_run: bool,
+    ) -> PatchApplyFileChange:
         if target_path.exists():
-            raise PatchApplyWorkspaceError(
-                f"ADD change refuses to overwrite existing file: {change.path}"
-            )
-        if change.after_text is None:
-            raise PatchApplyWorkspaceError(
-                f"ADD change is missing after_text: {change.path}"
-            )
+            raise ValueError(f"Cannot create file that already exists: {relative_path}")
 
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-        encoded = change.after_text.encode(self.encoding)
-        target_path.write_bytes(encoded)
-        after_sha256 = _sha256_file(target_path)
+        after_hash = _sha256_text(content)
+        if not dry_run:
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            target_path.write_text(content, encoding="utf-8")
 
-        if after_sha256 != change.after_sha256:
-            raise PatchApplyWorkspaceError(
-                f"ADD change produced unexpected digest for {change.path!r}."
-            )
-
-        return PatchApplyFileResult(
-            path=change.path,
-            change_kind=change.change_kind,
-            before_sha256=None,
-            after_sha256=after_sha256,
-            bytes_written=len(encoded),
-            status="applied",
+        return PatchApplyFileChange(
+            path=relative_path,
+            before_sha256=before_hash,
+            after_sha256=after_hash,
+            action="create_file",
         )
 
-    def _apply_modify(
+    def _replace_file(
         self,
         *,
-        change: PatchFileChange,
         target_path: Path,
-    ) -> PatchApplyFileResult:
+        relative_path: str,
+        content: str,
+        before_hash: str | None,
+        dry_run: bool,
+    ) -> PatchApplyFileChange:
         if not target_path.exists():
-            raise PatchApplyWorkspaceError(
-                f"MODIFY change target does not exist: {change.path}"
-            )
+            raise ValueError(f"Cannot replace missing file: {relative_path}")
         if not target_path.is_file():
-            raise PatchApplyWorkspaceError(
-                f"MODIFY change target is not a file: {change.path}"
-            )
-        if change.before_text is None or change.after_text is None:
-            raise PatchApplyWorkspaceError(
-                f"MODIFY change requires before_text and after_text: {change.path}"
-            )
+            raise ValueError(f"Cannot replace non-file path: {relative_path}")
 
-        current_text = target_path.read_text(encoding=self.encoding)
-        current_sha256 = _sha256_text(current_text)
+        after_hash = _sha256_text(content)
+        if not dry_run:
+            target_path.write_text(content, encoding="utf-8")
 
-        if current_sha256 != change.before_sha256:
-            raise PatchApplyWorkspaceError(
-                f"MODIFY change before_sha256 mismatch for {change.path!r}."
-            )
-        if current_text != change.before_text:
-            raise PatchApplyWorkspaceError(
-                f"MODIFY change before_text mismatch for {change.path!r}."
-            )
-
-        encoded = change.after_text.encode(self.encoding)
-        target_path.write_bytes(encoded)
-        after_sha256 = _sha256_file(target_path)
-
-        if after_sha256 != change.after_sha256:
-            raise PatchApplyWorkspaceError(
-                f"MODIFY change produced unexpected digest for {change.path!r}."
-            )
-
-        return PatchApplyFileResult(
-            path=change.path,
-            change_kind=change.change_kind,
-            before_sha256=current_sha256,
-            after_sha256=after_sha256,
-            bytes_written=len(encoded),
-            status="applied",
+        return PatchApplyFileChange(
+            path=relative_path,
+            before_sha256=before_hash,
+            after_sha256=after_hash,
+            action="replace_file",
         )
 
-    def _apply_delete(
+    def _replace_text(
         self,
         *,
-        change: PatchFileChange,
         target_path: Path,
-    ) -> PatchApplyFileResult:
+        relative_path: str,
+        old_text: str,
+        new_text: str,
+        before_hash: str | None,
+        dry_run: bool,
+    ) -> PatchApplyFileChange:
         if not target_path.exists():
-            raise PatchApplyWorkspaceError(
-                f"DELETE change target does not exist: {change.path}"
-            )
+            raise ValueError(f"Cannot replace text in missing file: {relative_path}")
         if not target_path.is_file():
-            raise PatchApplyWorkspaceError(
-                f"DELETE change target is not a file: {change.path}"
-            )
-        if change.before_text is None:
-            raise PatchApplyWorkspaceError(
-                f"DELETE change requires before_text: {change.path}"
-            )
+            raise ValueError(f"Cannot replace text in non-file path: {relative_path}")
 
-        current_text = target_path.read_text(encoding=self.encoding)
-        current_sha256 = _sha256_text(current_text)
-
-        if current_sha256 != change.before_sha256:
-            raise PatchApplyWorkspaceError(
-                f"DELETE change before_sha256 mismatch for {change.path!r}."
-            )
-        if current_text != change.before_text:
-            raise PatchApplyWorkspaceError(
-                f"DELETE change before_text mismatch for {change.path!r}."
+        current = target_path.read_text(encoding="utf-8")
+        occurrences = current.count(old_text)
+        if occurrences != 1:
+            raise ValueError(
+                "replace_text requires exactly one old_text match for "
+                f"{relative_path}; found {occurrences}."
             )
 
-        target_path.unlink()
+        updated = current.replace(old_text, new_text, 1)
+        after_hash = _sha256_text(updated)
+        if not dry_run:
+            target_path.write_text(updated, encoding="utf-8")
 
-        return PatchApplyFileResult(
-            path=change.path,
-            change_kind=change.change_kind,
-            before_sha256=current_sha256,
+        return PatchApplyFileChange(
+            path=relative_path,
+            before_sha256=before_hash,
+            after_sha256=after_hash,
+            action="replace_text",
+        )
+
+    def _delete_file(
+        self,
+        *,
+        target_path: Path,
+        relative_path: str,
+        before_hash: str | None,
+        dry_run: bool,
+    ) -> PatchApplyFileChange:
+        if not target_path.exists():
+            raise ValueError(f"Cannot delete missing file: {relative_path}")
+        if not target_path.is_file():
+            raise ValueError(f"Cannot delete non-file path: {relative_path}")
+
+        if not dry_run:
+            target_path.unlink()
+
+        return PatchApplyFileChange(
+            path=relative_path,
+            before_sha256=before_hash,
             after_sha256=None,
-            bytes_written=0,
-            status="deleted",
+            action="delete_file",
         )
 
-    def _persist_patch_artifacts(
-        self,
-        *,
-        patch_diff: PatchDiff,
-        unified_diff: str,
-        applied_results: tuple[PatchApplyFileResult, ...],
-    ) -> tuple[ToolOutputArtifact, ...]:
-        store = self.artifact_store
-        if store is None:
-            diff_digest = hashlib.sha256(unified_diff.encode(self.encoding)).hexdigest()
-            return (
-                ToolOutputArtifact.create(
-                    name=f"{patch_diff.patch_id}.diff",
-                    uri=f"patches/{patch_diff.patch_id}.diff",
-                    media_type="text/x-diff",
-                    sha256=diff_digest,
-                    metadata={
-                        "patch_id": patch_diff.patch_id,
-                        "changed_paths": list(patch_diff.changed_paths),
-                        "file_count": patch_diff.file_count,
-                        "source_tool": self.tool_id,
-                        "persisted": False,
-                    },
-                ),
-            )
-
-        patch_directory = f"patches/{patch_diff.patch_id}"
-        patch_payload = patch_diff.to_dict()
-        apply_payload = {
-            "patch_id": patch_diff.patch_id,
-            "patch_digest": patch_diff.digest,
-            "applied_files": [
-                applied_result.to_dict()
-                for applied_result in applied_results
-            ],
-        }
-
-        diff_artifact = store.write_text(
-            relative_path=f"{patch_directory}/patch.diff",
-            text=unified_diff,
-            media_type="text/x-diff",
-            metadata={
-                "patch_id": patch_diff.patch_id,
-                "source_tool": self.tool_id,
-                "artifact_kind": "unified_diff",
-                "persisted": True,
-            },
-        )
-        patch_json_artifact = store.write_json(
-            relative_path=f"{patch_directory}/patch.json",
-            payload=patch_payload,
-            metadata={
-                "patch_id": patch_diff.patch_id,
-                "source_tool": self.tool_id,
-                "artifact_kind": "patch_model",
-                "persisted": True,
-            },
-        )
-        apply_json_artifact = store.write_json(
-            relative_path=f"{patch_directory}/apply-result.json",
-            payload=apply_payload,
-            metadata={
-                "patch_id": patch_diff.patch_id,
-                "source_tool": self.tool_id,
-                "artifact_kind": "apply_result",
-                "persisted": True,
-            },
-        )
-
-        return (diff_artifact, patch_json_artifact, apply_json_artifact)
-
-    def _record_started(self, request: ToolInvocationRequest) -> None:
-        if self.receipt_ledger is None:
-            return
-        self.receipt_ledger.record_invocation_started(
-            request=request,
-            actor="tools.patch_apply",
-        )
-
-    def _record_result(
-        self,
-        *,
-        request: ToolInvocationRequest,
-        result: ToolInvocationResult,
-    ) -> None:
-        if self.receipt_ledger is None:
-            return
-        self.receipt_ledger.record_invocation_result(
-            result=result,
-            request=request,
-            actor="tools.patch_apply",
-        )
-
-    def _record_artifacts(self, *, result: ToolInvocationResult) -> None:
-        if self.receipt_ledger is None:
-            return
-
-        for artifact in result.artifacts:
-            self.receipt_ledger.record_artifact_emitted(
-                result=result,
-                artifact_name=artifact.name,
-                artifact_uri=artifact.uri,
-                actor="tools.patch_apply",
-                metadata={
-                    "artifact_id": artifact.artifact_id,
-                    "sha256": artifact.sha256,
-                    "media_type": artifact.media_type,
-                },
-            )
-
-
-def build_patch_apply_manifest(
-    *,
-    path_policy: ToolPathPolicy | None = None,
-) -> ToolManifest:
-    return ToolManifest(
-        tool_id="blackfox.workspace.apply_patch",
-        name="Workspace Apply Patch",
-        version="0.1.0",
-        summary=(
-            "Apply a validated before/after patch inside a reserved BlackFox "
-            "workspace."
-        ),
-        capabilities=(ToolCapability.PATCH_APPLY, ToolCapability.FILE_WRITE),
-        side_effects=(ToolSideEffect.WRITE_WORKSPACE,),
-        approval_mode=ToolApprovalMode.ALWAYS,
-        input_schema={
-            "type": "object",
-            "required": ["patch"],
-            "properties": {
-                "patch": {"type": "object"},
-            },
-            "additionalProperties": False,
-        },
-        output_schema={
-            "type": "object",
-            "required": [
-                "patch_id",
-                "patch_digest",
-                "summary",
-                "file_count",
-                "changed_paths",
-                "total_line_delta",
-                "validation",
-                "applied_files",
-                "unified_diff_sha256",
-                "artifact_uris",
-            ],
-        },
-        default_timeout_seconds=30.0,
-        path_policy=path_policy or _default_patch_path_policy(),
-        tags=("workspace", "patch", "write", "approval-required"),
-        metadata={
-            "wave": "2",
-            "tool_family": "workspace",
-            "side_effect_class": "write-workspace",
-            "requires_reserved_workspace": True,
-        },
-    )
-
-
-def _patch_from_arguments(arguments: Mapping[str, Any]) -> PatchDiff:
-    raw_patch = arguments.get("patch")
-
-    if isinstance(raw_patch, PatchDiff):
-        return raw_patch
-
-    if isinstance(raw_patch, Mapping):
-        return PatchDiff.from_dict(raw_patch)
-
-    raise PatchApplyWorkspaceError(
-        "PatchApplyTool requires request.arguments['patch'] as a PatchDiff or mapping."
-    )
-
-
-def _default_patch_path_policy() -> ToolPathPolicy:
-    return ToolPathPolicy(
-        allowed_roots=(
-            "src",
-            "tests",
-            "docs",
-            "scripts",
-            "examples",
-            "artifacts",
-        ),
-        blocked_roots=(
-            ".git",
-            ".env",
-            ".ssh",
-            "secrets",
-            "credentials",
-            "__pycache__",
-            ".pytest_cache",
-            ".mypy_cache",
-            ".ruff_cache",
-            "dist",
-            "build",
-        ),
-        allow_absolute_paths=False,
-    )
+    def _resolve_workspace_path(self, relative_path: str) -> Path:
+        target = (self._workspace_root / relative_path).resolve()
+        if not _is_relative_to(target, self._workspace_root):
+            raise ValueError(f"Patch path escapes workspace root: {relative_path}")
+        return target
 
 
 def _failed_result(
     *,
     request: ToolInvocationRequest,
-    status: ToolInvocationStatus,
-    kind: ToolFailureKind,
     message: str,
-    retryable: bool = False,
-    metadata: Mapping[str, Any] | None = None,
+    kind: ToolFailureKind,
 ) -> ToolInvocationResult:
-    return ToolInvocationResult.failed(
-        request=request,
-        status=status,
-        failure=ToolFailure(
-            kind=kind,
-            message=message,
-            retryable=retryable,
-            metadata=dict(metadata or {}),
-        ),
+    return ToolInvocationResult(
+        invocation_id=request.invocation_id,
+        tool_name=request.tool_name,
+        status=ToolInvocationStatus.FAILED,
+        failure=ToolFailure(kind=kind, message=message),
     )
+
+
+def _normalize_operation(value: str) -> str:
+    normalized = value.strip().lower().replace("-", "_")
+    if normalized not in {"create_file", "replace_file", "replace_text", "delete_file"}:
+        raise ValueError(f"Unsupported patch operation: {value!r}.")
+    return normalized
+
+
+def _normalize_relative_path(value: str) -> str:
+    cleaned = value.strip().replace("\\", "/")
+    if not cleaned:
+        raise ValueError("Patch operation path must not be empty.")
+    if cleaned.startswith(("/", "~")):
+        raise ValueError(f"Patch operation path must be relative: {value!r}.")
+
+    parts: list[str] = []
+    for part in cleaned.split("/"):
+        if part in {"", "."}:
+            continue
+        if part == "..":
+            raise ValueError(f"Patch operation path must not contain traversal: {value!r}.")
+        parts.append(part)
+
+    if not parts:
+        raise ValueError("Patch operation path must not resolve to workspace root.")
+
+    return "/".join(parts)
+
+
+def _normalize_optional_sha256(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    cleaned = value.strip().lower()
+    if not cleaned:
+        return None
+    if len(cleaned) != 64:
+        raise ValueError("expected_sha256 must be a 64-character SHA-256 digest.")
+    int(cleaned, 16)
+    return cleaned
+
+
+def _require_text(payload: Mapping[str, Any], key: str) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str):
+        raise ValueError(f"Patch apply field {key!r} must be a string.")
+    return value
+
+
+def _optional_text(payload: Mapping[str, Any], key: str) -> str | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"Patch apply field {key!r} must be a string when provided.")
+    return value
+
+
+def _coerce_bool(value: Any, *, default: bool) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
 
 
 def _sha256_text(value: str) -> str:
@@ -615,3 +579,11 @@ def _sha256_text(value: str) -> str:
 
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _is_relative_to(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
