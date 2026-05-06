@@ -15,194 +15,243 @@ from ix_blackfox.packs import (
 
 
 @dataclass(frozen=True, slots=True)
-class ProgrammingPackConfig:
+class ProgrammingPlanStep:
     """
-    Configuration for the programming pack runtime behavior.
+    One deterministic programming-step suggestion.
 
     Attributes
     ----------
-    allow_patch_generation:
-        Whether the pack may emit patch suggestions.
-    require_tests_for_code_changes:
-        Whether code-changing work should require test evidence.
+    step_id:
+        Stable step identifier within one programming plan.
+    action:
+        Short machine-friendly action label.
+    summary:
+        Human-readable description of the step.
     """
 
-    allow_patch_generation: bool = False
-    require_tests_for_code_changes: bool = True
+    step_id: str
+    action: str
+    summary: str
+
+    def __post_init__(self) -> None:
+        normalized_step_id = _normalize_identifier(self.step_id, label="step id")
+        normalized_action = _normalize_identifier(self.action, label="action")
+        normalized_summary = _normalize_text(self.summary, label="summary")
+
+        object.__setattr__(self, "step_id", normalized_step_id)
+        object.__setattr__(self, "action", normalized_action)
+        object.__setattr__(self, "summary", normalized_summary)
 
 
 class ProgrammingPack(BasePack):
     """
-    Conservative programming pack implementation.
+    Built-in pack for programming-oriented tasks.
 
-    The pack can classify programming tasks and emit deterministic
-    planning guidance. It does not modify files directly; generated
-    changes must flow through forge, governance, and receipts.
+    This first version is intentionally deterministic. It does not claim
+    autonomous code repair. Instead it converts a programming task into a
+    structured action plan, publishes a pack event, and records execution
+    state so later forge integration can follow a stable contract.
     """
 
-    def __init__(
-        self,
-        *,
-        manifest: PackManifest | None = None,
-        config: ProgrammingPackConfig | None = None,
-    ) -> None:
-        super().__init__(manifest=manifest or build_programming_pack_manifest())
-        self._config = config or ProgrammingPackConfig()
-
     @property
-    def config(self) -> ProgrammingPackConfig:
-        """
-        Return the pack runtime configuration.
-        """
-        return self._config
+    def pack_name(self) -> str:
+        return "programming"
 
-    def can_handle(self, task: TaskRecord, context: PackContext) -> bool:
-        """
-        Return whether this pack should handle a task.
-        """
-        if task.kind in {TaskKind.CODE, TaskKind.TEST, TaskKind.REFACTOR}:
-            return True
-
-        searchable_text = " ".join(
-            [
-                task.title,
-                task.description,
-                " ".join(task.tags),
-                str(context.metadata.get("pack_hint", "")),
-            ]
-        ).lower()
-
-        keywords = {
-            "bug",
-            "ci",
-            "code",
-            "debug",
-            "lint",
-            "patch",
-            "pytest",
-            "refactor",
-            "ruff",
-            "test",
-        }
-        return any(keyword in searchable_text for keyword in keywords)
-
-    def handle(self, task: TaskRecord, context: PackContext) -> PackExecutionResult:
-        """
-        Build deterministic programming-task guidance.
-        """
-        if not self.can_handle(task, context):
-            return PackExecutionResult(
-                handled=False,
-                summary="Programming pack did not match this task.",
-                evidence={
-                    "task_kind": task.kind.value,
-                    "pack": self.manifest.name,
-                },
-            )
-
-        recommended_actions = self._recommended_actions(task=task, context=context)
-        blocked_actions = self._blocked_actions(task=task)
-
-        return PackExecutionResult(
-            handled=True,
-            summary=self._summary(task=task),
-            recommended_actions=recommended_actions,
-            blocked_actions=blocked_actions,
-            evidence={
-                "task_id": task.id,
-                "task_kind": task.kind.value,
-                "pack": self.manifest.name,
-                "allow_patch_generation": self._config.allow_patch_generation,
-                "require_tests_for_code_changes": (
-                    self._config.require_tests_for_code_changes
-                ),
-            },
-            emitted_events=(
-                EventEnvelope(
-                    topic=EventTopic.PACK_SELECTED,
-                    payload={
-                        "task_id": task.id,
-                        "pack": self.manifest.name,
-                        "task_kind": task.kind.value,
-                    },
-                ),
-            ),
-        )
-
-    def _recommended_actions(
+    def execute(
         self,
         *,
         task: TaskRecord,
         context: PackContext,
-    ) -> tuple[str, ...]:
-        actions = [
-            "Inspect failing evidence before proposing edits.",
-            "Classify whether the change is code, test, docs, or config.",
-            "Keep file writes inside the reserved workspace boundary.",
-            "Run deterministic verification before marking the task complete.",
-        ]
+    ) -> PackExecutionResult:
+        prompt = task.request.input.prompt
+        steps = self._plan_steps(prompt)
+        summary = self._build_summary(steps)
 
-        if context.brain_context is not None:
-            actions.append(
-                f"Route through brain role {context.brain_context.brain_role.value} "
-                f"using {context.brain_context.brain_name}."
+        context.shared_state.put(
+            "packs",
+            "last_executed",
+            self.pack_name,
+            source=self.pack_name,
+        )
+        context.shared_state.put(
+            "programming",
+            "last_task_id",
+            task.request.task_id,
+            source=self.pack_name,
+        )
+        context.shared_state.put(
+            "programming",
+            "last_plan_step_count",
+            len(steps),
+            source=self.pack_name,
+        )
+
+        context.bus.publish(
+            EventEnvelope.create(
+                topic=EventTopic.PACK,
+                source=self.pack_name,
+                correlation_id=task.request.task_id,
+                payload={
+                    "pack": self.pack_name,
+                    "task_id": task.request.task_id,
+                    "step_count": len(steps),
+                    "actions": tuple(step.action for step in steps),
+                },
+                tags=("pack", "programming", "plan"),
+            )
+        )
+
+        return PackExecutionResult(
+            summary=summary,
+            artifacts=("programming-plan.json",),
+            metrics={
+                "step_count": len(steps),
+                "has_test_step": any(step.action == "run-tests" for step in steps),
+                "has_patch_step": any(step.action == "prepare-patch" for step in steps),
+            },
+            data={
+                "pack": self.pack_name,
+                "task_id": task.request.task_id,
+                "task_kind": task.request.kind.value,
+                "steps": [
+                    {
+                        "step_id": step.step_id,
+                        "action": step.action,
+                        "summary": step.summary,
+                    }
+                    for step in steps
+                ],
+            },
+        )
+
+    def _plan_steps(self, prompt: str) -> tuple[ProgrammingPlanStep, ...]:
+        normalized_prompt = prompt.strip().lower()
+        steps: list[ProgrammingPlanStep] = []
+
+        steps.append(
+            ProgrammingPlanStep(
+                step_id="step-1",
+                action="inspect-repository",
+                summary="Inspect the repository surface before making changes.",
+            )
+        )
+
+        if _contains_any(
+            normalized_prompt,
+            ("bug", "fix", "repair", "patch", "broken", "error", "failing"),
+        ):
+            steps.append(
+                ProgrammingPlanStep(
+                    step_id=f"step-{len(steps) + 1}",
+                    action="prepare-patch",
+                    summary="Prepare a focused patch plan for the failing area.",
+                )
             )
 
-        if self._config.allow_patch_generation:
-            actions.append("Generate patch candidates only after policy review.")
-        else:
-            actions.append("Do not generate patches directly from the pack runtime.")
+        if _contains_any(
+            normalized_prompt,
+            ("test", "tests", "pytest", "regression", "verify", "validation"),
+        ):
+            steps.append(
+                ProgrammingPlanStep(
+                    step_id=f"step-{len(steps) + 1}",
+                    action="run-tests",
+                    summary="Run targeted tests and collect regression evidence.",
+                )
+            )
 
-        if task.kind in {TaskKind.CODE, TaskKind.REFACTOR}:
-            actions.append("Require tests or a documented no-test rationale.")
+        if _contains_any(
+            normalized_prompt,
+            ("profile", "performance", "slow", "latency", "optimize"),
+        ):
+            steps.append(
+                ProgrammingPlanStep(
+                    step_id=f"step-{len(steps) + 1}",
+                    action="profile-execution",
+                    summary="Profile execution hot spots before optimization.",
+                )
+            )
 
-        return tuple(actions)
+        if _contains_any(
+            normalized_prompt,
+            ("document", "docs", "readme", "explain", "comment"),
+        ):
+            steps.append(
+                ProgrammingPlanStep(
+                    step_id=f"step-{len(steps) + 1}",
+                    action="document-results",
+                    summary="Document the programming changes and resulting behavior.",
+                )
+            )
 
-    def _blocked_actions(self, *, task: TaskRecord) -> tuple[str, ...]:
-        blocked = [
-            "Do not bypass governance checks.",
-            "Do not write outside the reserved workspace.",
-        ]
+        if len(steps) == 1:
+            steps.append(
+                ProgrammingPlanStep(
+                    step_id="step-2",
+                    action="analyze-code",
+                    summary="Analyze relevant code paths and derive next actions.",
+                )
+            )
 
-        if task.kind in {TaskKind.CODE, TaskKind.REFACTOR}:
-            blocked.append("Do not claim success without verification evidence.")
+        return tuple(steps)
 
-        return tuple(blocked)
-
-    def _summary(self, *, task: TaskRecord) -> str:
+    def _build_summary(self, steps: tuple[ProgrammingPlanStep, ...]) -> str:
+        action_text = ", ".join(step.action for step in steps)
         return (
-            f"Programming pack matched {task.kind.value} task {task.id} "
-            "and produced governed implementation guidance."
+            f"Programming pack prepared {len(steps)} deterministic step(s): "
+            f"{action_text}."
         )
 
 
-def build_programming_pack_manifest() -> PackManifest:
+def build_programming_manifest() -> PackManifest:
     """
-    Build the built-in programming pack manifest.
+    Build the manifest for the built-in programming pack.
     """
     return PackManifest(
-        name="programming",
+        pack_name="programming",
         version="0.1.0",
         description=(
-            "Conservative programming specialist pack for code, tests, lint, "
-            "debugging, and refactor work."
+            "Deterministic programming pack for repository inspection, patch "
+            "planning, testing, profiling, and code-oriented documentation."
         ),
+        supported_kinds=(TaskKind.PROGRAMMING,),
+        labels=("code", "patching", "testing", "profiling", "documentation"),
         capabilities=(
             PackCapability(
-                capability_type=PackCapabilityType.CODE_ANALYSIS,
-                name="code-analysis",
-                description="Analyze code-related tasks and failing evidence.",
+                name="repository inspection",
+                capability_type=PackCapabilityType.REASONING,
+                description="Plans repository-first inspection for programming tasks.",
             ),
             PackCapability(
-                capability_type=PackCapabilityType.TESTING,
-                name="test-planning",
-                description="Plan verification for code changes.",
+                name="patch planning",
+                capability_type=PackCapabilityType.REASONING,
+                description="Creates deterministic patch-oriented action sequences.",
             ),
             PackCapability(
-                capability_type=PackCapabilityType.REFACTORING,
-                name="refactor-guidance",
-                description="Provide conservative refactor guidance.",
+                name="test orchestration hinting",
+                capability_type=PackCapabilityType.VALIDATION,
+                description="Signals when testing and regression steps are expected.",
             ),
         ),
-        tags=("code", "test", "debug", "lint", "refactor", "ci"),
+        dependencies=(),
+        entrypoint="ix_blackfox.packs.programming.runtime:ProgrammingPack",
+        is_default=True,
     )
+
+
+def _contains_any(text: str, terms: tuple[str, ...]) -> bool:
+    return any(term in text for term in terms)
+
+
+def _normalize_identifier(value: str, *, label: str) -> str:
+    cleaned = value.strip().lower()
+    if not cleaned:
+        raise ValueError(f"Programming pack {label} must not be empty.")
+    return cleaned
+
+
+def _normalize_text(value: str, *, label: str) -> str:
+    cleaned = value.strip()
+    if not cleaned:
+        raise ValueError(f"Programming pack {label} must not be empty.")
+    return cleaned
