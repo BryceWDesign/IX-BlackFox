@@ -3,13 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from ix_blackfox.brains import (
-    BrainFailure,
     BrainFailureKind,
     BrainInvocationReceiptLedger,
     BrainInvocationResult,
     BrainInvocationStatus,
     BrainModality,
-    BrainRole,
 )
 from ix_blackfox.brains.providers import (
     BrainProvider,
