@@ -7,7 +7,6 @@ from ix_blackfox.eval import (
     EvaluationContext,
     EvaluationFinding,
     EvaluationSeverity,
-    EvaluationStatus,
     OutputVerifier,
     RuleBasedEvaluator,
     VerificationContext,
