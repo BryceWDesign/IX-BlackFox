@@ -15,27 +15,31 @@ from ix_blackfox.packs.base import (
     PackExecutionResult,
 )
 from ix_blackfox.packs.loader import (
-    PackLoadError,
+    EntrypointSpec,
+    LoadedPack,
     PackLoader,
-    PackRegistry,
+    PackLoadError,
 )
 from ix_blackfox.packs.manifest import (
     PackCapability,
     PackCapabilityType,
     PackManifest,
-    PackSafetyBoundary,
+    PackManifestSnapshot,
 )
+from ix_blackfox.packs.registry import PackManifestRegistry
 
 __all__ = [
     "BasePack",
-    "PackBrainContext",
+    "EntrypointSpec",
+    "LoadedPack",
     "PackCapability",
     "PackCapabilityType",
+    "PackBrainContext",
     "PackContext",
     "PackExecutionResult",
     "PackLoadError",
     "PackLoader",
     "PackManifest",
-    "PackRegistry",
-    "PackSafetyBoundary",
+    "PackManifestRegistry",
+    "PackManifestSnapshot",
 ]
