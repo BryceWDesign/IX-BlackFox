@@ -4,7 +4,7 @@ import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum, auto
-from typing import Any, Self
+from typing import Any, Self, cast
 
 from ix_blackfox.tools.contracts import ToolInvocationRequest
 from ix_blackfox.tools.manifest import (
@@ -30,7 +30,7 @@ class ToolRiskLevel(StrEnum):
 
 class ToolRiskFactor(StrEnum):
     """
-    Coarse risk factors retained for older policy-ledger integrations.
+    Coarse risk factors retained for policy, gateway, and receipt integrations.
     """
 
     APPROVAL_REQUIRED = auto()
@@ -54,7 +54,7 @@ class ToolRiskFactor(StrEnum):
 @dataclass(frozen=True, slots=True)
 class ToolRiskSignal:
     """
-    One explainable risk signal raised by the classifier.
+    One explainable risk signal raised by the deterministic classifier.
     """
 
     code: str
@@ -63,11 +63,11 @@ class ToolRiskSignal:
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        if self.score < 0:
+            raise ValueError("Tool risk signal score must be non-negative.")
         object.__setattr__(self, "code", _normalize_signal_code(self.code))
         object.__setattr__(self, "summary", _normalize_text(self.summary, "summary"))
         object.__setattr__(self, "metadata", dict(self.metadata))
-        if self.score < 0:
-            raise ValueError("Tool risk signal score must be non-negative.")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -162,29 +162,24 @@ class ToolRiskAssessment:
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> Self:
-        raw_signals = payload.get("signals", ())
-        if not isinstance(raw_signals, Iterable) or isinstance(raw_signals, str):
-            raise TypeError("Tool risk assessment signals must be an iterable.")
-        signals: list[ToolRiskSignal] = []
-        for raw_signal in raw_signals:
-            if not isinstance(raw_signal, Mapping):
-                raise TypeError("Tool risk assessment signals must contain mappings.")
-            signals.append(ToolRiskSignal.from_dict(raw_signal))
-
-        raw_factors = payload.get("factors", ())
-        if not isinstance(raw_factors, Iterable) or isinstance(raw_factors, str):
-            raise TypeError("Tool risk assessment factors must be an iterable.")
-        factors = tuple(ToolRiskFactor(str(raw_factor)) for raw_factor in raw_factors)
-
-        tool_name = payload.get("tool_name", payload.get("tool_id"))
-        if not isinstance(tool_name, str):
+        raw_tool_name = payload.get("tool_name", payload.get("tool_id"))
+        if not isinstance(raw_tool_name, str):
             raise TypeError("Tool risk assessment tool_name must be a string.")
 
+        signals = tuple(
+            ToolRiskSignal.from_dict(raw_signal)
+            for raw_signal in _mapping_tuple(payload.get("signals", ()), "signals")
+        )
+        factors = tuple(
+            ToolRiskFactor(raw_factor)
+            for raw_factor in _string_tuple(payload.get("factors", ()), "factors")
+        )
+
         return cls(
-            tool_name=tool_name,
+            tool_name=raw_tool_name,
             level=ToolRiskLevel(_require_text(payload, "level")),
             score=int(payload.get("score", 0)),
-            signals=tuple(signals),
+            signals=signals,
             factors=factors,
             rationale=str(payload.get("rationale", "Tool risk assessment restored.")),
             requires_human_review=bool(payload.get("requires_human_review", False)),
@@ -196,91 +191,14 @@ class ToolRiskClassifier:
     """
     Deterministic classifier for governed tool invocation risk.
 
-    It uses only manifest declarations and request payloads. It does not execute
-    tools, inspect the host system, or trust a model-authored argument simply
-    because a tool is registered.
+    This layer only reads the tool manifest and request arguments. It never
+    executes tools and never treats a model-authored argument as trusted.
     """
 
-    _SIDE_EFFECT_RULES: Mapping[
-        ToolSideEffect,
-        tuple[str, int, str, ToolRiskFactor | None],
-    ] = {
-        ToolSideEffect.NONE: ("no-side-effect", 0, "The tool declares no side effect.", None),
-        ToolSideEffect.READ_WORKSPACE: (
-            "workspace-read",
-            5,
-            "The tool can read files or directories from the workspace.",
-            ToolRiskFactor.WORKSPACE_READ,
-        ),
-        ToolSideEffect.WRITE_WORKSPACE: (
-            "workspace-write",
-            20,
-            "The tool can write or mutate workspace files.",
-            ToolRiskFactor.FILESYSTEM_WRITE,
-        ),
-        ToolSideEffect.RUN_PROCESS: (
-            "process-execution",
-            35,
-            "The tool can execute a local process.",
-            ToolRiskFactor.PROCESS_EXECUTION,
-        ),
-        ToolSideEffect.ACCESS_NETWORK: (
-            "network-access",
-            35,
-            "The tool can access the network.",
-            ToolRiskFactor.NETWORK_ACCESS,
-        ),
-        ToolSideEffect.MUTATE_SYSTEM: (
-            "system-mutation",
-            80,
-            "The tool can mutate host or system state outside the workspace.",
-            ToolRiskFactor.EXTERNAL_SIDE_EFFECT,
-        ),
-    }
-    _CAPABILITY_RULES: Mapping[
-        ToolCapability,
-        tuple[str, int, str, ToolRiskFactor | None],
-    ] = {
-        ToolCapability.FILE_READ: (
-            "file-read-capability",
-            5,
-            "The tool declares file-read capability.",
-            ToolRiskFactor.WORKSPACE_READ,
-        ),
-        ToolCapability.FILE_WRITE: (
-            "file-write-capability",
-            15,
-            "The tool declares file-write capability.",
-            ToolRiskFactor.FILESYSTEM_WRITE,
-        ),
-        ToolCapability.PATCH_APPLY: (
-            "patch-apply-capability",
-            20,
-            "The tool declares patch-application capability.",
-            ToolRiskFactor.PATCH_APPLY,
-        ),
-        ToolCapability.COMMAND_EXECUTION: (
-            "process-execution-capability",
-            20,
-            "The tool declares command-execution capability.",
-            ToolRiskFactor.PROCESS_EXECUTION,
-        ),
-        ToolCapability.TEST_EXECUTION: (
-            "test-execution-capability",
-            20,
-            "The tool declares test-execution capability.",
-            ToolRiskFactor.PROCESS_EXECUTION,
-        ),
-        ToolCapability.ARTIFACT_EXPORT: (
-            "artifact-export-capability",
-            5,
-            "The tool can emit exported artifacts.",
-            ToolRiskFactor.EXTERNAL_SIDE_EFFECT,
-        ),
-    }
     _REVIEW_SIGNAL_CODES = frozenset(
         {
             "destructive-operation-reference",
+            "manifest-approval-required",
             "network-access",
             "override-requested",
             "patch-apply-capability",
@@ -313,7 +231,14 @@ class ToolRiskClassifier:
             )
             factors.append(ToolRiskFactor.UNKNOWN_TOOL)
             metadata["known_tool"] = False
-            return self._assessment(request, None, score, signals, factors, metadata)
+            return self._build_assessment(
+                request=request,
+                manifest=None,
+                score=score,
+                signals=tuple(signals),
+                factors=tuple(factors),
+                metadata=metadata,
+            )
 
         metadata.update(
             {
@@ -345,20 +270,10 @@ class ToolRiskClassifier:
             factors.append(ToolRiskFactor.UNSUPPORTED_CAPABILITY)
 
         for side_effect in manifest.side_effects:
-            score += self._score_declared_rule(
-                side_effect,
-                rules=self._SIDE_EFFECT_RULES,
-                signals=signals,
-                factors=factors,
-            )
+            score += self._score_side_effect(side_effect, signals=signals, factors=factors)
 
         for capability in manifest.capabilities:
-            score += self._score_declared_rule(
-                capability,
-                rules=self._CAPABILITY_RULES,
-                signals=signals,
-                factors=factors,
-            )
+            score += self._score_capability(capability, signals=signals, factors=factors)
 
         if manifest.approval_mode is ToolApprovalMode.ALWAYS:
             score += _append_signal(
@@ -373,43 +288,143 @@ class ToolRiskClassifier:
         score += argument_score
         factors.extend(argument_factors)
 
-        return self._assessment(request, manifest, score, signals, factors, metadata)
+        return self._build_assessment(
+            request=request,
+            manifest=manifest,
+            score=score,
+            signals=tuple(signals),
+            factors=tuple(factors),
+            metadata=metadata,
+        )
 
-    def _score_declared_rule(
+    def _score_side_effect(
         self,
-        value: ToolSideEffect | ToolCapability,
+        side_effect: ToolSideEffect,
         *,
-        rules: Mapping[
-            ToolSideEffect | ToolCapability,
-            tuple[str, int, str, ToolRiskFactor | None],
-        ],
         signals: list[ToolRiskSignal],
         factors: list[ToolRiskFactor],
     ) -> int:
-        rule = rules.get(value)
-        if rule is None:
+        if side_effect is ToolSideEffect.NONE:
             return 0
-        code, signal_score, summary, factor = rule
-        if code != "no-side-effect":
-            score = _append_signal(
-                signals,
-                code=code,
-                signal_score=signal_score,
-                summary=summary,
-            )
-        else:
-            score = 0
-        if factor is not None:
-            factors.append(factor)
-        return score
 
-    def _assessment(
+        if side_effect is ToolSideEffect.READ_WORKSPACE:
+            factors.append(ToolRiskFactor.WORKSPACE_READ)
+            return _append_signal(
+                signals,
+                code="workspace-read",
+                signal_score=5,
+                summary="The tool can read files or directories from the workspace.",
+            )
+
+        if side_effect is ToolSideEffect.WRITE_WORKSPACE:
+            factors.append(ToolRiskFactor.FILESYSTEM_WRITE)
+            return _append_signal(
+                signals,
+                code="workspace-write",
+                signal_score=20,
+                summary="The tool can write or mutate workspace files.",
+            )
+
+        if side_effect is ToolSideEffect.RUN_PROCESS:
+            factors.append(ToolRiskFactor.PROCESS_EXECUTION)
+            return _append_signal(
+                signals,
+                code="process-execution",
+                signal_score=35,
+                summary="The tool can execute a local process.",
+            )
+
+        if side_effect is ToolSideEffect.ACCESS_NETWORK:
+            factors.append(ToolRiskFactor.NETWORK_ACCESS)
+            return _append_signal(
+                signals,
+                code="network-access",
+                signal_score=35,
+                summary="The tool can access the network.",
+            )
+
+        if side_effect is ToolSideEffect.MUTATE_SYSTEM:
+            factors.append(ToolRiskFactor.EXTERNAL_SIDE_EFFECT)
+            return _append_signal(
+                signals,
+                code="system-mutation",
+                signal_score=80,
+                summary="The tool can mutate host or system state outside the workspace.",
+            )
+
+        return 0
+
+    def _score_capability(
         self,
+        capability: ToolCapability,
+        *,
+        signals: list[ToolRiskSignal],
+        factors: list[ToolRiskFactor],
+    ) -> int:
+        if capability is ToolCapability.FILE_READ:
+            factors.append(ToolRiskFactor.WORKSPACE_READ)
+            return _append_signal(
+                signals,
+                code="file-read-capability",
+                signal_score=5,
+                summary="The tool declares file-read capability.",
+            )
+
+        if capability is ToolCapability.FILE_WRITE:
+            factors.append(ToolRiskFactor.FILESYSTEM_WRITE)
+            return _append_signal(
+                signals,
+                code="file-write-capability",
+                signal_score=15,
+                summary="The tool declares file-write capability.",
+            )
+
+        if capability is ToolCapability.PATCH_APPLY:
+            factors.append(ToolRiskFactor.PATCH_APPLY)
+            return _append_signal(
+                signals,
+                code="patch-apply-capability",
+                signal_score=20,
+                summary="The tool declares patch-application capability.",
+            )
+
+        if capability is ToolCapability.COMMAND_EXECUTION:
+            factors.append(ToolRiskFactor.PROCESS_EXECUTION)
+            return _append_signal(
+                signals,
+                code="process-execution-capability",
+                signal_score=20,
+                summary="The tool declares command-execution capability.",
+            )
+
+        if capability is ToolCapability.TEST_EXECUTION:
+            factors.append(ToolRiskFactor.PROCESS_EXECUTION)
+            return _append_signal(
+                signals,
+                code="test-execution-capability",
+                signal_score=20,
+                summary="The tool declares test-execution capability.",
+            )
+
+        if capability is ToolCapability.ARTIFACT_EXPORT:
+            factors.append(ToolRiskFactor.EXTERNAL_SIDE_EFFECT)
+            return _append_signal(
+                signals,
+                code="artifact-export-capability",
+                signal_score=5,
+                summary="The tool can emit exported artifacts.",
+            )
+
+        return 0
+
+    def _build_assessment(
+        self,
+        *,
         request: ToolInvocationRequest,
         manifest: ToolManifest | None,
         score: int,
-        signals: Iterable[ToolRiskSignal],
-        factors: Iterable[ToolRiskFactor],
+        signals: tuple[ToolRiskSignal, ...],
+        factors: tuple[ToolRiskFactor, ...],
         metadata: Mapping[str, Any],
     ) -> ToolRiskAssessment:
         unique_signals = _dedupe_signals(signals)
@@ -423,6 +438,7 @@ class ToolRiskClassifier:
         signal_text = ", ".join(signal.code for signal in unique_signals)
         if not signal_text:
             signal_text = "no elevated signals"
+
         return ToolRiskAssessment(
             tool_name=request.tool_id,
             level=level,
@@ -434,7 +450,7 @@ class ToolRiskClassifier:
                 f"with score {score}. Signals: {signal_text}."
             ),
             requires_human_review=requires_human_review,
-            metadata=metadata,
+            metadata=dict(metadata),
         )
 
 
@@ -471,9 +487,13 @@ class ToolRiskPolicy:
         object.__setattr__(
             self,
             "require_review_for_factors",
-            tuple(self.require_review_for_factors),
+            tuple(dict.fromkeys(self.require_review_for_factors)),
         )
-        object.__setattr__(self, "block_factors", tuple(self.block_factors))
+        object.__setattr__(
+            self,
+            "block_factors",
+            tuple(dict.fromkeys(self.block_factors)),
+        )
 
 
 class ToolRiskDecisionKind(StrEnum):
@@ -615,13 +635,8 @@ class ToolRiskLedger:
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> Self:
         ledger = cls()
-        raw_decisions = payload.get("decisions", ())
-        if not isinstance(raw_decisions, Iterable) or isinstance(raw_decisions, str):
-            raise TypeError("Tool risk ledger decisions must be iterable.")
 
-        for raw_decision in raw_decisions:
-            if not isinstance(raw_decision, Mapping):
-                raise TypeError("Tool risk ledger decisions must contain mappings.")
+        for raw_decision in _mapping_tuple(payload.get("decisions", ()), "decisions"):
             raw_assessment = raw_decision.get("assessment")
             if not isinstance(raw_assessment, Mapping):
                 raise TypeError("Tool risk decision assessment must be a mapping.")
@@ -629,7 +644,9 @@ class ToolRiskLedger:
                 ToolRiskDecision(
                     decision=ToolRiskDecisionKind(_require_text(raw_decision, "decision")),
                     reason=_require_text(raw_decision, "reason"),
-                    assessment=ToolRiskAssessment.from_dict(raw_assessment),
+                    assessment=ToolRiskAssessment.from_dict(
+                        cast(Mapping[str, Any], raw_assessment)
+                    ),
                 )
             )
 
@@ -653,6 +670,7 @@ def _score_arguments(
             metadata={"serialized_length": len(serialized)},
         )
         factors.append(ToolRiskFactor.LARGE_ARGUMENT_PAYLOAD)
+
     if _contains_path_traversal_signal(arguments):
         score += _append_signal(
             signals,
@@ -661,6 +679,7 @@ def _score_arguments(
             summary="The invocation arguments reference path traversal.",
         )
         factors.append(ToolRiskFactor.PATH_TRAVERSAL_SIGNAL)
+
     if _contains_absolute_path_signal(arguments):
         score += _append_signal(
             signals,
@@ -669,6 +688,7 @@ def _score_arguments(
             summary="The invocation arguments reference an absolute path.",
         )
         factors.append(ToolRiskFactor.ABSOLUTE_PATH_SIGNAL)
+
     if _contains_sensitive_path_signal(arguments):
         score += _append_signal(
             signals,
@@ -677,6 +697,7 @@ def _score_arguments(
             summary="The invocation arguments reference a sensitive path or secret-like name.",
         )
         factors.append(ToolRiskFactor.SENSITIVE_PATH_SIGNAL)
+
     if _contains_destructive_signal(arguments):
         score += _append_signal(
             signals,
@@ -685,6 +706,7 @@ def _score_arguments(
             summary="The invocation arguments contain destructive operation language.",
         )
         factors.append(ToolRiskFactor.DESTRUCTIVE_OPERATION)
+
     if _contains_override_signal(arguments):
         score += _append_signal(
             signals,
@@ -708,6 +730,7 @@ def _append_signal(
     normalized_code = _normalize_signal_code(code)
     if any(signal.code == normalized_code for signal in signals):
         return 0
+
     signals.append(
         ToolRiskSignal(
             code=normalized_code,
@@ -734,7 +757,7 @@ def _request_metadata(request: ToolInvocationRequest) -> dict[str, Any]:
         "invocation_id": request.invocation_id,
         "tool_id": request.tool_id,
         "requested_capability": request.capability.value,
-        "argument_keys": sorted(request.arguments.keys()),
+        "argument_keys": sorted(str(key) for key in request.arguments.keys()),
     }
 
 
@@ -822,32 +845,67 @@ def _walk_argument_values(value: Any) -> Iterable[Any]:
     if isinstance(value, Mapping):
         for nested_value in value.values():
             yield from _walk_argument_values(nested_value)
-    elif isinstance(value, list | tuple | set):
+        return
+
+    if isinstance(value, list | tuple | set):
         for item in value:
             yield from _walk_argument_values(item)
-    else:
-        yield value
+        return
+
+    yield value
 
 
 def _walk_argument_items(value: Mapping[str, Any]) -> Iterable[tuple[str, Any]]:
     for key, nested_value in value.items():
         yield str(key), nested_value
+
         if isinstance(nested_value, Mapping):
-            yield from _walk_argument_items(nested_value)
-        elif isinstance(nested_value, list | tuple | set):
+            yield from _walk_argument_items(cast(Mapping[str, Any], nested_value))
+            continue
+
+        if isinstance(nested_value, list | tuple | set):
             for item in nested_value:
                 if isinstance(item, Mapping):
-                    yield from _walk_argument_items(item)
+                    yield from _walk_argument_items(cast(Mapping[str, Any], item))
 
 
 def _dedupe_signals(signals: Iterable[ToolRiskSignal]) -> tuple[ToolRiskSignal, ...]:
     deduped: list[ToolRiskSignal] = []
     seen: set[str] = set()
+
     for signal in signals:
-        if signal.code not in seen:
-            deduped.append(signal)
-            seen.add(signal.code)
+        if signal.code in seen:
+            continue
+        deduped.append(signal)
+        seen.add(signal.code)
+
     return tuple(deduped)
+
+
+def _mapping_tuple(value: Any, field_name: str) -> tuple[Mapping[str, Any], ...]:
+    if isinstance(value, str) or not isinstance(value, Iterable):
+        raise TypeError(f"{field_name} must be an iterable of mappings.")
+
+    mappings: list[Mapping[str, Any]] = []
+    for item in value:
+        if not isinstance(item, Mapping):
+            raise TypeError(f"{field_name} must contain only mappings.")
+        mappings.append(cast(Mapping[str, Any], item))
+
+    return tuple(mappings)
+
+
+def _string_tuple(value: Any, field_name: str) -> tuple[str, ...]:
+    if isinstance(value, str) or not isinstance(value, Iterable):
+        raise TypeError(f"{field_name} must be an iterable of strings.")
+
+    values: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            raise TypeError(f"{field_name} must contain only strings.")
+        values.append(item)
+
+    return tuple(values)
 
 
 def _normalize_signal_code(value: str) -> str:
