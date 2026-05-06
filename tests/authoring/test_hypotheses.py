@@ -9,8 +9,6 @@ from ix_blackfox.authoring import (
     AuthoringContextFile,
     AuthoringEvidence,
     AuthoringEvidenceStrength,
-    AuthoringFinding,
-    AuthoringFindingSeverity,
     AuthoringRequest,
     AuthoringRiskLevel,
     RepairFailureClass,
