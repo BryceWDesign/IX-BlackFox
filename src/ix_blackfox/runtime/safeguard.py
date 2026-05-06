@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any
 
 from ix_blackfox.brains import (
     BrainCapability,
@@ -552,7 +553,7 @@ def _parse_strings(value: Any) -> tuple[str, ...]:
     raw_items: tuple[Any, ...]
     if isinstance(value, str):
         raw_items = (value,)
-    elif isinstance(value, (list, tuple)):
+    elif isinstance(value, list | tuple):
         raw_items = tuple(value)
     else:
         return ()
