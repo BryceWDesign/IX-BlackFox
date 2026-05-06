@@ -72,11 +72,9 @@ class HarmonyRenderer:
 
         if active_config.append_generation_prompt:
             rendered_parts.append(
-                (
-                    f"{_HARMONY_START}assistant"
-                    f"{_HARMONY_CHANNEL}{active_config.assistant_channel}"
-                    f"{_HARMONY_MESSAGE}\n"
-                )
+                f"{_HARMONY_START}assistant"
+                f"{_HARMONY_CHANNEL}{active_config.assistant_channel}"
+                f"{_HARMONY_MESSAGE}\n"
             )
 
         return "\n".join(rendered_parts)
@@ -152,10 +150,7 @@ class PlainTranscriptRenderer:
         """
         Render a normalized conversation as a simple transcript.
         """
-        blocks = [
-            self.render_message(message)
-            for message in conversation.messages
-        ]
+        blocks = [self.render_message(message) for message in conversation.messages]
         return "\n\n".join(blocks)
 
     def render_request(
@@ -183,7 +178,7 @@ class PlainTranscriptRenderer:
         """
         label = message.role.upper().replace("-", " ")
         return f"[{label}]\n{message.content}"
-        
+
 
 def _normalize_channel(value: str, *, label: str) -> str:
     cleaned = value.strip().lower().replace(" ", "-")
