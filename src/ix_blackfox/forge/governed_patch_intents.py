@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 from ix_blackfox.forge.patch_plan import (
     PatchOperation,
@@ -18,148 +19,428 @@ from ix_blackfox.governance import (
 
 
 @dataclass(frozen=True, slots=True)
-class GovernedPatchIntent:
+class GovernedPatchIntentBundle:
     """
-    Pair a forge patch plan with deterministic governance intent.
+    One patch-plan operation translated into governance-ready intent and risk.
 
-    This is the boundary object that lets the local forge present patch
-    work to Wave 2 governance without bypassing policy, receipt, or
-    human-review controls.
+    The bundle is intentionally operation-scoped instead of plan-scoped so a
+    mixed plan can allow a low-risk docs change while still requiring review for
+    a destructive source mutation in the same generated plan.
     """
 
-    patch_plan: PatchPlan
-    action_intent: ActionIntent
+    plan: PatchPlan
+    operation: PatchOperation
+    intent: ActionIntent
+    risk: ActionRiskProfile
+    operation_index: int
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.operation_index < 0:
+            raise ValueError("operation_index must be zero or greater.")
+        if self.risk.intent_id != self.intent.intent_id:
+            raise ValueError("Patch intent bundle risk must reference the intent id.")
+        object.__setattr__(self, "metadata", dict(self.metadata))
+
+
+GovernedPatchIntent = GovernedPatchIntentBundle
+
+
+class ForgePatchIntentBridge:
+    """
+    Convert forge patch plans into explicit governance action intents.
+
+    This bridge does not apply patches and does not approve them. It translates
+    patch-planner output into the same governance model used by the runtime so
+    generated repairs stay policy-visible, auditable, and reviewable.
+    """
+
+    def build_bundles(
+        self,
+        *,
+        task_id: str,
+        plan: PatchPlan,
+        requested_by: str | None = None,
+        labels: tuple[str, ...] = (),
+        metadata: dict[str, Any] | None = None,
+    ) -> tuple[GovernedPatchIntentBundle, ...]:
+        """
+        Build one governance bundle for each operation in a patch plan.
+        """
+        base_metadata = dict(metadata or {})
+        return tuple(
+            self._build_bundle(
+                task_id=task_id,
+                plan=plan,
+                operation=operation,
+                operation_index=operation_index,
+                requested_by=requested_by,
+                labels=labels,
+                metadata=base_metadata,
+            )
+            for operation_index, operation in enumerate(plan.operations)
+        )
+
+    def build(
+        self,
+        *,
+        task_id: str,
+        plan: PatchPlan,
+        requested_by: str | None = None,
+        labels: tuple[str, ...] = (),
+        metadata: dict[str, Any] | None = None,
+    ) -> GovernedPatchIntentBundle:
+        """
+        Build a single bundle for a one-operation patch plan.
+        """
+        bundles = self.build_bundles(
+            task_id=task_id,
+            plan=plan,
+            requested_by=requested_by,
+            labels=labels,
+            metadata=metadata,
+        )
+        if len(bundles) != 1:
+            raise ValueError(
+                "build() requires a patch plan with exactly one operation."
+            )
+        return bundles[0]
+
+    def _build_bundle(
+        self,
+        *,
+        task_id: str,
+        plan: PatchPlan,
+        operation: PatchOperation,
+        operation_index: int,
+        requested_by: str | None,
+        labels: tuple[str, ...],
+        metadata: dict[str, Any],
+    ) -> GovernedPatchIntentBundle:
+        intent_metadata: dict[str, Any] = {
+            **metadata,
+            "plan_id": plan.plan_id,
+            "plan_summary": plan.summary,
+            "operation_index": operation_index,
+            "operation_type": operation.operation_type.value,
+            "operation_priority": operation.priority.value,
+            "operation_summary": operation.summary,
+            "operation_rationale": operation.rationale,
+        }
+        intent = ActionIntent.create(
+            task_id=task_id,
+            action_kind=ActionKind.FILE_WRITE,
+            summary=operation.summary,
+            rationale=operation.rationale,
+            target_locator=operation.relative_path,
+            requested_by=requested_by,
+            labels=self._labels_for_operation(operation=operation, extra_labels=labels),
+            metadata=intent_metadata,
+        )
+        risk = self._risk_for_operation(intent=intent, operation=operation)
+        return GovernedPatchIntentBundle(
+            plan=plan,
+            operation=operation,
+            intent=intent,
+            risk=risk,
+            operation_index=operation_index,
+            metadata={
+                "plan_id": plan.plan_id,
+                "operation_type": operation.operation_type.value,
+                "operation_priority": operation.priority.value,
+            },
+        )
+
+    def _labels_for_operation(
+        self,
+        *,
+        operation: PatchOperation,
+        extra_labels: tuple[str, ...],
+    ) -> tuple[str, ...]:
+        labels = (
+            "patch-plan",
+            "forge-patch",
+            operation.operation_type.value,
+            operation.priority.value,
+            *extra_labels,
+        )
+        return _normalize_labels(labels)
+
+    def _risk_for_operation(
+        self,
+        *,
+        intent: ActionIntent,
+        operation: PatchOperation,
+    ) -> ActionRiskProfile:
+        scope = _scope_for_path(operation.relative_path)
+        risk_level = _risk_level_for_operation(operation=operation, scope=scope)
+        requires_approval = _requires_approval(
+            operation=operation,
+            risk_level=risk_level,
+            scope=scope,
+        )
+        factors = _risk_factors_for_operation(
+            operation=operation,
+            risk_level=risk_level,
+            scope=scope,
+            requires_approval=requires_approval,
+        )
+        tags = _risk_tags_for_operation(operation=operation, scope=scope)
+        return ActionRiskProfile(
+            intent_id=intent.intent_id,
+            risk_level=risk_level,
+            requires_approval=requires_approval,
+            factors=factors,
+            tags=tags,
+        )
 
 
 class GovernedPatchIntentBuilder:
     """
-    Convert forge patch plans into explicit governance intents.
-
-    The builder intentionally treats every write-capable patch plan as
-    at least medium risk and human-reviewable by default. Later waves can
-    tune policy pack thresholds, but the default posture remains
-    conservative and auditable.
+    Backward-compatible facade for older forge callers.
     """
 
-    def build(self, patch_plan: PatchPlan) -> GovernedPatchIntent:
-        """
-        Build a governed intent for one patch plan.
-        """
-        risk_profile = self._risk_profile_for_patch_plan(patch_plan)
-        action_intent = ActionIntent(
-            action_id=f"patch-plan:{patch_plan.plan_id}",
-            actor="ix-blackfox-forge",
-            kind=ActionKind.MODIFY_FILE,
-            target=patch_plan.target_path,
-            description=patch_plan.summary,
-            risk_profile=risk_profile,
-            metadata={
-                "plan_id": patch_plan.plan_id,
-                "priority": patch_plan.priority.value,
-                "operation_count": str(len(patch_plan.operations)),
-            },
-        )
-        return GovernedPatchIntent(
-            patch_plan=patch_plan,
-            action_intent=action_intent,
-        )
+    def __init__(self, *, bridge: ForgePatchIntentBridge | None = None) -> None:
+        self._bridge = bridge or ForgePatchIntentBridge()
 
-    def build_many(self, patch_plans: tuple[PatchPlan, ...]) -> tuple[GovernedPatchIntent, ...]:
-        """
-        Build governed intents for many patch plans.
-        """
-        return tuple(self.build(patch_plan) for patch_plan in patch_plans)
-
-    def _risk_profile_for_patch_plan(self, patch_plan: PatchPlan) -> ActionRiskProfile:
-        changed_line_total = sum(
-            operation.expected_line_delta for operation in patch_plan.operations
-        )
-        destructive_operations = tuple(
-            operation
-            for operation in patch_plan.operations
-            if operation.operation_type
-            in {
-                PatchOperationType.DELETE_RANGE,
-                PatchOperationType.REPLACE_RANGE,
-                PatchOperationType.REPLACE_FILE,
-            }
-        )
-        creates_file = any(
-            operation.operation_type is PatchOperationType.CREATE_FILE
-            for operation in patch_plan.operations
-        )
-
-        risk_level = self._risk_level(
-            patch_plan=patch_plan,
-            changed_line_total=changed_line_total,
-            destructive_operations=destructive_operations,
-            creates_file=creates_file,
-        )
-
-        factors: list[RiskFactor] = [
-            RiskFactor.FILESYSTEM_WRITE,
-        ]
-        if destructive_operations:
-            factors.append(RiskFactor.DESTRUCTIVE_OPERATION)
-        if creates_file:
-            factors.append(RiskFactor.EXTERNAL_SIDE_EFFECT)
-        if patch_plan.priority is PatchPriority.URGENT:
-            factors.append(RiskFactor.IRREVERSIBLE_OPERATION)
-
-        return ActionRiskProfile(
-            level=risk_level,
-            factors=tuple(dict.fromkeys(factors)),
-            requires_human_review=True,
-            rationale=self._rationale(
-                patch_plan=patch_plan,
-                risk_level=risk_level,
-                changed_line_total=changed_line_total,
-                destructive_operations=destructive_operations,
-            ),
-        )
-
-    def _risk_level(
+    def build(
         self,
-        *,
         patch_plan: PatchPlan,
-        changed_line_total: int,
-        destructive_operations: tuple[PatchOperation, ...],
-        creates_file: bool,
-    ) -> RiskLevel:
-        if patch_plan.priority is PatchPriority.URGENT:
-            return RiskLevel.HIGH
-        if any(
-            operation.operation_type is PatchOperationType.REPLACE_FILE
-            for operation in destructive_operations
-        ):
-            return RiskLevel.HIGH
-        if len(patch_plan.operations) >= 5:
-            return RiskLevel.HIGH
-        if changed_line_total >= 80:
-            return RiskLevel.HIGH
-        if destructive_operations:
-            return RiskLevel.MEDIUM
-        if creates_file:
-            return RiskLevel.MEDIUM
-        return RiskLevel.MEDIUM
+        *,
+        task_id: str | None = None,
+        requested_by: str | None = None,
+        labels: tuple[str, ...] = (),
+        metadata: dict[str, Any] | None = None,
+    ) -> GovernedPatchIntentBundle:
+        return self._bridge.build(
+            task_id=task_id or patch_plan.plan_id,
+            plan=patch_plan,
+            requested_by=requested_by,
+            labels=labels,
+            metadata=metadata,
+        )
 
-    def _rationale(
+    def build_many(
         self,
+        patch_plans: tuple[PatchPlan, ...],
         *,
-        patch_plan: PatchPlan,
-        risk_level: RiskLevel,
-        changed_line_total: int,
-        destructive_operations: tuple[PatchOperation, ...],
-    ) -> str:
-        details = [
-            f"Patch plan {patch_plan.plan_id} targets {patch_plan.target_path}.",
-            f"Risk level is {risk_level.value}.",
-            f"Operation count: {len(patch_plan.operations)}.",
-            f"Expected line delta: {changed_line_total}.",
-        ]
-        if destructive_operations:
-            details.append(
-                f"Destructive operation count: {len(destructive_operations)}."
+        task_id: str | None = None,
+        requested_by: str | None = None,
+        labels: tuple[str, ...] = (),
+        metadata: dict[str, Any] | None = None,
+    ) -> tuple[GovernedPatchIntentBundle, ...]:
+        bundles: list[GovernedPatchIntentBundle] = []
+        for patch_plan in patch_plans:
+            bundles.extend(
+                self._bridge.build_bundles(
+                    task_id=task_id or patch_plan.plan_id,
+                    plan=patch_plan,
+                    requested_by=requested_by,
+                    labels=labels,
+                    metadata=metadata,
+                )
             )
-        details.append("Human review is required before applying generated patches.")
-        return " ".join(details)
+        return tuple(bundles)
+
+
+def _risk_level_for_operation(*, operation: PatchOperation, scope: str) -> RiskLevel:
+    if operation.priority is PatchPriority.CRITICAL:
+        return RiskLevel.HIGH
+    if operation.operation_type is PatchOperationType.DELETE:
+        return RiskLevel.HIGH
+    if (
+        operation.priority is PatchPriority.HIGH
+        and scope in {"source", "config", "unknown"}
+    ):
+        return RiskLevel.HIGH
+    if scope == "docs" and operation.priority is PatchPriority.LOW:
+        return RiskLevel.LOW
+    return RiskLevel.MODERATE
+
+
+def _requires_approval(
+    *,
+    operation: PatchOperation,
+    risk_level: RiskLevel,
+    scope: str,
+) -> bool:
+    if risk_level in {RiskLevel.HIGH, RiskLevel.CRITICAL}:
+        return True
+    if operation.operation_type is PatchOperationType.DELETE:
+        return True
+    if operation.priority is PatchPriority.CRITICAL:
+        return True
+    if scope in {"config", "secrets", "unknown"}:
+        return True
+    return False
+
+
+def _risk_factors_for_operation(
+    *,
+    operation: PatchOperation,
+    risk_level: RiskLevel,
+    scope: str,
+    requires_approval: bool,
+) -> tuple[RiskFactor, ...]:
+    factors: list[RiskFactor] = [
+        RiskFactor(
+            code="filesystem-write",
+            description="Patch operation writes or mutates a workspace file.",
+        )
+    ]
+
+    if scope == "docs":
+        factors.append(
+            RiskFactor(
+                code="documentation-only-change",
+                description="Patch target is inside documentation scope.",
+            )
+        )
+    elif scope == "tests":
+        factors.append(
+            RiskFactor(
+                code="test-suite-mutation",
+                description="Patch target is inside test-suite scope.",
+            )
+        )
+    elif scope == "source":
+        factors.append(
+            RiskFactor(
+                code="tracked-source-mutation",
+                description="Patch target is inside source-code scope.",
+            )
+        )
+    elif scope == "config":
+        factors.append(
+            RiskFactor(
+                code="configuration-mutation",
+                description="Patch target is inside configuration scope.",
+            )
+        )
+    elif scope == "secrets":
+        factors.append(
+            RiskFactor(
+                code="sensitive-path-mutation",
+                description="Patch target references a sensitive path segment.",
+            )
+        )
+    else:
+        factors.append(
+            RiskFactor(
+                code="unclassified-path-mutation",
+                description="Patch target is outside known low-risk repository scopes.",
+            )
+        )
+
+    if operation.operation_type is PatchOperationType.CREATE:
+        factors.append(
+            RiskFactor(
+                code="file-creation",
+                description="Patch operation creates a new workspace file.",
+            )
+        )
+    elif operation.operation_type is PatchOperationType.UPDATE:
+        factors.append(
+            RiskFactor(
+                code="file-update",
+                description="Patch operation updates an existing workspace file.",
+            )
+        )
+    elif operation.operation_type is PatchOperationType.DELETE:
+        factors.append(
+            RiskFactor(
+                code="destructive-file-mutation",
+                description="Patch operation deletes a workspace file.",
+            )
+        )
+
+    if operation.priority is PatchPriority.CRITICAL:
+        factors.append(
+            RiskFactor(
+                code="critical-patch-priority",
+                description="Patch operation is marked critical priority.",
+            )
+        )
+    elif operation.priority is PatchPriority.HIGH:
+        factors.append(
+            RiskFactor(
+                code="high-patch-priority",
+                description="Patch operation is marked high priority.",
+            )
+        )
+
+    if requires_approval:
+        factors.append(
+            RiskFactor(
+                code="review-sensitive-mutation",
+                description="Patch operation requires review before execution.",
+            )
+        )
+    if risk_level is RiskLevel.CRITICAL:
+        factors.append(
+            RiskFactor(
+                code="critical-risk-classification",
+                description="Patch operation was classified as critical risk.",
+            )
+        )
+
+    return _dedupe_risk_factors(tuple(factors))
+
+
+def _risk_tags_for_operation(
+    *,
+    operation: PatchOperation,
+    scope: str,
+) -> tuple[str, ...]:
+    return _normalize_labels(
+        (
+            f"scope-{scope}",
+            f"op-{operation.operation_type.value}",
+            f"priority-{operation.priority.value}",
+        )
+    )
+
+
+def _scope_for_path(relative_path: str) -> str:
+    normalized = relative_path.strip().replace("\\", "/").lower()
+    parts = tuple(part for part in normalized.split("/") if part)
+    if not parts:
+        return "unknown"
+    if any(part in {"secret", "secrets", ".ssh"} for part in parts):
+        return "secrets"
+    if parts[0] == "docs" or normalized.endswith((".md", ".rst", ".txt")):
+        return "docs"
+    if parts[0] == "tests" or any(part == "tests" for part in parts):
+        return "tests"
+    if parts[0] == "src":
+        return "source"
+    if parts[0] in {"config", "configs", ".github"} or normalized.endswith(
+        (".toml", ".yaml", ".yml", ".json")
+    ):
+        return "config"
+    return "unknown"
+
+
+def _normalize_labels(labels: tuple[str, ...]) -> tuple[str, ...]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw_label in labels:
+        cleaned = raw_label.strip().lower()
+        if not cleaned:
+            continue
+        if cleaned in seen:
+            continue
+        normalized.append(cleaned)
+        seen.add(cleaned)
+    return tuple(normalized)
+
+
+def _dedupe_risk_factors(factors: tuple[RiskFactor, ...]) -> tuple[RiskFactor, ...]:
+    deduped: list[RiskFactor] = []
+    seen: set[str] = set()
+    for factor in factors:
+        if factor.code in seen:
+            continue
+        deduped.append(factor)
+        seen.add(factor.code)
+    return tuple(deduped)
