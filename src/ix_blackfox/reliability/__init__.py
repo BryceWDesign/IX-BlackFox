@@ -9,6 +9,15 @@ from ix_blackfox.reliability.adversarial import (
     AdversarialScenarioEvaluation,
     default_adversarial_probes,
 )
+from ix_blackfox.reliability.artifacts import (
+    ReliabilityArtifact,
+    ReliabilityArtifactBundle,
+    ReliabilityArtifactError,
+    ReliabilityArtifactStore,
+    ReliabilityReceipt,
+    ReliabilityReceiptEventType,
+    ReliabilityReceiptLedger,
+)
 from ix_blackfox.reliability.metrics import (
     ReliabilityMetricsCollector,
     ReliabilityMetricsSummary,
@@ -53,6 +62,10 @@ __all__ = [
     "AdversarialProbeVerdict",
     "AdversarialReliabilityHarness",
     "AdversarialScenarioEvaluation",
+    "ReliabilityArtifact",
+    "ReliabilityArtifactBundle",
+    "ReliabilityArtifactError",
+    "ReliabilityArtifactStore",
     "ReliabilityFinding",
     "ReliabilityFindingSeverity",
     "ReliabilityGateDecision",
@@ -64,6 +77,9 @@ __all__ = [
     "ReliabilityMetricUnit",
     "ReliabilityMetricsCollector",
     "ReliabilityMetricsSummary",
+    "ReliabilityReceipt",
+    "ReliabilityReceiptEventType",
+    "ReliabilityReceiptLedger",
     "ReliabilityReport",
     "ReliabilityScenario",
     "ReliabilityScenarioKind",
