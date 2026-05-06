@@ -14,6 +14,17 @@ from ix_blackfox.reliability.models import (
     ReliabilityScenarioStatus,
     ReliabilityScenarioSuite,
 )
+from ix_blackfox.reliability.scenarios import (
+    ReliabilityScenarioRegistry,
+    ReliabilityScenarioRegistryError,
+    WAVE4_ADVERSARIAL_SUITE_ID,
+    WAVE4_CORE_SUITE_ID,
+    WAVE4_FULL_SUITE_ID,
+    build_wave4_adversarial_suite,
+    build_wave4_core_suite,
+    build_wave4_full_suite,
+    built_in_reliability_suites,
+)
 
 __all__ = [
     "ReliabilityFinding",
@@ -25,7 +36,16 @@ __all__ = [
     "ReliabilityReport",
     "ReliabilityScenario",
     "ReliabilityScenarioKind",
+    "ReliabilityScenarioRegistry",
+    "ReliabilityScenarioRegistryError",
     "ReliabilityScenarioResult",
     "ReliabilityScenarioStatus",
     "ReliabilityScenarioSuite",
+    "WAVE4_ADVERSARIAL_SUITE_ID",
+    "WAVE4_CORE_SUITE_ID",
+    "WAVE4_FULL_SUITE_ID",
+    "build_wave4_adversarial_suite",
+    "build_wave4_core_suite",
+    "build_wave4_full_suite",
+    "built_in_reliability_suites",
 ]
