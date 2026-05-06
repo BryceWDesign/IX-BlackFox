@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Deque
 
 from ix_blackfox.memory import TraceRecord
 from ix_blackfox.sentinel.core import (
@@ -111,7 +110,7 @@ class FailureLoopCheck(SentinelCheck):
         self,
         records: Iterable[TraceRecord],
     ) -> tuple[TraceRecord, ...]:
-        recent: Deque[TraceRecord] = deque(maxlen=self._window.lookback_limit)
+        recent: deque[TraceRecord] = deque(maxlen=self._window.lookback_limit)
 
         for record in records:
             if self._window.failure_stages and record.stage not in self._window.failure_stages:
