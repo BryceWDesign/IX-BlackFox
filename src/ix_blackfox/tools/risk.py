@@ -18,519 +18,542 @@ class ToolRiskLevel(StrEnum):
     """
     Normalized risk level for one governed tool invocation.
 
-    The level describes execution risk before final policy/approval decisions.
-    It is intentionally deterministic so receipts and tests can reproduce the
-    same classification for the same manifest and request.
+    The level describes execution risk, not model confidence.
     """
 
-    NEGLIGIBLE = auto()
     LOW = auto()
-    MODERATE = auto()
+    MEDIUM = auto()
     HIGH = auto()
     CRITICAL = auto()
 
 
-@dataclass(frozen=True, slots=True)
-class ToolRiskSignal:
+class ToolRiskFactor(StrEnum):
     """
-    One explainable reason contributing to a tool risk assessment.
+    Specific factors that contributed to a tool risk score.
     """
 
-    code: str
-    weight: int
-    summary: str
-    metadata: Mapping[str, Any] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "code", _normalize_token(self.code, label="code"))
-        object.__setattr__(self, "summary", _normalize_text(self.summary, label="summary"))
-        object.__setattr__(self, "metadata", dict(self.metadata))
-
-        if self.weight < 0:
-            raise ValueError("ToolRiskSignal weight must not be negative.")
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "code": self.code,
-            "weight": self.weight,
-            "summary": self.summary,
-            "metadata": dict(self.metadata),
-        }
-
-    @classmethod
-    def from_dict(cls, payload: Mapping[str, Any]) -> Self:
-        return cls(
-            code=_require_text(payload, "code"),
-            weight=int(payload.get("weight", 0)),
-            summary=_require_text(payload, "summary"),
-            metadata=_coerce_mapping(payload.get("metadata", {}), field_name="metadata"),
-        )
+    MANIFEST_HIGH_RISK = auto()
+    MANIFEST_CRITICAL_RISK = auto()
+    APPROVAL_REQUIRED = auto()
+    FILESYSTEM_WRITE = auto()
+    PATCH_APPLY = auto()
+    PROCESS_EXECUTION = auto()
+    NETWORK_ACCESS = auto()
+    EXTERNAL_SIDE_EFFECT = auto()
+    DESTRUCTIVE_OPERATION = auto()
+    SECRET_ACCESS = auto()
+    LARGE_ARGUMENT_PAYLOAD = auto()
+    PATH_TRAVERSAL_SIGNAL = auto()
+    OVERRIDE_REQUESTED = auto()
+    UNKNOWN_TOOL = auto()
 
 
 @dataclass(frozen=True, slots=True)
 class ToolRiskAssessment:
     """
-    Deterministic risk assessment for one tool invocation.
+    Deterministic risk assessment for a tool invocation.
     """
 
-    tool_id: str
-    invocation_id: str
+    tool_name: str
     level: ToolRiskLevel
     score: int
-    signals: tuple[ToolRiskSignal, ...] = field(default_factory=tuple)
-    approval_recommended: bool = False
-    block_recommended: bool = False
+    factors: tuple[ToolRiskFactor, ...]
+    rationale: str
+    requires_human_review: bool
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "tool_id", _normalize_token(self.tool_id, label="tool_id"))
-        object.__setattr__(
-            self,
-            "invocation_id",
-            _normalize_token(self.invocation_id, label="invocation_id"),
-        )
-        object.__setattr__(self, "signals", tuple(self.signals))
-        object.__setattr__(self, "metadata", dict(self.metadata))
-
         if self.score < 0:
-            raise ValueError("ToolRiskAssessment score must not be negative.")
+            raise ValueError("Tool risk score must be non-negative.")
+        if not self.tool_name.strip():
+            raise ValueError("Tool risk tool_name must not be empty.")
 
-    @property
-    def signal_codes(self) -> tuple[str, ...]:
-        return tuple(signal.code for signal in self.signals)
-
-    @property
-    def is_operator_sensitive(self) -> bool:
-        return self.approval_recommended or self.block_recommended
-
-    def has_signal(self, code: str) -> bool:
-        normalized_code = _normalize_token(code, label="code")
-        return normalized_code in self.signal_codes
+        object.__setattr__(self, "tool_name", self.tool_name.strip())
+        object.__setattr__(self, "factors", tuple(dict.fromkeys(self.factors)))
+        object.__setattr__(self, "metadata", dict(self.metadata))
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "tool_id": self.tool_id,
-            "invocation_id": self.invocation_id,
+            "tool_name": self.tool_name,
             "level": self.level.value,
             "score": self.score,
-            "signals": [signal.to_dict() for signal in self.signals],
-            "approval_recommended": self.approval_recommended,
-            "block_recommended": self.block_recommended,
+            "factors": [factor.value for factor in self.factors],
+            "rationale": self.rationale,
+            "requires_human_review": self.requires_human_review,
             "metadata": dict(self.metadata),
         }
 
-    @classmethod
-    def from_dict(cls, payload: Mapping[str, Any]) -> Self:
-        raw_signals = payload.get("signals", ())
-        if not isinstance(raw_signals, Iterable) or isinstance(raw_signals, str):
-            raise TypeError("signals must be an iterable of mappings.")
 
-        signals: list[ToolRiskSignal] = []
-        for raw_signal in raw_signals:
-            if not isinstance(raw_signal, Mapping):
-                raise TypeError("signals must contain only mappings.")
-            signals.append(ToolRiskSignal.from_dict(raw_signal))
-
-        return cls(
-            tool_id=_require_text(payload, "tool_id"),
-            invocation_id=_require_text(payload, "invocation_id"),
-            level=ToolRiskLevel(_require_text(payload, "level")),
-            score=int(payload.get("score", 0)),
-            signals=tuple(signals),
-            approval_recommended=bool(payload.get("approval_recommended", False)),
-            block_recommended=bool(payload.get("block_recommended", False)),
-            metadata=_coerce_mapping(payload.get("metadata", {}), field_name="metadata"),
-        )
-
-
-@dataclass(frozen=True, slots=True)
-class ToolRiskClassifier:
+class ToolRiskEvaluator:
     """
-    Deterministic risk classifier for governed tool invocations.
+    Deterministic tool-risk evaluator.
 
-    The classifier intentionally avoids model calls. It gives the gateway a
-    reproducible baseline for whether a tool invocation is low risk, should be
-    reviewed, or should be blocked before execution.
+    This is the bridge between declarative tool manifests and runtime
+    governance. It does not trust tool arguments simply because the tool
+    is registered; request payloads can still raise risk.
     """
 
-    destructive_argument_keys: tuple[str, ...] = (
-        "delete",
-        "remove",
-        "rm",
-        "rmdir",
-        "unlink",
-        "overwrite",
-        "force",
-        "recursive",
-        "chmod",
-        "chown",
-        "format",
-        "wipe",
-        "drop",
-        "truncate",
-    )
-    sensitive_path_fragments: tuple[str, ...] = (
-        ".env",
-        ".git",
-        ".ssh",
-        "id_rsa",
-        "id_ed25519",
-        "secret",
-        "secrets",
-        "credential",
-        "credentials",
-        "token",
-        "tokens",
-        "private_key",
-        "api_key",
-    )
+    _SIDE_EFFECT_FACTORS: dict[ToolSideEffect, ToolRiskFactor] = {
+        ToolSideEffect.FILESYSTEM_WRITE: ToolRiskFactor.FILESYSTEM_WRITE,
+        ToolSideEffect.NETWORK_ACCESS: ToolRiskFactor.NETWORK_ACCESS,
+        ToolSideEffect.PROCESS_EXECUTION: ToolRiskFactor.PROCESS_EXECUTION,
+        ToolSideEffect.SYSTEM_STATE_CHANGE: ToolRiskFactor.EXTERNAL_SIDE_EFFECT,
+        ToolSideEffect.ARTIFACT_WRITE: ToolRiskFactor.FILESYSTEM_WRITE,
+    }
+
+    _CAPABILITY_FACTORS: dict[ToolCapability, ToolRiskFactor] = {
+        ToolCapability.FILE_WRITE: ToolRiskFactor.FILESYSTEM_WRITE,
+        ToolCapability.PATCH_APPLY: ToolRiskFactor.PATCH_APPLY,
+        ToolCapability.PROCESS_EXECUTION: ToolRiskFactor.PROCESS_EXECUTION,
+        ToolCapability.NETWORK_REQUEST: ToolRiskFactor.NETWORK_ACCESS,
+        ToolCapability.SECRET_READ: ToolRiskFactor.SECRET_ACCESS,
+    }
 
     def assess(
         self,
         *,
-        manifest: ToolManifest,
         request: ToolInvocationRequest,
+        manifest: ToolManifest | None,
     ) -> ToolRiskAssessment:
         """
-        Classify one invocation from its manifest and request arguments.
+        Assess risk for one tool invocation request.
         """
-        signals: list[ToolRiskSignal] = []
+        factors: list[ToolRiskFactor] = []
+        score = 0
+        metadata: dict[str, Any] = {
+            "invocation_id": request.invocation_id,
+            "argument_keys": sorted(request.arguments.keys()),
+        }
 
-        if not manifest.supports(request.capability):
-            signals.append(
-                ToolRiskSignal(
-                    code="unsupported-capability",
-                    weight=100,
-                    summary="Request capability is not declared by the tool manifest.",
-                    metadata={
-                        "requested_capability": request.capability.value,
-                        "declared_capabilities": [
-                            capability.value for capability in manifest.capabilities
-                        ],
-                    },
-                )
+        if manifest is None:
+            factors.append(ToolRiskFactor.UNKNOWN_TOOL)
+            score += 90
+            metadata["known_tool"] = False
+            return ToolRiskAssessment(
+                tool_name=request.tool_name,
+                level=ToolRiskLevel.CRITICAL,
+                score=score,
+                factors=tuple(factors),
+                rationale="Tool is not registered; invocation is treated as critical risk.",
+                requires_human_review=True,
+                metadata=metadata,
             )
 
-        signals.extend(self._signals_for_side_effects(manifest.side_effects))
-        signals.extend(self._signals_for_capabilities(manifest.capabilities))
-        signals.extend(self._signals_for_approval_mode(manifest.approval_mode))
-        signals.extend(self._signals_for_arguments(request.arguments))
+        metadata["known_tool"] = True
+        metadata["manifest_version"] = manifest.version
 
-        score = sum(signal.weight for signal in signals)
-        level = _level_from_score(score)
-        approval_recommended = (
-            manifest.approval_mode is ToolApprovalMode.ALWAYS
+        manifest_score, manifest_factors = self._score_manifest(manifest)
+        score += manifest_score
+        factors.extend(manifest_factors)
+
+        argument_score, argument_factors = self._score_arguments(request.arguments)
+        score += argument_score
+        factors.extend(argument_factors)
+
+        level = self._level_from_score(score)
+        requires_human_review = (
+            manifest.approval_mode in {ToolApprovalMode.REQUIRED, ToolApprovalMode.ALWAYS_REQUIRED}
             or level in {ToolRiskLevel.HIGH, ToolRiskLevel.CRITICAL}
-            or any(
-                signal.code
-                in {
-                    "workspace-write",
-                    "process-execution",
-                    "network-access",
-                    "system-mutation",
-                    "destructive-argument",
-                    "sensitive-path-reference",
-                    "path-traversal-reference",
-                    "absolute-path-reference",
-                }
-                for signal in signals
-            )
         )
-        block_recommended = any(
-            signal.code
-            in {
-                "unsupported-capability",
-                "system-mutation",
-                "path-traversal-reference",
-            }
-            for signal in signals
+        rationale = self._build_rationale(
+            manifest=manifest,
+            score=score,
+            level=level,
+            factors=tuple(dict.fromkeys(factors)),
         )
 
         return ToolRiskAssessment(
-            tool_id=manifest.tool_id,
-            invocation_id=request.invocation_id,
+            tool_name=request.tool_name,
             level=level,
             score=score,
-            signals=tuple(signals),
-            approval_recommended=approval_recommended,
-            block_recommended=block_recommended,
-            metadata={
-                "capability": request.capability.value,
-                "approval_mode": manifest.approval_mode.value,
-                "side_effects": [
-                    side_effect.value for side_effect in manifest.side_effects
-                ],
-            },
+            factors=tuple(factors),
+            rationale=rationale,
+            requires_human_review=requires_human_review,
+            metadata=metadata,
         )
 
-    def _signals_for_side_effects(
+    def _score_manifest(
         self,
-        side_effects: tuple[ToolSideEffect, ...],
-    ) -> tuple[ToolRiskSignal, ...]:
-        signals: list[ToolRiskSignal] = []
+        manifest: ToolManifest,
+    ) -> tuple[int, tuple[ToolRiskFactor, ...]]:
+        score = 0
+        factors: list[ToolRiskFactor] = []
 
-        for side_effect in side_effects:
-            if side_effect is ToolSideEffect.NONE:
-                signals.append(
-                    ToolRiskSignal(
-                        code="no-side-effect",
-                        weight=0,
-                        summary="Tool declares no side effects.",
-                    )
-                )
-            elif side_effect is ToolSideEffect.READ_WORKSPACE:
-                signals.append(
-                    ToolRiskSignal(
-                        code="workspace-read",
-                        weight=10,
-                        summary="Tool can read workspace content.",
-                    )
-                )
-            elif side_effect is ToolSideEffect.WRITE_WORKSPACE:
-                signals.append(
-                    ToolRiskSignal(
-                        code="workspace-write",
-                        weight=35,
-                        summary="Tool can write inside a workspace.",
-                    )
-                )
-            elif side_effect is ToolSideEffect.RUN_PROCESS:
-                signals.append(
-                    ToolRiskSignal(
-                        code="process-execution",
-                        weight=45,
-                        summary="Tool can start a local process.",
-                    )
-                )
-            elif side_effect is ToolSideEffect.ACCESS_NETWORK:
-                signals.append(
-                    ToolRiskSignal(
-                        code="network-access",
-                        weight=60,
-                        summary="Tool can access the network.",
-                    )
-                )
-            elif side_effect is ToolSideEffect.MUTATE_SYSTEM:
-                signals.append(
-                    ToolRiskSignal(
-                        code="system-mutation",
-                        weight=90,
-                        summary="Tool can mutate host system state.",
-                    )
-                )
+        if manifest.risk_level.value == "high":
+            score += 45
+            factors.append(ToolRiskFactor.MANIFEST_HIGH_RISK)
+        elif manifest.risk_level.value == "critical":
+            score += 80
+            factors.append(ToolRiskFactor.MANIFEST_CRITICAL_RISK)
+        elif manifest.risk_level.value == "medium":
+            score += 20
+        else:
+            score += 5
 
-        return tuple(signals)
+        if manifest.approval_mode in {
+            ToolApprovalMode.REQUIRED,
+            ToolApprovalMode.ALWAYS_REQUIRED,
+        }:
+            score += 20
+            factors.append(ToolRiskFactor.APPROVAL_REQUIRED)
 
-    def _signals_for_capabilities(
-        self,
-        capabilities: tuple[ToolCapability, ...],
-    ) -> tuple[ToolRiskSignal, ...]:
-        signals: list[ToolRiskSignal] = []
+        for side_effect in manifest.side_effects:
+            factor = self._SIDE_EFFECT_FACTORS.get(side_effect)
+            if factor is not None:
+                factors.append(factor)
+                score += self._score_factor(factor)
 
-        if ToolCapability.FILE_WRITE in capabilities:
-            signals.append(
-                ToolRiskSignal(
-                    code="file-write-capability",
-                    weight=20,
-                    summary="Tool declares file write capability.",
-                )
-            )
+        for capability in manifest.capabilities:
+            factor = self._CAPABILITY_FACTORS.get(capability)
+            if factor is not None:
+                factors.append(factor)
+                score += self._score_factor(factor)
 
-        if ToolCapability.PATCH_APPLY in capabilities:
-            signals.append(
-                ToolRiskSignal(
-                    code="patch-apply-capability",
-                    weight=25,
-                    summary="Tool can apply source changes.",
-                )
-            )
+        return score, tuple(dict.fromkeys(factors))
 
-        if ToolCapability.COMMAND_EXECUTION in capabilities:
-            signals.append(
-                ToolRiskSignal(
-                    code="command-execution-capability",
-                    weight=35,
-                    summary="Tool can execute commands.",
-                )
-            )
-
-        if ToolCapability.TEST_EXECUTION in capabilities:
-            signals.append(
-                ToolRiskSignal(
-                    code="test-execution-capability",
-                    weight=20,
-                    summary="Tool can execute tests or test-like processes.",
-                )
-            )
-
-        return tuple(signals)
-
-    def _signals_for_approval_mode(
-        self,
-        approval_mode: ToolApprovalMode,
-    ) -> tuple[ToolRiskSignal, ...]:
-        if approval_mode is ToolApprovalMode.ALWAYS:
-            return (
-                ToolRiskSignal(
-                    code="manifest-requires-approval",
-                    weight=15,
-                    summary="Tool manifest requires approval by default.",
-                ),
-            )
-
-        return ()
-
-    def _signals_for_arguments(
+    def _score_arguments(
         self,
         arguments: Mapping[str, Any],
-    ) -> tuple[ToolRiskSignal, ...]:
-        flattened = tuple(_flatten_argument_items(arguments))
-        signals: list[ToolRiskSignal] = []
+    ) -> tuple[int, tuple[ToolRiskFactor, ...]]:
+        factors: list[ToolRiskFactor] = []
+        score = 0
 
-        for key, value in flattened:
-            key_lower = key.lower()
-            value_text = str(value).strip()
-            value_lower = value_text.lower()
+        serialized = repr(dict(arguments))
+        if len(serialized) > 8000:
+            score += 10
+            factors.append(ToolRiskFactor.LARGE_ARGUMENT_PAYLOAD)
 
-            if key_lower in self.destructive_argument_keys and _truthy(value):
-                signals.append(
-                    ToolRiskSignal(
-                        code="destructive-argument",
-                        weight=40,
-                        summary="Invocation arguments request a destructive behavior.",
-                        metadata={"argument": key, "value": value_text},
-                    )
-                )
+        if _contains_path_traversal_signal(arguments):
+            score += 40
+            factors.append(ToolRiskFactor.PATH_TRAVERSAL_SIGNAL)
 
-            if ".." in value_text.replace("\\", "/").split("/"):
-                signals.append(
-                    ToolRiskSignal(
-                        code="path-traversal-reference",
-                        weight=100,
-                        summary="Invocation arguments include a path traversal reference.",
-                        metadata={"argument": key, "value": value_text},
-                    )
-                )
+        if _contains_destructive_signal(arguments):
+            score += 35
+            factors.append(ToolRiskFactor.DESTRUCTIVE_OPERATION)
 
-            if value_text.startswith(("/", "\\", "~")) or _looks_like_windows_absolute_path(
-                value_text
-            ):
-                signals.append(
-                    ToolRiskSignal(
-                        code="absolute-path-reference",
-                        weight=30,
-                        summary="Invocation arguments include an absolute path reference.",
-                        metadata={"argument": key, "value": value_text},
-                    )
-                )
+        if _contains_override_signal(arguments):
+            score += 20
+            factors.append(ToolRiskFactor.OVERRIDE_REQUESTED)
 
-            for fragment in self.sensitive_path_fragments:
-                if fragment in value_lower:
-                    signals.append(
-                        ToolRiskSignal(
-                            code="sensitive-path-reference",
-                            weight=50,
-                            summary=(
-                                "Invocation arguments reference a sensitive path or "
-                                "credential-like name."
-                            ),
-                            metadata={
-                                "argument": key,
-                                "matched_fragment": fragment,
-                                "value": value_text,
-                            },
-                        )
-                    )
-                    break
+        return score, tuple(dict.fromkeys(factors))
 
-        return tuple(_dedupe_signals(signals))
+    def _score_factor(self, factor: ToolRiskFactor) -> int:
+        return {
+            ToolRiskFactor.FILESYSTEM_WRITE: 15,
+            ToolRiskFactor.PATCH_APPLY: 20,
+            ToolRiskFactor.PROCESS_EXECUTION: 35,
+            ToolRiskFactor.NETWORK_ACCESS: 20,
+            ToolRiskFactor.EXTERNAL_SIDE_EFFECT: 25,
+            ToolRiskFactor.SECRET_ACCESS: 45,
+            ToolRiskFactor.DESTRUCTIVE_OPERATION: 35,
+            ToolRiskFactor.PATH_TRAVERSAL_SIGNAL: 40,
+            ToolRiskFactor.OVERRIDE_REQUESTED: 20,
+        }.get(factor, 10)
 
-
-def _level_from_score(score: int) -> ToolRiskLevel:
-    if score <= 0:
-        return ToolRiskLevel.NEGLIGIBLE
-    if score <= 24:
+    def _level_from_score(self, score: int) -> ToolRiskLevel:
+        if score >= 100:
+            return ToolRiskLevel.CRITICAL
+        if score >= 60:
+            return ToolRiskLevel.HIGH
+        if score >= 25:
+            return ToolRiskLevel.MEDIUM
         return ToolRiskLevel.LOW
-    if score <= 59:
-        return ToolRiskLevel.MODERATE
-    if score <= 99:
-        return ToolRiskLevel.HIGH
-    return ToolRiskLevel.CRITICAL
+
+    def _build_rationale(
+        self,
+        *,
+        manifest: ToolManifest,
+        score: int,
+        level: ToolRiskLevel,
+        factors: tuple[ToolRiskFactor, ...],
+    ) -> str:
+        factor_text = (
+            ", ".join(factor.value for factor in factors)
+            if factors
+            else "no elevated factors"
+        )
+        return (
+            f"Tool '{manifest.name}' assessed at {level.value} risk "
+            f"with score {score}. Factors: {factor_text}."
+        )
 
 
-def _flatten_argument_items(
-    value: Any,
-    *,
-    prefix: str = "",
-) -> Iterable[tuple[str, Any]]:
-    if isinstance(value, Mapping):
-        for key, nested_value in value.items():
-            key_text = str(key)
-            nested_prefix = f"{prefix}.{key_text}" if prefix else key_text
-            yield from _flatten_argument_items(nested_value, prefix=nested_prefix)
-        return
+@dataclass(frozen=True, slots=True)
+class ToolRiskPolicy:
+    """
+    Policy threshold for tool invocation authorization.
+    """
 
-    if isinstance(value, (list, tuple, set, frozenset)):
-        for index, nested_value in enumerate(value):
-            nested_prefix = f"{prefix}[{index}]" if prefix else f"[{index}]"
-            yield from _flatten_argument_items(nested_value, prefix=nested_prefix)
-        return
+    max_auto_level: ToolRiskLevel = ToolRiskLevel.LOW
+    require_review_for_factors: tuple[ToolRiskFactor, ...] = (
+        ToolRiskFactor.FILESYSTEM_WRITE,
+        ToolRiskFactor.PATCH_APPLY,
+        ToolRiskFactor.PROCESS_EXECUTION,
+        ToolRiskFactor.NETWORK_ACCESS,
+        ToolRiskFactor.SECRET_ACCESS,
+        ToolRiskFactor.DESTRUCTIVE_OPERATION,
+        ToolRiskFactor.PATH_TRAVERSAL_SIGNAL,
+        ToolRiskFactor.OVERRIDE_REQUESTED,
+    )
+    block_factors: tuple[ToolRiskFactor, ...] = (
+        ToolRiskFactor.UNKNOWN_TOOL,
+        ToolRiskFactor.PATH_TRAVERSAL_SIGNAL,
+    )
 
-    yield prefix or "value", value
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "require_review_for_factors", tuple(self.require_review_for_factors))
+        object.__setattr__(self, "block_factors", tuple(self.block_factors))
 
 
-def _dedupe_signals(signals: Iterable[ToolRiskSignal]) -> tuple[ToolRiskSignal, ...]:
-    deduped: list[ToolRiskSignal] = []
-    seen: set[tuple[str, str]] = set()
+class ToolRiskDecisionKind(StrEnum):
+    """
+    Deterministic decision for one tool invocation risk assessment.
+    """
 
-    for signal in signals:
-        key = (signal.code, repr(sorted(signal.metadata.items())))
-        if key in seen:
+    ALLOW = auto()
+    REQUIRE_REVIEW = auto()
+    BLOCK = auto()
+
+
+@dataclass(frozen=True, slots=True)
+class ToolRiskDecision:
+    """
+    Decision produced from a risk assessment and risk policy.
+    """
+
+    decision: ToolRiskDecisionKind
+    reason: str
+    assessment: ToolRiskAssessment
+
+    @property
+    def allowed(self) -> bool:
+        return self.decision is ToolRiskDecisionKind.ALLOW
+
+    @property
+    def requires_review(self) -> bool:
+        return self.decision is ToolRiskDecisionKind.REQUIRE_REVIEW
+
+    @property
+    def blocked(self) -> bool:
+        return self.decision is ToolRiskDecisionKind.BLOCK
+
+
+class ToolRiskPolicyEngine:
+    """
+    Apply deterministic risk policy to tool risk assessments.
+    """
+
+    _LEVEL_ORDER: dict[ToolRiskLevel, int] = {
+        ToolRiskLevel.LOW: 1,
+        ToolRiskLevel.MEDIUM: 2,
+        ToolRiskLevel.HIGH: 3,
+        ToolRiskLevel.CRITICAL: 4,
+    }
+
+    def __init__(self, *, policy: ToolRiskPolicy | None = None) -> None:
+        self._policy = policy or ToolRiskPolicy()
+
+    def decide(self, assessment: ToolRiskAssessment) -> ToolRiskDecision:
+        """
+        Decide whether the invocation may proceed, requires review, or is blocked.
+        """
+        factor_set = set(assessment.factors)
+        block_factors = set(self._policy.block_factors)
+        review_factors = set(self._policy.require_review_for_factors)
+
+        if factor_set.intersection(block_factors):
+            return ToolRiskDecision(
+                decision=ToolRiskDecisionKind.BLOCK,
+                reason=(
+                    "Tool invocation blocked because risk assessment includes blocked factors: "
+                    f"{', '.join(sorted(factor.value for factor in factor_set.intersection(block_factors)))}."
+                ),
+                assessment=assessment,
+            )
+
+        if self._LEVEL_ORDER[assessment.level] > self._LEVEL_ORDER[self._policy.max_auto_level]:
+            return ToolRiskDecision(
+                decision=ToolRiskDecisionKind.REQUIRE_REVIEW,
+                reason=(
+                    f"Tool invocation requires review because risk level {assessment.level.value} "
+                    f"exceeds automatic threshold {self._policy.max_auto_level.value}."
+                ),
+                assessment=assessment,
+            )
+
+        if factor_set.intersection(review_factors):
+            return ToolRiskDecision(
+                decision=ToolRiskDecisionKind.REQUIRE_REVIEW,
+                reason=(
+                    "Tool invocation requires review because risk assessment includes review factors: "
+                    f"{', '.join(sorted(factor.value for factor in factor_set.intersection(review_factors)))}."
+                ),
+                assessment=assessment,
+            )
+
+        if assessment.requires_human_review:
+            return ToolRiskDecision(
+                decision=ToolRiskDecisionKind.REQUIRE_REVIEW,
+                reason="Tool manifest or assessment requires human review.",
+                assessment=assessment,
+            )
+
+        return ToolRiskDecision(
+            decision=ToolRiskDecisionKind.ALLOW,
+            reason="Tool invocation risk is within automatic execution threshold.",
+            assessment=assessment,
+        )
+
+
+class ToolRiskLedger:
+    """
+    Append-only in-memory ledger of tool risk decisions.
+
+    This is deliberately lightweight but gives the runtime an auditable
+    structure for later receipt persistence.
+    """
+
+    def __init__(self) -> None:
+        self._decisions: list[ToolRiskDecision] = []
+
+    def append(self, decision: ToolRiskDecision) -> ToolRiskDecision:
+        self._decisions.append(decision)
+        return decision
+
+    def decisions(self) -> tuple[ToolRiskDecision, ...]:
+        return tuple(self._decisions)
+
+    def by_tool(self, tool_name: str) -> tuple[ToolRiskDecision, ...]:
+        normalized = tool_name.strip()
+        return tuple(
+            decision
+            for decision in self._decisions
+            if decision.assessment.tool_name == normalized
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "decisions": [
+                {
+                    "decision": decision.decision.value,
+                    "reason": decision.reason,
+                    "assessment": decision.assessment.to_dict(),
+                }
+                for decision in self._decisions
+            ]
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> Self:
+        ledger = cls()
+        raw_decisions = payload.get("decisions", ())
+        if not isinstance(raw_decisions, Iterable):
+            raise TypeError("Tool risk ledger decisions must be iterable.")
+
+        for raw_decision in raw_decisions:
+            if not isinstance(raw_decision, Mapping):
+                raise TypeError("Tool risk ledger decisions must contain mappings.")
+            raw_assessment = raw_decision.get("assessment")
+            if not isinstance(raw_assessment, Mapping):
+                raise TypeError("Tool risk decision assessment must be a mapping.")
+
+            assessment = ToolRiskAssessment(
+                tool_name=str(raw_assessment["tool_name"]),
+                level=ToolRiskLevel(str(raw_assessment["level"])),
+                score=int(raw_assessment["score"]),
+                factors=tuple(
+                    ToolRiskFactor(str(value))
+                    for value in raw_assessment.get("factors", ())
+                ),
+                rationale=str(raw_assessment["rationale"]),
+                requires_human_review=bool(raw_assessment["requires_human_review"]),
+                metadata=(
+                    dict(raw_assessment["metadata"])
+                    if isinstance(raw_assessment.get("metadata"), Mapping)
+                    else {}
+                ),
+            )
+            ledger.append(
+                ToolRiskDecision(
+                    decision=ToolRiskDecisionKind(str(raw_decision["decision"])),
+                    reason=str(raw_decision["reason"]),
+                    assessment=assessment,
+                )
+            )
+
+        return ledger
+
+
+def _contains_path_traversal_signal(arguments: Mapping[str, Any]) -> bool:
+    for value in _walk_argument_values(arguments):
+        if not isinstance(value, str):
             continue
-        deduped.append(signal)
-        seen.add(key)
 
-    return tuple(deduped)
+        normalized = value.replace("\\", "/")
+        if "../" in normalized or normalized.startswith("../") or "/.." in normalized:
+            return True
 
-
-def _truthy(value: Any) -> bool:
-    if isinstance(value, bool):
-        return value
-    if value is None:
-        return False
-
-    normalized = str(value).strip().lower()
-    return normalized in {"1", "true", "yes", "y", "on", "force", "recursive"}
+    return False
 
 
-def _looks_like_windows_absolute_path(value: str) -> bool:
-    if len(value) < 3:
-        return False
-    return value[1:3] in {":\\", ":/"} and value[0].isalpha()
+def _contains_destructive_signal(arguments: Mapping[str, Any]) -> bool:
+    destructive_terms = (
+        "delete",
+        "remove",
+        "rm ",
+        "rmdir",
+        "drop table",
+        "truncate table",
+        "format",
+        "wipe",
+    )
+    for value in _walk_argument_values(arguments):
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if any(term in normalized for term in destructive_terms):
+                return True
+    return False
 
 
-def _normalize_token(value: str, *, label: str) -> str:
-    cleaned = value.strip().lower().replace(" ", "-")
-    if not cleaned:
-        raise ValueError(f"{label} must not be empty.")
-    return cleaned
+def _contains_override_signal(arguments: Mapping[str, Any]) -> bool:
+    override_terms = (
+        "force",
+        "override",
+        "bypass",
+        "ignore_policy",
+        "skip_policy",
+        "unsafe",
+    )
+    for key, value in _walk_argument_items(arguments):
+        normalized_key = str(key).strip().lower()
+        if any(term in normalized_key for term in override_terms):
+            return True
+
+        if isinstance(value, str):
+            normalized_value = value.strip().lower()
+            if any(term in normalized_value for term in override_terms):
+                return True
+
+    return False
 
 
-def _normalize_text(value: str, *, label: str) -> str:
-    cleaned = value.strip()
-    if not cleaned:
-        raise ValueError(f"{label} must not be empty.")
-    return cleaned
+def _walk_argument_values(value: Any) -> Iterable[Any]:
+    if isinstance(value, Mapping):
+        for nested_value in value.values():
+            yield from _walk_argument_values(nested_value)
+    elif isinstance(value, list | tuple | set):
+        for item in value:
+            yield from _walk_argument_values(item)
+    else:
+        yield value
 
 
-def _coerce_mapping(value: Any, *, field_name: str) -> dict[str, Any]:
-    if not isinstance(value, Mapping):
-        raise TypeError(f"{field_name} must be a mapping.")
-    return dict(value)
-
-
-def _require_text(payload: Mapping[str, Any], key: str) -> str:
-    value = payload.get(key)
-    if not isinstance(value, str):
-        raise TypeError(f"Field {key!r} must be a string.")
-    return value
+def _walk_argument_items(value: Mapping[str, Any]) -> Iterable[tuple[str, Any]]:
+    for key, nested_value in value.items():
+        yield str(key), nested_value
+        if isinstance(nested_value, Mapping):
+            yield from _walk_argument_items(nested_value)
+        elif isinstance(nested_value, list | tuple | set):
+            for item in nested_value:
+                if isinstance(item, Mapping):
+                    yield from _walk_argument_items(item)
