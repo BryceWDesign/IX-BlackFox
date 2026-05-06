@@ -7,7 +7,6 @@ import pytest
 from ix_blackfox.authoring import (
     AuthoringEvidence,
     AuthoringEvidenceStrength,
-    AuthoringPolicyDecision,
     AuthoringPolicyGate,
     CandidateDisposition,
     CandidateRejectionReason,
