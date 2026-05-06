@@ -5,7 +5,6 @@ import json
 from collections import deque
 from dataclasses import dataclass
 from threading import RLock
-from typing import Deque
 
 from ix_blackfox.kernel import TaskRequest
 
@@ -46,7 +45,7 @@ class TaskReplayGuard:
         if window_size < 1:
             raise ValueError("Task replay window size must be greater than zero.")
         self._window_size = window_size
-        self._recent: Deque[str] = deque(maxlen=window_size)
+        self._recent: deque[str] = deque(maxlen=window_size)
         self._counts: dict[str, int] = {}
         self._lock = RLock()
 
