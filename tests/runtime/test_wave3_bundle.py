@@ -7,7 +7,10 @@ import pytest
 
 from ix_blackfox.runtime.authoring_repair import StaticPatchProposalProvider
 from ix_blackfox.runtime.control_plane import EngineeringControlPlane
-from ix_blackfox.runtime.wave3_acceptance import Wave3AcceptanceStatus, Wave3AcceptanceValidator
+from ix_blackfox.runtime.wave3_acceptance import (
+    Wave3AcceptanceStatus,
+    Wave3AcceptanceValidator,
+)
 from ix_blackfox.runtime.wave3_bundle import (
     Wave3EvidenceArtifact,
     Wave3EvidenceArtifactKind,
