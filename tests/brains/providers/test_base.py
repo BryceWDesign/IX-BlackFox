@@ -13,9 +13,9 @@ from ix_blackfox.brains import (
     BrainInvocationResult,
     BrainInvocationStatus,
     BrainManifest,
-    BrainModelProfile,
     BrainModality,
     BrainModalityProfile,
+    BrainModelProfile,
     BrainRole,
 )
 from ix_blackfox.brains.providers import (
