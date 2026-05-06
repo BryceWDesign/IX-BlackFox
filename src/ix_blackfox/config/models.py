@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from enum import StrEnum, auto
 from pathlib import Path
 
-from ix_blackfox.brains.budgets import BrainInferenceBudget
 from ix_blackfox.brains.contracts import BrainRole
 from ix_blackfox.brains.manifest import BrainManifest
 from ix_blackfox.brains.profiles import BrainExecutionProfile
