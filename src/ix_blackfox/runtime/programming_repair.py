@@ -97,7 +97,7 @@ class ProgrammingRepairRuntime:
     """
     Governed patch-test-repair coordinator.
 
-    This class is the first concrete Wave 2 integration point between:
+    This class is the concrete integration point between:
     - PatchDiff candidates
     - PatchApplyTool
     - TestRunnerTool
@@ -108,7 +108,8 @@ class ProgrammingRepairRuntime:
     It does not invent patches and it does not bypass approval policy. It
     executes already-supplied patch candidates through governed tool wrappers,
     parses test results, advances the repair-loop state, and stops once tests
-    pass, a safety block occurs, or the configured attempt budget is exhausted.
+    pass, a safety block occurs, a tool failure occurs, the candidate list ends,
+    or the configured attempt budget is exhausted.
     """
 
     patch_tool: PatchApplyTool
@@ -182,7 +183,7 @@ class ProgrammingRepairRuntime:
             patch_request = ToolInvocationRequest.create(
                 tool_id=self.patch_tool.tool_id,
                 capability=ToolCapability.PATCH_APPLY,
-                arguments={"patch": patch_diff},
+                arguments=_patch_arguments(patch_diff),
                 task_id=task_id,
                 run_id=run_id,
                 requested_by="runtime.programming_repair",
@@ -191,6 +192,8 @@ class ProgrammingRepairRuntime:
                     "attempt_id": attempt.attempt_id,
                     "attempt_index": attempt.attempt_index,
                     "patch_id": patch_diff.patch_id,
+                    "patch_digest": patch_diff.digest,
+                    "patch_summary": patch_diff.summary,
                 },
             )
             patch_result = self.patch_tool.invoke(patch_request)
@@ -243,7 +246,7 @@ class ProgrammingRepairRuntime:
                 self._record_loop_terminated(loop_state)
                 break
 
-        if not loop_state.is_terminal and not loop_state.should_continue:
+        if not loop_state.is_terminal:
             loop_state = loop_state.stop_by_operator(
                 reason=(
                     "Programming repair runtime stopped because no additional "
@@ -389,6 +392,13 @@ class ProgrammingRepairRuntime:
             receipt.to_dict()
             for receipt in snapshot.filter_by_loop(loop_id)
         )
+
+
+def _patch_arguments(patch_diff: PatchDiff) -> dict[str, Any]:
+    return {
+        "patch": patch_diff.to_dict(),
+        "dry_run": False,
+    }
 
 
 def _test_arguments(
