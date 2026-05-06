@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -20,8 +21,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     """
     Run the IX-BlackFox command-line interface.
     """
+    raw_argv = list(argv) if argv is not None else sys.argv[1:]
+
+    if raw_argv and raw_argv[0] == "reliability":
+        from ix_blackfox.reliability.cli import main as reliability_main
+
+        return reliability_main(raw_argv[1:])
+
     parser = _build_parser()
-    args = parser.parse_args(list(argv) if argv is not None else None)
+    args = parser.parse_args(raw_argv)
 
     if args.command is None:
         parser.print_help()
@@ -109,6 +117,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--json",
         action="store_true",
         help="Print the full run report as JSON.",
+    )
+
+    subparsers.add_parser(
+        "reliability",
+        help="Run Wave 4 reliability lab commands.",
     )
 
     return parser
