@@ -8,7 +8,6 @@ from typing import Any
 from ix_blackfox.brains.contracts import (
     BrainInvocationRequest,
     BrainInvocationResult,
-    BrainModality,
 )
 from ix_blackfox.brains.manifest import BrainManifest
 from ix_blackfox.brains.providers.errors import (
@@ -334,7 +333,7 @@ class BrainProvider(ABC):
         if isinstance(error, TimeoutError):
             return BrainProviderTimeoutError(str(error), context=context)
 
-        if isinstance(error, (ConnectionError, OSError)):
+        if isinstance(error, ConnectionError | OSError):
             return BrainProviderUnavailableError(str(error), context=context)
 
         return BrainProviderInvocationError(str(error), context=context)
