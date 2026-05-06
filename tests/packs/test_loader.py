@@ -5,7 +5,7 @@ from types import ModuleType
 
 import pytest
 
-from ix_blackfox.packs import EntrypointSpec, PackLoadError, PackLoader, PackManifest
+from ix_blackfox.packs import EntrypointSpec, PackLoader, PackLoadError, PackManifest
 
 
 def test_entrypoint_spec_parse_normalizes_parts() -> None:
