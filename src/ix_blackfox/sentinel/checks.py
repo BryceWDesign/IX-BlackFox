@@ -166,7 +166,7 @@ def register_default_sentinel_checks(runtime: SentinelRuntime) -> tuple[str, ...
 
 def _governance_observations(metadata: dict[str, Any]) -> tuple[dict[str, Any], ...]:
     raw = metadata.get("governance_observations")
-    if not isinstance(raw, (list, tuple)):
+    if not isinstance(raw, list | tuple):
         return ()
 
     observations: list[dict[str, Any]] = []
