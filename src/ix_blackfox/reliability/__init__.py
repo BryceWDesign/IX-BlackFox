@@ -9,6 +9,12 @@ from ix_blackfox.reliability.adversarial import (
     AdversarialScenarioEvaluation,
     default_adversarial_probes,
 )
+from ix_blackfox.reliability.metrics import (
+    ReliabilityMetricsCollector,
+    ReliabilityMetricsSummary,
+    RepairMetricObservation,
+    RepairMetricOutcome,
+)
 from ix_blackfox.reliability.models import (
     ReliabilityFinding,
     ReliabilityFindingSeverity,
@@ -48,6 +54,8 @@ __all__ = [
     "ReliabilityMetric",
     "ReliabilityMetricSnapshot",
     "ReliabilityMetricUnit",
+    "ReliabilityMetricsCollector",
+    "ReliabilityMetricsSummary",
     "ReliabilityReport",
     "ReliabilityScenario",
     "ReliabilityScenarioKind",
@@ -56,6 +64,8 @@ __all__ = [
     "ReliabilityScenarioResult",
     "ReliabilityScenarioStatus",
     "ReliabilityScenarioSuite",
+    "RepairMetricObservation",
+    "RepairMetricOutcome",
     "WAVE4_ADVERSARIAL_SUITE_ID",
     "WAVE4_CORE_SUITE_ID",
     "WAVE4_FULL_SUITE_ID",
