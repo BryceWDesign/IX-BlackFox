@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+from ix_blackfox.reliability.adversarial import (
+    AdversarialProbe,
+    AdversarialProbeKind,
+    AdversarialProbeResult,
+    AdversarialProbeVerdict,
+    AdversarialReliabilityHarness,
+    AdversarialScenarioEvaluation,
+    default_adversarial_probes,
+)
 from ix_blackfox.reliability.models import (
     ReliabilityFinding,
     ReliabilityFindingSeverity,
@@ -27,6 +36,12 @@ from ix_blackfox.reliability.scenarios import (
 )
 
 __all__ = [
+    "AdversarialProbe",
+    "AdversarialProbeKind",
+    "AdversarialProbeResult",
+    "AdversarialProbeVerdict",
+    "AdversarialReliabilityHarness",
+    "AdversarialScenarioEvaluation",
     "ReliabilityFinding",
     "ReliabilityFindingSeverity",
     "ReliabilityGateDecision",
@@ -48,4 +63,5 @@ __all__ = [
     "build_wave4_core_suite",
     "build_wave4_full_suite",
     "built_in_reliability_suites",
+    "default_adversarial_probes",
 ]
