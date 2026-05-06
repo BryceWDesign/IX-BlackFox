@@ -196,7 +196,7 @@ class RunBundleManifest:
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> Self:
         raw_artifacts = payload.get("artifacts", ())
-        if not isinstance(raw_artifacts, (list, tuple)):
+        if not isinstance(raw_artifacts, list | tuple):
             raise TypeError("artifacts must be a list or tuple of mappings.")
 
         artifacts: list[RunBundleArtifact] = []
