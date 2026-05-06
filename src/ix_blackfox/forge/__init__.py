@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Forge subsystem.
 
@@ -13,6 +11,8 @@ governed command mediation, test running, regression result collection,
 and governed execution tickets that normalize forge work before runtime
 mediation.
 """
+
+from __future__ import annotations
 
 from ix_blackfox.forge.code_analysis import (
     CodeAnalysisSnapshot,
