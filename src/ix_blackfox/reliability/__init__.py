@@ -29,6 +29,11 @@ from ix_blackfox.reliability.models import (
     ReliabilityScenarioStatus,
     ReliabilityScenarioSuite,
 )
+from ix_blackfox.reliability.runner import (
+    ReliabilityLabRunConfig,
+    ReliabilityLabRunResult,
+    ReliabilityLabRunner,
+)
 from ix_blackfox.reliability.scenarios import (
     ReliabilityScenarioRegistry,
     ReliabilityScenarioRegistryError,
@@ -51,6 +56,9 @@ __all__ = [
     "ReliabilityFinding",
     "ReliabilityFindingSeverity",
     "ReliabilityGateDecision",
+    "ReliabilityLabRunConfig",
+    "ReliabilityLabRunResult",
+    "ReliabilityLabRunner",
     "ReliabilityMetric",
     "ReliabilityMetricSnapshot",
     "ReliabilityMetricUnit",
