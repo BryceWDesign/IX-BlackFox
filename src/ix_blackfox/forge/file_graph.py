@@ -6,7 +6,6 @@ from typing import Final
 
 from ix_blackfox.forge.workspace import ForgeWorkspaceError, WorkspaceReservation
 
-
 TEXT_SUFFIXES: Final[frozenset[str]] = frozenset(
     {
         ".bat",
