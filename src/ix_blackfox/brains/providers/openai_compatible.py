@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from time import perf_counter
-from typing import Any, Callable
+from typing import Any
 
 from ix_blackfox.brains.contracts import (
     BrainFailure,
