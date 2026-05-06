@@ -9,7 +9,6 @@ from ix_blackfox.eval import (
     BenchmarkSuite,
     BenchmarkSuiteRegistry,
     EvaluationContext,
-    EvaluationSeverity,
     EvidenceRecorder,
     OutputVerifier,
     RuleBasedEvaluator,
