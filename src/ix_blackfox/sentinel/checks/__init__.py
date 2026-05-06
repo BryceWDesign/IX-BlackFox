@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Built-in sentinel checks for IX-BlackFox.
 
@@ -12,6 +10,8 @@ to this package when both a package directory and sibling module share the same
 name. Keeping these exports in the package fixes import collection for tests and
 runtime default registration.
 """
+
+from __future__ import annotations
 
 from collections.abc import Iterable
 from typing import Any
@@ -206,7 +206,7 @@ def register_default_sentinel_checks(runtime: SentinelRuntime) -> tuple[str, ...
 
 def _governance_observations(metadata: dict[str, Any]) -> tuple[dict[str, Any], ...]:
     raw = metadata.get("governance_observations")
-    if not isinstance(raw, (list, tuple)):
+    if not isinstance(raw, list | tuple):
         return ()
 
     observations: list[dict[str, Any]] = []
