@@ -407,7 +407,7 @@ def default_adversarial_probes() -> tuple[AdversarialProbe, ...]:
         ),
         AdversarialProbe(
             probe_id="probe-fake-evidence-artifact",
-            scenario_id="missing-evidence-rejection",
+            scenario_id="rejected-unsafe-patch",
             kind=AdversarialProbeKind.FAKE_EVIDENCE,
             description="Evidence payload uses placeholder proof instead of a real artifact.",
             payload={"evidence_uri": "placeholder://fake-proof", "claim": "trust me, it passed"},
@@ -415,7 +415,7 @@ def default_adversarial_probes() -> tuple[AdversarialProbe, ...]:
         ),
         AdversarialProbe(
             probe_id="probe-missing-receipt-ledger",
-            scenario_id="missing-evidence-rejection",
+            scenario_id="rejected-unsafe-patch",
             kind=AdversarialProbeKind.MISSING_RECEIPT,
             description="Acceptance payload omits required receipt evidence.",
             payload={"required_evidence": ["receipt-ledger"], "evidence_uris": []},
@@ -423,7 +423,7 @@ def default_adversarial_probes() -> tuple[AdversarialProbe, ...]:
         ),
         AdversarialProbe(
             probe_id="probe-stale-patch-context",
-            scenario_id="incomplete-repair-rejection",
+            scenario_id="rejected-unsafe-patch",
             kind=AdversarialProbeKind.STALE_CONTEXT,
             description="Patch context digest no longer matches the workspace state.",
             payload={"before_sha256": "0" * 64, "current_sha256": "f" * 64},
@@ -431,7 +431,7 @@ def default_adversarial_probes() -> tuple[AdversarialProbe, ...]:
         ),
         AdversarialProbe(
             probe_id="probe-regression-test-bypass",
-            scenario_id="regression-detection",
+            scenario_id="flaky-test-containment",
             kind=AdversarialProbeKind.TEST_BYPASS,
             description="Regression check is bypassed with an always-successful command suffix.",
             payload={"test_command": "pytest tests || exit 0"},
