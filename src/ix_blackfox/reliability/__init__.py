@@ -18,6 +18,11 @@ from ix_blackfox.reliability.artifacts import (
     ReliabilityReceiptEventType,
     ReliabilityReceiptLedger,
 )
+from ix_blackfox.reliability.integrity import (
+    Wave4ReliabilityLabIntegrityIssue,
+    Wave4ReliabilityLabIntegrityReport,
+    validate_wave4_reliability_lab,
+)
 from ix_blackfox.reliability.metrics import (
     ReliabilityMetricsCollector,
     ReliabilityMetricsSummary,
@@ -90,6 +95,8 @@ __all__ = [
     "ReliabilityScenarioSuite",
     "RepairMetricObservation",
     "RepairMetricOutcome",
+    "Wave4ReliabilityLabIntegrityIssue",
+    "Wave4ReliabilityLabIntegrityReport",
     "WAVE4_ADVERSARIAL_SUITE_ID",
     "WAVE4_CORE_SUITE_ID",
     "WAVE4_FULL_SUITE_ID",
@@ -98,4 +105,5 @@ __all__ = [
     "build_wave4_full_suite",
     "built_in_reliability_suites",
     "default_adversarial_probes",
+    "validate_wave4_reliability_lab",
 ]
