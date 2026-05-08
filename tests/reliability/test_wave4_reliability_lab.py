@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 from contextlib import redirect_stdout
+from dataclasses import replace
 from pathlib import Path
 
 from ix_blackfox.interface.cli import main as blackfox_main
@@ -25,6 +26,7 @@ from ix_blackfox.reliability import (
     build_wave4_adversarial_suite,
     build_wave4_core_suite,
     build_wave4_full_suite,
+    validate_wave4_reliability_lab,
 )
 
 
@@ -46,6 +48,29 @@ def test_built_in_reliability_suites_are_registered() -> None:
     assert full_suite.scenario_count == 8
     assert adversarial_suite.adversarial_count == 4
     assert full_suite.scenario_by_id("path-traversal-rejection").adversarial is True
+
+
+def test_wave4_reliability_lab_integrity_check_passes_builtin_wiring() -> None:
+    report = validate_wave4_reliability_lab()
+
+    assert report.passed is True
+    assert report.issue_count == 0
+    assert report.scenario_count == 8
+    assert report.probe_count == 12
+    assert report.to_dict()["issue_codes"] == []
+
+
+def test_wave4_reliability_lab_integrity_check_blocks_core_probe_targets() -> None:
+    probe = next(
+        probe
+        for probe in AdversarialReliabilityHarness().probes
+        if probe.probe_id == "probe-regression-test-bypass"
+    )
+    misrouted_probe = replace(probe, scenario_id="regression-detection")
+    report = validate_wave4_reliability_lab(probes=(misrouted_probe,))
+
+    assert report.passed is False
+    assert "adversarial-probes-target-core-scenarios" in report.issue_codes
 
 
 def test_scenario_suite_serialization_round_trips() -> None:
