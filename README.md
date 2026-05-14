@@ -4,9 +4,11 @@
 
 # IX-BlackFox
 
-IX-BlackFox is a governed AI engineering control-plane project.
+IX-BlackFox is a source-available governed AI engineering control-plane project for bounded patch-test-verify workflows.
 
 The goal is not to build an uncontrolled “AI writes code and deploys itself” system. The goal is a bounded, auditable engineering runtime that can propose repairs, compile them into governed patch candidates, route them through policy gates, execute them through a controlled patch-test-verify loop, preserve receipts, and make the result reviewable.
+
+Beginning with the license-transition commit, IX-BlackFox is available for limited evaluation only under the IX-BlackFox Source-Available Evaluation License v1.0. Commercial use, production use, hosted-service use, redistribution, modification, derivative deployment, government operational use, agency operational use, contractor use, procurement use, funded-pilot use, or organization-backed use requires prior written permission and a separate license agreement with Bryce Lovell.
 
 Wave 3 adds governed patch authoring and repair intelligence on top of the existing Wave 2 patch-test-verify control plane.
 
@@ -488,6 +490,8 @@ That is the spine of the project.
 
 ## License
 
-Apache License 2.0.
+IX-BlackFox is licensed under the IX-BlackFox Source-Available Evaluation License v1.0 beginning with the license-transition commit.
 
-See `LICENSE` for the full license text.
+The source is available for review and limited noncommercial, non-operational evaluation only. Commercial use, production use, hosted-service use, redistribution, modification, derivative deployment, government operational use, agency operational use, contractor use, procurement use, funded-pilot use, or organization-backed use requires prior written permission and a separate license agreement with Bryce Lovell.
+
+Earlier versions released under Apache License 2.0 remain governed by their original license terms. The current and future license posture is documented in `LICENSE`, `COMMERCIAL.md`, and `NOTICE.md`.
