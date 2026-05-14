@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ix-blackfox"
 version = "0.1.0"
-description = "Programming-first intelligence runtime with a sovereign kernel, tiered memory, auditable execution, and controlled tool use."
+description = "Governed AI engineering control plane for bounded patch-test-verify workflows."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
@@ -13,16 +13,17 @@ authors = [
   { name = "Bryce Lovell" }
 ]
 keywords = [
-  "ai-runtime",
-  "programming",
-  "orchestration",
-  "memory",
-  "verification"
+  "ai-governance",
+  "runtime-assurance",
+  "patch-test-verify",
+  "software-verification",
+  "evidence-bundles"
 ]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: Apache Software License",
+  "License :: Other/Proprietary License",
+  "Private :: Do Not Upload",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
