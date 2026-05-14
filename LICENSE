@@ -1,201 +1,224 @@
-                                 Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
+IX-BlackFox Source-Available Evaluation License v1.0
 
-   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+Copyright (c) 2026 Bryce Lovell. All rights reserved.
 
-   1. Definitions.
+This license governs the IX-BlackFox software, documentation, examples,
+configuration files, tests, project materials, and related repository content
+published with this license, except for third-party components that are
+separately identified and governed by their own license terms.
 
-      "License" shall mean the terms and conditions for use, reproduction,
-      and distribution as defined by Sections 1 through 9 of this document.
+1. Purpose
 
-      "Licensor" shall mean the copyright owner or entity authorized by
-      the copyright owner that is granting the License.
+IX-BlackFox is made source-available so that interested parties may inspect the
+project, review its technical structure, and perform limited noncommercial
+evaluation to decide whether to contact the copyright holder about a separate
+commercial or operational license.
 
-      "Legal Entity" shall mean the union of the acting entity and all
-      other entities that control, are controlled by, or are under common
-      control with that entity. For the purposes of this definition,
-      "control" means (i) the power, direct or indirect, to cause the
-      direction or management of such entity, whether by contract or
-      otherwise, or (ii) ownership of fifty percent (50%) or more of the
-      outstanding shares, or (iii) beneficial ownership of such entity.
+This license does not grant open-source rights. It does not grant permission for
+commercial use, production use, redistribution, modification, derivative works,
+hosted-service use, resale, procurement use, contractor use, agency operational
+use, government operational use, or any use intended to generate revenue,
+operational advantage, procurement advantage, or deployed capability unless a
+separate written agreement is executed with Bryce Lovell.
 
-      "You" (or "Your") shall mean an individual or Legal Entity
-      exercising permissions granted by this License.
+2. Definitions
 
-      "Source" form shall mean the preferred form for making modifications,
-      including but not limited to software source code, documentation
-      source, and configuration files.
+"Software" means the IX-BlackFox source code, documentation, tests, examples,
+configuration files, workflows, project artifacts, and other materials included
+in this repository or any release that references this license.
 
-      "Object" form shall mean any form resulting from mechanical
-      transformation or translation of a Source form, including but
-      not limited to compiled object code, generated documentation,
-      and conversions to other media types.
+"You" means the individual or legal entity accessing, viewing, evaluating, or
+using the Software.
 
-      "Work" shall mean the work of authorship, whether in Source or
-      Object form, made available under the License, as indicated by a
-      copyright notice that is included in or attached to the work
-      (an example is provided in the Appendix below).
+"Evaluation" means limited internal review or testing of the unmodified Software
+for the sole purpose of understanding its design, behavior, technical fit, or
+potential value before contacting the copyright holder about a separate license.
+Evaluation does not include production use, commercial use, operational use,
+redistribution, modification, integration into another product or service,
+resale, hosted-service use, or use for the benefit of a customer, client,
+program, contract, agency, employer, or third party.
 
-      "Derivative Works" shall mean any work, whether in Source or Object
-      form, that is based on (or derived from) the Work and for which the
-      editorial revisions, annotations, elaborations, or other modifications
-      represent, as a whole, an original work of authorship. For the purposes
-      of this License, Derivative Works shall not include works that remain
-      separable from, or merely link (or bind by name) to the interfaces of,
-      the Work and Derivative Works thereof.
+"Commercial Use" means any use, access, testing, evaluation, integration,
+deployment, distribution, demonstration, or other activity involving the Software
+that is connected to revenue, compensation, paid work, consulting, contracting,
+procurement, product development, service delivery, resale, investment,
+business operations, competitive advantage, or work performed for or on behalf
+of any company, agency, contractor, integrator, institution, or other
+organization.
 
-      "Contribution" shall mean any work of authorship, including
-      the original version of the Work and any modifications or additions
-      to that Work or Derivative Works thereof, that is intentionally
-      submitted to Licensor for inclusion in the Work by the copyright owner
-      or by an individual or Legal Entity authorized to submit on behalf of
-      the copyright owner. For the purposes of this definition, "submitted"
-      means any form of electronic, verbal, or written communication sent
-      to the Licensor or its representatives, including but not limited to
-      communication on electronic mailing lists, source code control systems,
-      and issue tracking systems that are managed by, or on behalf of, the
-      Licensor for the purpose of discussing and improving the Work, but
-      excluding communication that is conspicuously marked or otherwise
-      designated in writing by the copyright owner as "Not a Contribution."
+"Operational Use" means use of the Software, in whole or in part, to support,
+automate, influence, validate, evaluate, document, approve, monitor, test,
+control, govern, or operate any real system, workflow, product, service,
+program, engineering process, procurement process, mission, customer engagement,
+or decision pipeline.
 
-      "Contributor" shall mean Licensor and any individual or Legal Entity
-      on behalf of whom a Contribution has been received by Licensor and
-      subsequently incorporated within the Work.
+"Modification" means any change, edit, adaptation, translation, transformation,
+conversion, extension, refactor, port, merge, extraction, or other alteration of
+the Software, including creation of derivative works.
 
-   2. Grant of Copyright License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      copyright license to reproduce, prepare Derivative Works of,
-      publicly display, publicly perform, sublicense, and distribute the
-      Work and such Derivative Works in Source or Object form.
+3. Permitted Evaluation Rights
 
-   3. Grant of Patent License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      (except as stated in this section) patent license to make, have made,
-      use, offer to sell, sell, import, and otherwise transfer the Work,
-      where such license applies only to those patent claims licensable
-      by such Contributor that are necessarily infringed by their
-      Contribution(s) alone or by combination of their Contribution(s)
-      with the Work to which such Contribution(s) was submitted. If You
-      institute patent litigation against any entity (including a
-      cross-claim or counterclaim in a lawsuit) alleging that the Work
-      or a Contribution incorporated within the Work constitutes direct
-      or contributory patent infringement, then any patent licenses
-      granted to You under this License for that Work shall terminate
-      as of the date such litigation is filed.
+Subject to full compliance with this license, You may:
 
-   4. Redistribution. You may reproduce and distribute copies of the
-      Work or Derivative Works thereof in any medium, with or without
-      modifications, and in Source or Object form, provided that You
-      meet the following conditions:
+(a) view and inspect the Software;
 
-      (a) You must give any other recipients of the Work or
-          Derivative Works a copy of this License; and
+(b) clone or download the Software solely for personal, noncommercial,
+non-operational evaluation;
 
-      (b) You must cause any modified files to carry prominent notices
-          stating that You changed the files; and
+(c) run the unmodified Software locally solely for personal, noncommercial,
+non-operational evaluation; and
 
-      (c) You must retain, in the Source form of any Derivative Works
-          that You distribute, all copyright, patent, trademark, and
-          attribution notices from the Source form of the Work,
-          excluding those notices that do not pertain to any part of
-          the Derivative Works; and
+(d) share a link to the original public repository.
 
-      (d) If the Work includes a "NOTICE" text file as part of its
-          distribution, then any Derivative Works that You distribute must
-          include a readable copy of the attribution notices contained
-          within such NOTICE file, excluding those notices that do not
-          pertain to any part of the Derivative Works, in at least one
-          of the following places: within a NOTICE text file distributed
-          as part of the Derivative Works; within the Source form or
-          documentation, if provided along with the Derivative Works; or,
-          within a display generated by the Derivative Works, if and
-          wherever such third-party notices normally appear. The contents
-          of the NOTICE file are for informational purposes only and
-          do not modify the License. You may add Your own attribution
-          notices within Derivative Works that You distribute, alongside
-          or as an addendum to the NOTICE text from the Work, provided
-          that such additional attribution notices cannot be construed
-          as modifying the License.
+These permissions are limited, revocable upon breach, non-exclusive,
+non-transferable, and do not include any rights not expressly granted in this
+license.
 
-      You may add Your own copyright statement to Your modifications and
-      may provide additional or different license terms and conditions
-      for use, reproduction, or distribution of Your modifications, or
-      for any such Derivative Works as a whole, provided Your use,
-      reproduction, and distribution of the Work otherwise complies with
-      the conditions stated in this License.
+4. Prohibited Uses
 
-   5. Submission of Contributions. Unless You explicitly state otherwise,
-      any Contribution intentionally submitted for inclusion in the Work
-      by You to the Licensor shall be under the terms and conditions of
-      this License, without any additional terms or conditions.
-      Notwithstanding the above, nothing herein shall supersede or modify
-      the terms of any separate license agreement you may have executed
-      with Licensor regarding such Contributions.
+Without prior written permission from Bryce Lovell under a separate agreement,
+You may not:
 
-   6. Trademarks. This License does not grant permission to use the trade
-      names, trademarks, service marks, or product names of the Licensor,
-      except as required for reasonable and customary use in describing the
-      origin of the Work and reproducing the content of the NOTICE file.
+(a) use the Software for any Commercial Use;
 
-   7. Disclaimer of Warranty. Unless required by applicable law or
-      agreed to in writing, Licensor provides the Work (and each
-      Contributor provides its Contributions) on an "AS IS" BASIS,
-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-      implied, including, without limitation, any warranties or conditions
-      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
-      PARTICULAR PURPOSE. You are solely responsible for determining the
-      appropriateness of using or redistributing the Work and assume any
-      risks associated with Your exercise of permissions under this License.
+(b) use the Software for any Operational Use;
 
-   8. Limitation of Liability. In no event and under no legal theory,
-      whether in tort (including negligence), contract, or otherwise,
-      unless required by applicable law (such as deliberate and grossly
-      negligent acts) or agreed to in writing, shall any Contributor be
-      liable to You for damages, including any direct, indirect, special,
-      incidental, or consequential damages of any character arising as a
-      result of this License or out of the use or inability to use the
-      Work (including but not limited to damages for loss of goodwill,
-      work stoppage, computer failure or malfunction, or any and all
-      other commercial damages or losses), even if such Contributor
-      has been advised of the possibility of such damages.
+(c) use the Software in production or production-like environments;
 
-   9. Accepting Warranty or Additional Liability. While redistributing
-      the Work or Derivative Works thereof, You may choose to offer,
-      and charge a fee for, acceptance of support, warranty, indemnity,
-      or other liability obligations and/or rights consistent with this
-      License. However, in accepting such obligations, You may act only
-      on Your own behalf and on Your sole responsibility, not on behalf
-      of any other Contributor, and only if You agree to indemnify,
-      defend, and hold each Contributor harmless for any liability
-      incurred by, or claims asserted against, such Contributor by reason
-      of your accepting any such warranty or additional liability.
+(d) modify the Software;
 
-   END OF TERMS AND CONDITIONS
+(e) create derivative works based on the Software;
 
-   APPENDIX: How to apply the Apache License to your work.
+(f) redistribute, sublicense, sell, rent, lease, lend, publish, mirror, rehost,
+package, or otherwise provide copies of the Software to any third party;
 
-      To apply the Apache License to your work, attach the following
-      boilerplate notice, with the fields enclosed by brackets "[]"
-      replaced with your own identifying information. (Don't include
-      the brackets!)  The text should be enclosed in the appropriate
-      comment syntax for the file format. We also recommend that a
-      file or class name and description of purpose be included on the
-      same "printed page" as the copyright notice for easier
-      identification within third-party archives.
+(g) integrate the Software into any product, service, internal tool, hosted
+service, platform, workflow, pipeline, agent system, runtime, evaluation system,
+or engineering process;
 
-   Copyright [2026] [Bryce Lovell]
+(h) use the Software to provide consulting, contracting, implementation,
+integration, testing, evaluation, assurance, compliance, governance, audit,
+DevSecOps, developer-tooling, autonomy, defense, safety, or engineering services;
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+(i) use the Software for or on behalf of a company, agency, government entity,
+defense contractor, prime contractor, subcontractor, systems integrator,
+research institution, funded program, procurement effort, customer, client, or
+other organization;
 
-       http://www.apache.org/licenses/LICENSE-2.0
+(j) use the Software to train, fine-tune, benchmark, evaluate, compare, improve,
+or operate any model, agent, automated repair system, development tool,
+commercial product, procurement artifact, proposal, whitepaper, internal roadmap,
+or competing implementation;
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+(k) remove, obscure, or alter copyright, license, attribution, or restriction
+notices;
+
+(l) claim ownership of the Software or imply endorsement, sponsorship,
+affiliation, approval, certification, procurement status, production readiness,
+or official relationship with Bryce Lovell or IX-BlackFox;
+
+(m) use the Software in any way that violates applicable law, regulation,
+contractual obligation, export-control obligation, confidentiality obligation,
+or third-party right; or
+
+(n) attempt to circumvent the intent of this license by using contractors,
+affiliates, subsidiaries, customers, vendors, integrators, automated systems, or
+other third parties to perform restricted activity.
+
+5. Commercial and Operational Licensing
+
+Commercial, production, hosted-service, resale, redistribution, modification,
+derivative deployment, government operational, agency operational, defense
+contractor, systems integrator, procurement, pilot, funded evaluation, or
+organization-backed use requires prior written permission and a separate license
+agreement with Bryce Lovell.
+
+Contact path:
+
+LinkedIn: https://www.linkedin.com/in/brycewdesign/
+GitHub: https://github.com/BryceWDesign/IX-BlackFox
+
+No commercial or operational rights are granted until a separate written
+agreement is executed.
+
+6. No Implied Rights
+
+All rights not expressly granted are reserved by Bryce Lovell. No license is
+granted by implication, estoppel, waiver, course of dealing, or otherwise.
+
+This license does not grant rights to any trade name, trademark, service mark,
+logo, project name, brand, domain name, social-media handle, or other identifier
+associated with Bryce Lovell or IX-BlackFox.
+
+7. Contributions
+
+This project is not accepting license-implied contributions under this license.
+Unless a separate written contribution agreement states otherwise, any submission
+of code, documentation, suggestions, issues, pull requests, feedback, examples,
+ideas, or other materials does not create any obligation for Bryce Lovell to use,
+review, accept, compensate, credit, or license that submission.
+
+Do not submit confidential, proprietary, export-controlled, classified,
+restricted, employer-owned, customer-owned, or third-party-owned information.
+
+8. Prior Apache-2.0 Versions
+
+Some earlier versions of IX-BlackFox were released under the Apache License,
+Version 2.0. This license does not retroactively revoke rights that were already
+granted for those earlier Apache-2.0 versions.
+
+Beginning with the license-transition commit or release that includes this
+license, new versions of IX-BlackFox are governed by this IX-BlackFox
+Source-Available Evaluation License v1.0 unless a later written license states
+otherwise.
+
+9. No Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY
+WARRANTIES OF TITLE, NON-INFRINGEMENT, MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE, SECURITY, RELIABILITY, ACCURACY, COMPLETENESS, PERFORMANCE,
+AVAILABILITY, OR ERROR-FREE OPERATION.
+
+The Software is a research prototype. It is not certified, production-ready,
+procurement-ready, safety-certified, security-certified, compliance-certified,
+or approved for operational use.
+
+10. Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, BRYCE LOVELL SHALL NOT BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, PUNITIVE, OR
+OTHER DAMAGES, INCLUDING WITHOUT LIMITATION LOST PROFITS, LOST REVENUE, LOST
+DATA, BUSINESS INTERRUPTION, PROCUREMENT LOSS, CONTRACT LOSS, GOODWILL LOSS,
+SECURITY INCIDENTS, SYSTEM FAILURES, OPERATIONAL FAILURES, OR THIRD-PARTY CLAIMS,
+ARISING FROM OR RELATED TO THE SOFTWARE OR THIS LICENSE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGES.
+
+11. Termination
+
+Any violation of this license automatically terminates all permissions granted to
+You under this license. Upon termination, You must immediately stop accessing,
+using, evaluating, running, or retaining the Software and must delete all copies
+in Your possession or control, except where retention is required by law.
+
+Termination does not limit any remedies available to Bryce Lovell.
+
+12. Governing Law and Severability
+
+This license should be interpreted to preserve the maximum restriction and
+reservation of rights permitted by applicable law. If any provision is held
+unenforceable, the remaining provisions remain in effect.
+
+13. Plain-Language Summary
+
+You may view and locally evaluate the unmodified Software for personal,
+noncommercial, non-operational review.
+
+You may not use it commercially, modify it, redistribute it, deploy it, integrate
+it, profit from it, provide services with it, use it for an organization, or use
+it for government, agency, contractor, procurement, funded, production, or
+operational purposes unless You first obtain written permission and a separate
+license from Bryce Lovell.
+
+The plain-language summary is provided for convenience only. The license terms
+above control.
