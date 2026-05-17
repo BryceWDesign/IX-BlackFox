@@ -9,6 +9,14 @@ workflow integrations can enforce.
 
 from __future__ import annotations
 
+from ix_blackfox.workflow.approval_policy import (
+    ApprovalPolicyDecision,
+    ApprovalPolicyEvaluator,
+    ApprovalPolicyMatrix,
+    ApprovalRequirement,
+    default_wave5_approval_policy_matrix,
+    evaluate_default_wave5_approval_policy,
+)
 from ix_blackfox.workflow.pr_evidence_pack import (
     EvidenceArtifact,
     EvidenceArtifactKind,
@@ -24,6 +32,10 @@ from ix_blackfox.workflow.pr_evidence_pack import (
 )
 
 __all__ = [
+    "ApprovalPolicyDecision",
+    "ApprovalPolicyEvaluator",
+    "ApprovalPolicyMatrix",
+    "ApprovalRequirement",
     "EvidenceArtifact",
     "EvidenceArtifactKind",
     "PullRequestApproval",
@@ -35,4 +47,6 @@ __all__ = [
     "Wave5ValidationIssue",
     "Wave5ValidationReport",
     "Wave5ValidationSeverity",
+    "default_wave5_approval_policy_matrix",
+    "evaluate_default_wave5_approval_policy",
 ]
