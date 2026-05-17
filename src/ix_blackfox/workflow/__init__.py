@@ -17,6 +17,15 @@ from ix_blackfox.workflow.approval_policy import (
     default_wave5_approval_policy_matrix,
     evaluate_default_wave5_approval_policy,
 )
+from ix_blackfox.workflow.ci_evidence import (
+    CiCheckConclusion,
+    CiCheckStatus,
+    CiEvidenceBundle,
+    CiEvidenceNormalizer,
+    CiEvidenceRecord,
+    CiEvidenceValidationReport,
+    CiEvidenceValidator,
+)
 from ix_blackfox.workflow.pr_evidence_pack import (
     EvidenceArtifact,
     EvidenceArtifactKind,
@@ -36,6 +45,13 @@ __all__ = [
     "ApprovalPolicyEvaluator",
     "ApprovalPolicyMatrix",
     "ApprovalRequirement",
+    "CiCheckConclusion",
+    "CiCheckStatus",
+    "CiEvidenceBundle",
+    "CiEvidenceNormalizer",
+    "CiEvidenceRecord",
+    "CiEvidenceValidationReport",
+    "CiEvidenceValidator",
     "EvidenceArtifact",
     "EvidenceArtifactKind",
     "PullRequestApproval",
