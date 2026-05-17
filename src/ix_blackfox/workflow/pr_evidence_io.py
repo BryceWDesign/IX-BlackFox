@@ -160,7 +160,7 @@ def _require_mapping(payload: Mapping[str, Any], key: str) -> Mapping[str, Any]:
 
 def _require_sequence(payload: Mapping[str, Any], key: str) -> Sequence[Any]:
     value = payload.get(key)
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+    if not isinstance(value, Sequence) or isinstance(value, str | bytes):
         raise ValueError(f"PR evidence pack field '{key}' must be a list.")
     return value
 
@@ -168,7 +168,7 @@ def _require_sequence(payload: Mapping[str, Any], key: str) -> Sequence[Any]:
 def _optional_sequence(value: Any, *, key: str) -> Sequence[Any]:
     if value is None:
         return ()
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+    if not isinstance(value, Sequence) or isinstance(value, str | bytes):
         raise ValueError(f"PR evidence pack field '{key}' must be a list when provided.")
     return value
 
