@@ -39,6 +39,12 @@ from ix_blackfox.workflow.pr_evidence_pack import (
     Wave5ValidationReport,
     Wave5ValidationSeverity,
 )
+from ix_blackfox.workflow.pr_gate import (
+    PullRequestGate,
+    PullRequestGateDecision,
+    PullRequestGateStatus,
+    evaluate_default_pull_request_gate,
+)
 
 __all__ = [
     "ApprovalPolicyDecision",
@@ -57,6 +63,9 @@ __all__ = [
     "PullRequestApproval",
     "PullRequestEvidencePack",
     "PullRequestEvidencePackValidator",
+    "PullRequestGate",
+    "PullRequestGateDecision",
+    "PullRequestGateStatus",
     "PullRequestIdentity",
     "ReviewDecision",
     "ReviewerKind",
@@ -64,5 +73,6 @@ __all__ = [
     "Wave5ValidationReport",
     "Wave5ValidationSeverity",
     "default_wave5_approval_policy_matrix",
+    "evaluate_default_pull_request_gate",
     "evaluate_default_wave5_approval_policy",
 ]
