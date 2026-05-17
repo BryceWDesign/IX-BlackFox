@@ -8,15 +8,22 @@
 
 IX-BlackFox is a source-available governed AI engineering control plane for bounded patch-test-verify workflows.
 
-Its purpose is not uncontrolled autonomous coding. Its purpose is to keep AI-assisted engineering inside reviewable boundaries: policy gates, controlled patch candidates, test execution, receipt chains, evidence bundles, reliability scenarios, adversarial checks, and human authority.
+The goal is not uncontrolled autonomous coding. The goal is a reviewable engineering runtime that can accept AI-assisted repair proposals only as untrusted inputs, route them through policy gates, execute controlled validation, preserve receipts, and expose evidence for human review.
 
 ## Current status
 
-**Current implemented wave: Wave 4.**
+**Current stage: Wave 5 active / in progress.**
 
-Wave 4 adds a reliability lab on top of the earlier governed patch-test-verify and repair-authoring layers. The current repository contains Wave 4 reliability components for scenario suites, adversarial tests, repair metrics, reliability reports, and artifact bundles.
+The repository has moved beyond Wave 4 by adding the first real Wave 5 organization-workflow layer:
 
-**Wave 5 is not implemented yet.** Wave 5 is the next planned stage: organization-grade workflow with PR evidence packs, approvals, and CI integration.
+- PR evidence-pack contract
+- human approval policy matrix
+- CI evidence normalization
+- PR gate decision engine
+- local/manual Wave 5 gate CLI
+- manual/operator-run GitHub Actions workflow for Wave 5 PR gate evaluation
+
+Wave 5 is **not complete**. The current implementation is an honest Wave 5 entry layer: it can evaluate whether a pull-request evidence pack has the required evidence, human approval, CI evidence, and head-SHA binding before being treated as merge-ready.
 
 ## Implemented waves
 
@@ -26,78 +33,107 @@ Wave 4 adds a reliability lab on top of the earlier governed patch-test-verify a
 | 2 | Implemented | Governed local patch-test-verify control plane |
 | 3 | Implemented | Governed patch authoring and repair intelligence |
 | 4 | Implemented | Reliability lab with scenario suites, adversarial tests, and repair metrics |
-| 5 | Planned | Organization-grade workflow with PR evidence packs, approvals, and CI integration |
+| 5 | Active / in progress | Organization-grade workflow with PR evidence packs, approvals, and CI integration |
 
-## What the current repo does
+## Wave 5 scope currently implemented
 
-IX-BlackFox currently supports:
+The current Wave 5 layer includes:
 
-- bounded runtime scaffolding
-- policy-aware execution paths
-- local patch-test-verify workflows
-- governed patch candidates
-- repair proposal parsing and validation
-- receipt generation
-- run bundle and evidence output
-- Wave 3 authored-repair handoff into Wave 2 execution
-- Wave 4 reliability scenario suites
-- adversarial fail-closed checks
-- repair-quality metrics
-- reliability reports and artifacts
+| Area | Purpose |
+|---|---|
+| `src/ix_blackfox/workflow/pr_evidence_pack.py` | Defines the PR evidence-pack contract and fail-closed validation rules |
+| `src/ix_blackfox/workflow/approval_policy.py` | Requires real human approval and treats model approval as advisory only |
+| `src/ix_blackfox/workflow/ci_evidence.py` | Normalizes CI evidence and checks required CI conclusions |
+| `src/ix_blackfox/workflow/pr_gate.py` | Combines evidence-pack, approval-policy, and CI evidence into a merge-readiness decision |
+| `src/ix_blackfox/workflow/pr_evidence_io.py` | Loads PR evidence-pack JSON into typed workflow objects |
+| `src/ix_blackfox/workflow/cli.py` | Provides the local/manual Wave 5 PR gate command |
+| `.github/workflows/wave5-pr-gate.yml` | Adds a manual/operator-run GitHub Actions gate for evaluating supplied evidence files |
 
 ## Core trust boundary
 
-Model output is treated as untrusted input.
+Model output is never treated as authority.
 
-IX-BlackFox does not accept a repair simply because an AI or external provider proposed it. A repair must pass parsing, policy review, compilation, candidate selection, controlled execution, evidence capture, and human-reviewable reporting.
+A model may propose a repair, comment on evidence, or provide advisory review. It cannot approve itself, satisfy human authority, or make a change merge-ready by itself.
 
-The key rule is:
+The core rule is:
 
 > AI may propose. IX-BlackFox must gate, test, record, and route for review. Humans retain authority.
 
-## What IX-BlackFox does not claim
+## What the Wave 5 gate checks
+
+The current Wave 5 gate can block a pull request when:
+
+- required evidence artifacts are missing
+- changed files are not declared
+- governance receipts are missing
+- reliability evidence is missing when required
+- CI evidence is missing
+- required CI checks are missing, pending, cancelled, timed out, or failed
+- CI evidence does not match the PR repository
+- CI evidence does not match the PR head SHA
+- human approval is missing
+- only model approval is present
+- the PR author attempts to satisfy the human approval requirement
+- any review rejects the change or requests changes
+
+## Local Wave 5 gate command
+
+Example:
+
+```
+python -m ix_blackfox.interface.cli workflow pr-gate \
+  --evidence-pack artifacts/wave5/pr-evidence-pack.json \
+  --ci-evidence artifacts/wave5/ci-evidence.json \
+  --required-check pytest \
+  --json
+```
+The command returns:
+
+0 when the PR gate passes
+1 when the PR gate blocks merge readiness
+2 when input files or JSON structures are invalid
+GitHub Actions integration
+
+The Wave 5 GitHub Actions workflow is intentionally manual/operator-run.
+
+It does not fake human approval. It does not synthesize review data. It evaluates supplied evidence files and preserves the gate decision as an artifact for review.
+
+Workflow file:
+```
+.github/workflows/wave5-pr-gate.yml
+```
+What IX-BlackFox does not claim
 
 IX-BlackFox does not claim:
 
-- production readiness
-- certification
-- procurement status
-- official defense affiliation
-- autonomous authority
-- deployment approval
-- safety certification
-- security certification
-- that any AI-generated repair is correct without evidence
+production readiness
+certification
+procurement status
+official defense affiliation
+autonomous authority
+autonomous deployment approval
+safety certification
+security certification
+that any AI-generated repair is correct without evidence
+that Wave 5 is complete
 
-This is a research prototype, not an operational system.
+This is a research prototype and governed engineering control-plane experiment, not an operational system.
 
-## Repository structure
-
-Important areas include:
-
-| Path | Purpose |
-|---|---|
-| `src/ix_blackfox/runtime/` | Runtime control, repair execution, receipts, bundles, safeguards, replay, and Wave 3 handoff |
-| `src/ix_blackfox/authoring/` | Patch-authoring models, evidence extraction, prompt contracts, parsers, compilers, policy, receipts, and candidate ranking |
-| `src/ix_blackfox/reliability/` | Wave 4 reliability lab, scenario suites, adversarial harness, metrics, reports, and artifacts |
-| `src/ix_blackfox/governance/` | Governance policy, approval, advisory, receipts, and decision models |
-| `src/ix_blackfox/forge/` | Workspace, patch planning, command execution, regression handling, and governed command paths |
-| `tests/` | Test coverage for runtime, authoring, governance, reliability, forge, memory, vault, tools, and related modules |
-
-## Testing
+Testing
 
 From the repository root:
-
 ```
 python -m pytest
 ```
-To inspect the Wave 4 reliability lab directly, review:
+Useful targeted checks:
 ```
-tests/reliability/test_wave4_reliability_lab.py
-src/ix_blackfox/reliability/
+python -m pytest tests/workflow
+python -m pytest tests/reliability
+python -m pytest tests/governance
+python -m compileall -q src tests
 ```
-Locked roadmap
 
+Locked roadmap
 | Wave | Locked meaning                                                                                                        |
 | ---: | --------------------------------------------------------------------------------------------------------------------- |
 |    1 | Governed multi-brain runtime scaffold                                                                                 |
