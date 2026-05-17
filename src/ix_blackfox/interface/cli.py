@@ -28,6 +28,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         return reliability_main(raw_argv[1:])
 
+    if raw_argv and raw_argv[0] == "workflow":
+        from ix_blackfox.workflow.cli import main as workflow_main
+
+        return workflow_main(raw_argv[1:])
+
     parser = _build_parser()
     args = parser.parse_args(raw_argv)
 
@@ -122,6 +127,10 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "reliability",
         help="Run Wave 4 reliability lab commands.",
+    )
+    subparsers.add_parser(
+        "workflow",
+        help="Run Wave 5 organization workflow commands.",
     )
 
     return parser
