@@ -262,7 +262,7 @@ class CiEvidenceValidator:
 class CiEvidenceNormalizer:
     def from_mapping(self, payload: Mapping[str, Any]) -> CiEvidenceBundle:
         records_payload = payload.get("records")
-        if not isinstance(records_payload, Sequence) or isinstance(records_payload, (str, bytes)):
+        if not isinstance(records_payload, Sequence) or isinstance(records_payload, str | bytes):
             raise ValueError("CI evidence payload must contain a records sequence.")
         return CiEvidenceBundle(
             bundle_id=_require_str(payload, "bundle_id"),
