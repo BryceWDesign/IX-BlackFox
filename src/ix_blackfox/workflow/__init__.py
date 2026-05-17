@@ -26,6 +26,10 @@ from ix_blackfox.workflow.ci_evidence import (
     CiEvidenceValidationReport,
     CiEvidenceValidator,
 )
+from ix_blackfox.workflow.pr_evidence_io import (
+    PullRequestEvidencePackNormalizer,
+    load_pr_evidence_pack,
+)
 from ix_blackfox.workflow.pr_evidence_pack import (
     EvidenceArtifact,
     EvidenceArtifactKind,
@@ -62,6 +66,7 @@ __all__ = [
     "EvidenceArtifactKind",
     "PullRequestApproval",
     "PullRequestEvidencePack",
+    "PullRequestEvidencePackNormalizer",
     "PullRequestEvidencePackValidator",
     "PullRequestGate",
     "PullRequestGateDecision",
@@ -75,4 +80,5 @@ __all__ = [
     "default_wave5_approval_policy_matrix",
     "evaluate_default_pull_request_gate",
     "evaluate_default_wave5_approval_policy",
+    "load_pr_evidence_pack",
 ]
