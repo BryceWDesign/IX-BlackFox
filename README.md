@@ -6,6 +6,18 @@
 
 **AI proposes. Humans decide.**
 
+## The control gap IX-BlackFox addresses
+
+AI coding agents are moving into real software pipelines. That creates a control problem most organizations are not ready to prove: when an agent proposes a code change, can the team show what it attempted, what was allowed, what was blocked, what tests ran, what evidence was produced, and where a human made the final decision?
+
+IX-BlackFox is built around that gap. It creates a governed execution layer for AI-assisted code-change workflows: policy gates, sandbox receipts, bounded workspace rules, deny-by-default execution controls, human approval checkpoints, test evidence, PR evidence packs, and tamper-evident run records.
+
+The operating principle is not to stop teams from using AI. It is to make AI-assisted engineering work bounded, inspectable, evidence-producing, and human-reviewable.
+
+IX-BlackFox is aimed at DevSecOps, platform engineering, security, compliance, and regulated software teams that want AI coding agents without losing control of the software delivery process.
+
+## Technical summary
+
 IX-BlackFox is a source-available governed AI engineering control plane for bounded patch-test-verify workflows.
 
 The goal is not uncontrolled autonomous coding. The goal is a reviewable engineering runtime that can accept AI-assisted repair proposals only as untrusted inputs, route them through policy gates, execute controlled validation, preserve receipts, and expose evidence for human review.
@@ -129,6 +141,7 @@ Example:
 ```
 python scripts/run_wave6_sandbox_ci.py --head-sha "$(git rev-parse HEAD)"
 ```
+
 Default output:
 ```
 .blackfox-artifacts/wave6/wave6-sandbox-ci-report.json
@@ -146,10 +159,12 @@ Wave 5 workflow:
 ```
 .github/workflows/wave5-pr-gate.yml
 ```
+
 Wave 6 workflow:
 ```
 .github/workflows/wave6-sandbox-evidence.yml
 ```
+
 The Wave 6 workflow intentionally verifies the sandbox contracts, egress decisions, receipt evidence, adversarial harness, and CI payload generation without requiring Docker execution in CI. Container command construction and backend behavior are covered by tests using a fake executor so GitHub Actions remains stable and repeatable.
 
 Local-audit backend warning
@@ -226,6 +241,7 @@ that local HMAC signatures are equivalent to Sigstore, Rekor, SLSA, or public PK
 This is a research prototype and governed engineering control-plane experiment, not an operational system.
 
 Locked roadmap
+
 | Wave | Locked meaning                                                                                                        |
 | ---: | --------------------------------------------------------------------------------------------------------------------- |
 |    1 | Governed multi-brain runtime scaffold                                                                                 |
