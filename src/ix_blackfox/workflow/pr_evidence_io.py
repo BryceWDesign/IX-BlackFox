@@ -76,6 +76,7 @@ class PullRequestEvidencePackNormalizer:
             produced_by=_require_str(artifact, "produced_by"),
             sha256=_optional_str(artifact.get("sha256"), label="sha256"),
             size_bytes=_optional_int(artifact.get("size_bytes"), label="size_bytes"),
+            head_sha=_optional_str(artifact.get("head_sha"), label="head_sha"),
             metadata=_optional_mapping(artifact.get("metadata")),
         )
 
