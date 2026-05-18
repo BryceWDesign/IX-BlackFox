@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from collections.abc import Mapping, Sequence
@@ -132,12 +133,15 @@ class CiEvidenceBundle:
 
     def to_evidence_artifact(self, *, uri: str, produced_by: str = "blackfox-ci-evidence-ingestion") -> EvidenceArtifact:
         payload = self.to_json()
+        payload_bytes = payload.encode("utf-8")
         return EvidenceArtifact(
             artifact_id=f"ci-summary-{self.bundle_id}",
             kind=EvidenceArtifactKind.CI_SUMMARY,
             uri=uri,
             produced_by=produced_by,
-            size_bytes=len(payload.encode("utf-8")),
+            sha256=hashlib.sha256(payload_bytes).hexdigest(),
+            size_bytes=len(payload_bytes),
+            head_sha=self.head_sha,
             metadata={
                 "provider": self.provider,
                 "repository": self.repository,
