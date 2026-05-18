@@ -94,6 +94,7 @@ def test_wave5_pr_gate_combines_evidence_pack_and_approval_policy_errors() -> No
                 produced_by="blackfox-runtime",
                 sha256=_DIGEST,
                 size_bytes=512,
+                head_sha="abc1234",
             ),
         ),
         approvals=(
@@ -194,6 +195,7 @@ def _artifacts() -> tuple[EvidenceArtifact, ...]:
             produced_by="blackfox-runtime",
             sha256=_DIGEST,
             size_bytes=512,
+            head_sha="abc1234",
         ),
         EvidenceArtifact(
             artifact_id="test-report",
@@ -202,6 +204,7 @@ def _artifacts() -> tuple[EvidenceArtifact, ...]:
             produced_by="pytest",
             sha256="b" * 64,
             size_bytes=768,
+            head_sha="abc1234",
         ),
         EvidenceArtifact(
             artifact_id="governance-receipt",
@@ -210,6 +213,7 @@ def _artifacts() -> tuple[EvidenceArtifact, ...]:
             produced_by="blackfox-governance",
             sha256="c" * 64,
             size_bytes=384,
+            head_sha="abc1234",
         ),
         EvidenceArtifact(
             artifact_id="reliability-report",
@@ -218,6 +222,7 @@ def _artifacts() -> tuple[EvidenceArtifact, ...]:
             produced_by="blackfox-reliability-lab",
             sha256="d" * 64,
             size_bytes=1024,
+            head_sha="abc1234",
         ),
     )
 
