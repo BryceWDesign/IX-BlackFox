@@ -145,6 +145,7 @@ class EvidenceArtifact:
     produced_by: str
     sha256: str | None = None
     size_bytes: int | None = None
+    head_sha: str | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -153,6 +154,7 @@ class EvidenceArtifact:
         object.__setattr__(self, "produced_by", _normalize_text(self.produced_by, label="produced_by"))
         object.__setattr__(self, "sha256", _normalize_optional_sha256(self.sha256))
         object.__setattr__(self, "size_bytes", _normalize_optional_size(self.size_bytes))
+        object.__setattr__(self, "head_sha", _normalize_optional_sha(self.head_sha, label="head_sha"))
         object.__setattr__(self, "metadata", dict(self.metadata))
 
     def to_dict(self) -> dict[str, Any]:
@@ -163,6 +165,7 @@ class EvidenceArtifact:
             "produced_by": self.produced_by,
             "sha256": self.sha256,
             "size_bytes": self.size_bytes,
+            "head_sha": self.head_sha,
             "metadata": dict(self.metadata),
         }
 
@@ -327,6 +330,23 @@ def _validate_artifacts(
                     f"artifacts.{artifact.artifact_id}.size_bytes",
                 )
             )
+        if artifact.head_sha is None:
+            issue = _error if artifact_is_required else _warning
+            issues.append(
+                issue(
+                    "wave5.artifact_head_sha_missing",
+                    f"Artifact '{artifact.artifact_id}' does not declare the PR head SHA it was produced for.",
+                    f"artifacts.{artifact.artifact_id}.head_sha",
+                )
+            )
+        elif artifact.head_sha != pack.pull_request.head_sha:
+            issues.append(
+                _error(
+                    "wave5.artifact_head_sha_mismatch",
+                    f"Artifact '{artifact.artifact_id}' was produced for head SHA '{artifact.head_sha}', not PR head SHA '{pack.pull_request.head_sha}'.",
+                    f"artifacts.{artifact.artifact_id}.head_sha",
+                )
+            )
     return tuple(issues)
 
 
@@ -419,6 +439,15 @@ def _normalize_optional_sha256(value: str | None) -> str | None:
     cleaned = _normalize_text(value.lower(), label="sha256")
     if not _SHA256_RE.fullmatch(cleaned):
         raise ValueError("sha256 must be a 64-character lowercase hexadecimal digest.")
+    return cleaned
+
+
+def _normalize_optional_sha(value: str | None, *, label: str) -> str | None:
+    if value is None:
+        return None
+    cleaned = _normalize_text(value.lower(), label=label)
+    if not re.fullmatch(r"[0-9a-f]{7,64}", cleaned):
+        raise ValueError(f"{label} must be a hexadecimal commit identifier.")
     return cleaned
 
 
