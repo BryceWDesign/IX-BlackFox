@@ -2,12 +2,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-import pytest
-
 from ix_blackfox.sandbox import (
     SandboxArtifactManifest,
     SandboxArtifactRecord,
-    SandboxBackendKind,
     SandboxCommandRequest,
     SandboxCommandResult,
     SandboxEgressGuard,
