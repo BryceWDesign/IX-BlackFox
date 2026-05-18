@@ -31,6 +31,8 @@ from ix_blackfox.workflow.pr_evidence_io import (
     load_pr_evidence_pack,
 )
 from ix_blackfox.workflow.pr_evidence_pack import (
+    ArtifactAttestation,
+    ArtifactAttestationKind,
     EvidenceArtifact,
     EvidenceArtifactKind,
     PullRequestApproval,
@@ -55,6 +57,8 @@ __all__ = [
     "ApprovalPolicyEvaluator",
     "ApprovalPolicyMatrix",
     "ApprovalRequirement",
+    "ArtifactAttestation",
+    "ArtifactAttestationKind",
     "CiCheckConclusion",
     "CiCheckStatus",
     "CiEvidenceBundle",
