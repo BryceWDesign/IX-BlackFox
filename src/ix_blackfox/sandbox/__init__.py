@@ -8,6 +8,14 @@ scaffolding only and must not be treated as a hardened sandbox backend.
 
 from __future__ import annotations
 
+from ix_blackfox.sandbox.adversarial import (
+    SandboxAdversarialFinding,
+    SandboxAdversarialHarness,
+    SandboxAdversarialOutcome,
+    SandboxAdversarialReport,
+    SandboxAdversarialScenarioKind,
+    SandboxAdversarialScenarioResult,
+)
 from ix_blackfox.sandbox.container import (
     ContainerSandboxBackend,
     ContainerSandboxRun,
@@ -58,6 +66,12 @@ __all__ = [
     "ContainerSandboxRun",
     "LocalAuditSandboxBackend",
     "LocalAuditSandboxRun",
+    "SandboxAdversarialFinding",
+    "SandboxAdversarialHarness",
+    "SandboxAdversarialOutcome",
+    "SandboxAdversarialReport",
+    "SandboxAdversarialScenarioKind",
+    "SandboxAdversarialScenarioResult",
     "SandboxArtifactManifest",
     "SandboxArtifactRecord",
     "SandboxBackendKind",
