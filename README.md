@@ -12,18 +12,23 @@ The goal is not uncontrolled autonomous coding. The goal is a reviewable enginee
 
 ## Current status
 
-**Current stage: Wave 5 active / in progress.**
+**Current stage: Wave 6 prototype/evidence layer implemented.**
 
-The repository has moved beyond Wave 4 by adding the first real Wave 5 organization-workflow layer:
+IX-BlackFox has evolved beyond the Wave 5 organization-workflow layer into an early Wave 6 sandbox-evidence layer.
 
-- PR evidence-pack contract
-- human approval policy matrix
-- CI evidence normalization
-- PR gate decision engine
-- local/manual Wave 5 gate CLI
-- manual/operator-run GitHub Actions workflow for Wave 5 PR gate evaluation
+Wave 6 does **not** mean the project is production-ready, certified, defense-approved, or safe for operational deployment. In this repository, Wave 6 means the prototype now contains a hardened-execution-oriented evidence boundary:
 
-Wave 5 is **not complete**. The current implementation is an honest Wave 5 entry layer: it can evaluate whether a pull-request evidence pack has the required evidence, human approval, CI evidence, and head-SHA binding before being treated as merge-ready.
+- isolated workspace lifecycle
+- container sandbox backend
+- deny-all default egress policy
+- egress audit decisions
+- artifact manifests
+- sandbox run receipts
+- local signed artifact statements
+- adversarial sandbox validation reports
+- CI evidence generation for Wave 6 sandbox checks
+
+This is still a research prototype. It is intended to make AI-assisted engineering actions more bounded, inspectable, testable, and reviewable.
 
 ## Implemented waves
 
@@ -33,37 +38,47 @@ Wave 5 is **not complete**. The current implementation is an honest Wave 5 entry
 | 2 | Implemented | Governed local patch-test-verify control plane |
 | 3 | Implemented | Governed patch authoring and repair intelligence |
 | 4 | Implemented | Reliability lab with scenario suites, adversarial tests, and repair metrics |
-| 5 | Active / in progress | Organization-grade workflow with PR evidence packs, approvals, and CI integration |
+| 5 | Implemented | Organization-grade workflow with PR evidence packs, approvals, and CI integration |
+| 6 | Prototype evidence layer implemented | Hardened sandbox execution layer with isolated workspaces, signed artifacts, and egress controls |
 
-## Wave 5 scope currently implemented
+## Wave 6 scope currently implemented
 
-The current Wave 5 layer includes:
+The current Wave 6 layer includes:
 
 | Area | Purpose |
 |---|---|
-| `src/ix_blackfox/workflow/pr_evidence_pack.py` | Defines the PR evidence-pack contract and fail-closed validation rules |
-| `src/ix_blackfox/workflow/approval_policy.py` | Requires real human approval and treats model approval as advisory only |
-| `src/ix_blackfox/workflow/ci_evidence.py` | Normalizes CI evidence and checks required CI conclusions |
-| `src/ix_blackfox/workflow/pr_gate.py` | Combines evidence-pack, approval-policy, and CI evidence into a merge-readiness decision |
-| `src/ix_blackfox/workflow/pr_evidence_io.py` | Loads PR evidence-pack JSON into typed workflow objects |
-| `src/ix_blackfox/workflow/cli.py` | Provides the local/manual Wave 5 PR gate command |
-| `.github/workflows/wave5-pr-gate.yml` | Adds a manual/operator-run GitHub Actions gate for evaluating supplied evidence files |
+| `src/ix_blackfox/sandbox/contracts.py` | Defines sandbox profiles, command requests, results, network policy, filesystem policy, resource limits, and deterministic digests |
+| `src/ix_blackfox/sandbox/workspace.py` | Creates isolated workspace roots, stages declared mounts, rejects path escape and symlink abuse, and collects artifact manifests |
+| `src/ix_blackfox/sandbox/container.py` | Builds and runs container sandbox commands using deny-all network, read-only root, dropped capabilities, no-new-privileges, resource limits, and declared mounts |
+| `src/ix_blackfox/sandbox/local_audit.py` | Provides compatibility/dev execution evidence only; it is explicitly not hardened isolation |
+| `src/ix_blackfox/sandbox/egress.py` | Produces auditable egress decisions for deny-all, allowlist, proxy-logged, and offline-cache network modes |
+| `src/ix_blackfox/sandbox/receipt.py` | Binds sandbox command requests, results, profiles, network policy digests, artifact manifests, and egress audit bundles into receipts |
+| `src/ix_blackfox/sandbox/signing.py` | Provides local deterministic HMAC-SHA256 signed artifact statements and verification reports |
+| `src/ix_blackfox/sandbox/adversarial.py` | Produces adversarial validation reports for egress, receipt, path escape, symlink, and policy-block scenarios |
+| `src/ix_blackfox/workflow/sandbox_receipt_evidence.py` | Converts sandbox receipt bundles into PR evidence artifacts and verifies them |
+| `src/ix_blackfox/workflow/sandbox_adversarial_evidence.py` | Converts adversarial reports into PR evidence artifacts and verifies them |
+| `.github/workflows/wave6-sandbox-evidence.yml` | Runs Wave 6 sandbox/evidence/adversarial tests and uploads a Wave 6 CI evidence payload |
+| `scripts/run_wave6_sandbox_ci.py` | Generates deterministic Wave 6 sandbox CI evidence |
 
 ## Core trust boundary
 
 Model output is never treated as authority.
 
-A model may propose a repair, comment on evidence, or provide advisory review. It cannot approve itself, satisfy human authority, or make a change merge-ready by itself.
+A model may propose a repair, comment on evidence, or provide advisory review. It cannot approve itself, satisfy human authority, bypass sandbox policy, or make a change merge-ready by itself.
 
 The core rule is:
 
-> AI may propose. IX-BlackFox must gate, test, record, and route for review. Humans retain authority.
+> AI may propose. IX-BlackFox must gate, sandbox, test, record, and route for review. Humans retain authority.
 
-## What the Wave 5 gate checks
+## Wave 5 evidence gate
 
-The current Wave 5 gate can block a pull request when:
+The Wave 5 gate can block a pull request when:
 
 - required evidence artifacts are missing
+- required evidence artifacts are missing SHA-256 digests
+- required evidence artifacts are missing byte sizes
+- required evidence artifacts are empty
+- required evidence artifacts are not bound to the PR head SHA
 - changed files are not declared
 - governance receipts are missing
 - reliability evidence is missing when required
@@ -76,7 +91,23 @@ The current Wave 5 gate can block a pull request when:
 - the PR author attempts to satisfy the human approval requirement
 - any review rejects the change or requests changes
 
-## Local Wave 5 gate command
+## Wave 6 sandbox evidence gate
+
+The Wave 6 layer adds additional fail-closed evidence expectations:
+
+- sandbox receipt bundles must be present when required
+- sandbox receipt bundles must be bound to the PR head SHA
+- local-audit receipts cannot satisfy hardened sandbox evidence
+- sandbox receipts must use allowed hardened backend kinds
+- sandbox receipts must bind artifact manifest digests when required
+- sandbox receipts must bind egress audit bundle digests when required
+- sandbox adversarial reports must be present when required
+- sandbox adversarial reports must pass required scenarios
+- sandbox adversarial reports must be bound to the PR head SHA
+- sandbox artifacts must include deterministic digests and sizes
+- signed artifact statements must verify against an allowed signer/key when checked
+
+## Local Wave 5 PR gate command
 
 Example:
 
@@ -92,32 +123,65 @@ The command returns:
 0 when the PR gate passes
 1 when the PR gate blocks merge readiness
 2 when input files or JSON structures are invalid
+Wave 6 CI evidence command
+
+Example:
+```
+python scripts/run_wave6_sandbox_ci.py --head-sha "$(git rev-parse HEAD)"
+```
+Default output:
+```
+.blackfox-artifacts/wave6/wave6-sandbox-ci-report.json
+```
+The generated payload includes:
+
+Wave 6 adversarial report
+adversarial verification result
+PR evidence artifact representation
+head-SHA binding
+bounded claim note
 GitHub Actions integration
 
-The Wave 5 GitHub Actions workflow is intentionally manual/operator-run.
-
-It does not fake human approval. It does not synthesize review data. It evaluates supplied evidence files and preserves the gate decision as an artifact for review.
-
-Workflow file:
+Wave 5 workflow:
 ```
 .github/workflows/wave5-pr-gate.yml
 ```
-What IX-BlackFox does not claim
+Wave 6 workflow:
+```
+.github/workflows/wave6-sandbox-evidence.yml
+```
+The Wave 6 workflow intentionally verifies the sandbox contracts, egress decisions, receipt evidence, adversarial harness, and CI payload generation without requiring Docker execution in CI. Container command construction and backend behavior are covered by tests using a fake executor so GitHub Actions remains stable and repeatable.
 
-IX-BlackFox does not claim:
+Local-audit backend warning
 
-production readiness
-certification
-procurement status
-official defense affiliation
-autonomous authority
-autonomous deployment approval
-safety certification
-security certification
-that any AI-generated repair is correct without evidence
-that Wave 5 is complete
+local_audit is not hardened isolation.
 
-This is a research prototype and governed engineering control-plane experiment, not an operational system.
+It exists for compatibility, local development, policy checking, and receipt/evidence shape validation. It must not be used as proof that untrusted code was isolated from the host.
+
+Only allowed hardened backend kinds such as container, gvisor, or firecracker may satisfy hardened sandbox evidence checks. The current implemented real backend is the Docker-style container backend.
+
+Container backend warning
+
+The container backend applies security-oriented runtime flags such as:
+
+deny-all network
+read-only root filesystem
+dropped Linux capabilities
+no-new-privileges
+process limits
+memory limits
+CPU limits
+declared mounts only
+
+This is useful sandbox-hardening evidence, but it is not a production security certification. The backend should be treated as a research prototype execution boundary until it is independently reviewed, stress-tested, and operated inside a properly hardened host environment.
+
+Signed artifact warning
+
+Wave 6 includes local HMAC-SHA256 signed artifact statements.
+
+This proves that IX-BlackFox can bind artifact identity, signer identity, PR head SHA, profile digest, artifact manifest digest, and canonical statement body into a verifiable local signature.
+
+It does not claim Sigstore, Rekor, GitHub artifact attestation, SLSA compliance, or public PKI verification. Those are future maturity paths, not current claims.
 
 Testing
 
@@ -128,10 +192,38 @@ python -m pytest
 Useful targeted checks:
 ```
 python -m pytest tests/workflow
-python -m pytest tests/reliability
-python -m pytest tests/governance
-python -m compileall -q src tests
+python -m pytest tests/sandbox
+python -m pytest tests/ci
+python -m compileall -q src tests scripts
 ```
+Wave 6 targeted check:
+```
+python -m pytest \
+  tests/sandbox \
+  tests/workflow/test_sandbox_receipt_evidence.py \
+  tests/workflow/test_sandbox_adversarial_evidence.py \
+  tests/ci/test_wave6_sandbox_ci_integration.py \
+  -q
+```
+What IX-BlackFox does not claim
+
+IX-BlackFox does not claim:
+
+production readiness
+safety certification
+security certification
+compliance certification
+procurement status
+official defense affiliation
+autonomous authority
+autonomous deployment approval
+autonomous operational control
+that any AI-generated repair is correct without evidence
+that a local-audit run is hardened sandbox evidence
+that a Docker/container run is equivalent to formal certification
+that local HMAC signatures are equivalent to Sigstore, Rekor, SLSA, or public PKI attestation
+
+This is a research prototype and governed engineering control-plane experiment, not an operational system.
 
 Locked roadmap
 | Wave | Locked meaning                                                                                                        |
@@ -146,6 +238,8 @@ Locked roadmap
 |    8 | Repository intelligence layer with code graph, dependency mapping, impact analysis, and architectural memory          |
 |    9 | Compliance/audit attestation layer with policy packs, evidence standards, reviewer signoff, and governance reports    |
 |   10 | Full AI engineering operating system: multi-repo, multi-team, policy-governed, measurable, replayable, and reviewable |
+
+This roadmap is the spine. It should not be renumbered or replaced.
 
 Engineering principle
 
