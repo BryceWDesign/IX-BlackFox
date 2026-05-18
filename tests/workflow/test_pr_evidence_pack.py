@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 import pytest
 
 from ix_blackfox.workflow import (
+    ArtifactAttestation,
+    ArtifactAttestationKind,
     EvidenceArtifact,
     EvidenceArtifactKind,
     PullRequestApproval,
@@ -17,6 +19,7 @@ from ix_blackfox.workflow import (
 
 _HEAD_SHA = "abc1234"
 _DIGEST = "a" * 64
+_ATTESTATION_DIGEST = "f" * 64
 
 
 def test_wave5_pr_evidence_pack_passes_with_required_evidence_and_human_approval() -> None:
@@ -266,6 +269,120 @@ def test_wave5_pr_evidence_pack_rejects_stale_artifact_head_sha() -> None:
     assert "wave5.artifact_head_sha_mismatch" in report.issue_codes
 
 
+def test_wave5_pr_evidence_pack_accepts_attestations_when_future_gate_requires_them() -> None:
+    pack = PullRequestEvidencePack(
+        pack_id="wave5-pack-attested-required-artifacts",
+        pull_request=_identity(),
+        created_at=_now(),
+        summary="Attestation-ready artifacts prepare Wave 6 signed evidence bundles.",
+        changed_files=("src/ix_blackfox/runtime/example.py",),
+        requested_checks=("pytest",),
+        artifacts=tuple(_attested_artifact(artifact) for artifact in _required_artifacts()),
+        approvals=(_human_approval(),),
+    )
+
+    report = PullRequestEvidencePackValidator(
+        require_attestations_for_required_artifacts=True
+    ).validate(pack)
+
+    assert report.passed is True
+    assert report.error_count == 0
+    assert report.warning_count == 0
+    assert pack.to_dict()["artifacts"][0]["attestations"][0]["verified"] is False
+
+
+def test_wave5_pr_evidence_pack_can_require_attestations_for_required_artifacts() -> None:
+    pack = _complete_pack()
+
+    report = PullRequestEvidencePackValidator(
+        require_attestations_for_required_artifacts=True
+    ).validate(pack)
+
+    assert report.passed is False
+    assert report.error_count == 4
+    assert report.issue_codes.count("wave5.artifact_attestation_missing") == 4
+
+
+def test_wave5_pr_evidence_pack_rejects_attestation_subject_digest_mismatch() -> None:
+    run_bundle, *remaining = _required_artifacts()
+    pack = PullRequestEvidencePack(
+        pack_id="wave5-pack-bad-attestation-subject",
+        pull_request=_identity(),
+        created_at=_now(),
+        summary="Attestation subject digests must bind to the artifact digest.",
+        changed_files=("src/ix_blackfox/runtime/example.py",),
+        requested_checks=("pytest",),
+        artifacts=(
+            _attested_artifact(run_bundle, subject_sha256="e" * 64),
+            *remaining,
+        ),
+        approvals=(_human_approval(),),
+    )
+
+    report = PullRequestEvidencePackValidator().validate(pack)
+
+    assert report.passed is False
+    assert report.error_count == 1
+    assert "wave5.attestation_subject_digest_mismatch" in report.issue_codes
+
+
+def test_wave5_pr_evidence_pack_rejects_attestation_head_sha_mismatch() -> None:
+    run_bundle, *remaining = _required_artifacts()
+    pack = PullRequestEvidencePack(
+        pack_id="wave5-pack-stale-attestation",
+        pull_request=_identity(),
+        created_at=_now(),
+        summary="Attestations must bind to the artifact and PR head SHA.",
+        changed_files=("src/ix_blackfox/runtime/example.py",),
+        requested_checks=("pytest",),
+        artifacts=(
+            _attested_artifact(run_bundle, head_sha="def5678"),
+            *remaining,
+        ),
+        approvals=(_human_approval(),),
+    )
+
+    report = PullRequestEvidencePackValidator().validate(pack)
+
+    assert report.passed is False
+    assert report.error_count == 2
+    assert "wave5.attestation_artifact_head_sha_mismatch" in report.issue_codes
+    assert "wave5.attestation_pr_head_sha_mismatch" in report.issue_codes
+
+
+def test_wave5_pr_evidence_pack_rejects_duplicate_attestation_ids() -> None:
+    run_bundle, *remaining = _required_artifacts()
+    attestation = _attestation(run_bundle)
+    pack = PullRequestEvidencePack(
+        pack_id="wave5-pack-duplicate-attestations",
+        pull_request=_identity(),
+        created_at=_now(),
+        summary="Attestation identifiers must be stable and unique per artifact.",
+        changed_files=("src/ix_blackfox/runtime/example.py",),
+        requested_checks=("pytest",),
+        artifacts=(
+            EvidenceArtifact(
+                artifact_id=run_bundle.artifact_id,
+                kind=run_bundle.kind,
+                uri=run_bundle.uri,
+                produced_by=run_bundle.produced_by,
+                sha256=run_bundle.sha256,
+                size_bytes=run_bundle.size_bytes,
+                head_sha=run_bundle.head_sha,
+                attestations=(attestation, attestation),
+            ),
+            *remaining,
+        ),
+        approvals=(_human_approval(),),
+    )
+
+    report = PullRequestEvidencePackValidator().validate(pack)
+
+    assert report.passed is False
+    assert report.error_count == 1
+    assert "wave5.duplicate_attestation_id" in report.issue_codes
+
+
 def test_wave5_pr_evidence_pack_warns_on_optional_artifacts_without_measurements() -> None:
     pack = PullRequestEvidencePack(
         pack_id="wave5-pack-unmeasured-optional-artifact",
@@ -421,6 +538,53 @@ def _required_artifacts() -> tuple[EvidenceArtifact, ...]:
             size_bytes=1024,
             head_sha=_HEAD_SHA,
         ),
+    )
+
+
+def _attested_artifact(
+    artifact: EvidenceArtifact,
+    *,
+    head_sha: str = _HEAD_SHA,
+    subject_sha256: str | None = None,
+) -> EvidenceArtifact:
+    return EvidenceArtifact(
+        artifact_id=artifact.artifact_id,
+        kind=artifact.kind,
+        uri=artifact.uri,
+        produced_by=artifact.produced_by,
+        sha256=artifact.sha256,
+        size_bytes=artifact.size_bytes,
+        head_sha=artifact.head_sha,
+        attestations=(
+            _attestation(
+                artifact,
+                head_sha=head_sha,
+                subject_sha256=subject_sha256,
+            ),
+        ),
+    )
+
+
+def _attestation(
+    artifact: EvidenceArtifact,
+    *,
+    head_sha: str = _HEAD_SHA,
+    subject_sha256: str | None = None,
+) -> ArtifactAttestation:
+    if artifact.sha256 is None:
+        raise ValueError("test artifact must include sha256")
+    return ArtifactAttestation(
+        attestation_id=f"attestation-{artifact.artifact_id}",
+        kind=ArtifactAttestationKind.LOCAL_MANIFEST,
+        uri=f"artifacts/attestations/{artifact.artifact_id}.json",
+        produced_by="blackfox-workflow",
+        predicate_type="https://ix.blackfox.local/predicate/pr-evidence/v1",
+        sha256=_ATTESTATION_DIGEST,
+        size_bytes=256,
+        head_sha=head_sha,
+        subject_sha256=subject_sha256 if subject_sha256 is not None else artifact.sha256,
+        verified=False,
+        metadata={"wave": "5.5", "future_consumer": "wave6-sandbox-evidence"},
     )
 
 
