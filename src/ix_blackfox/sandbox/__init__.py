@@ -28,10 +28,18 @@ from ix_blackfox.sandbox.local_audit import (
     LocalAuditSandboxBackend,
     LocalAuditSandboxRun,
 )
+from ix_blackfox.sandbox.workspace import (
+    SandboxArtifactManifest,
+    SandboxArtifactRecord,
+    SandboxWorkspace,
+    SandboxWorkspaceManager,
+)
 
 __all__ = [
     "LocalAuditSandboxBackend",
     "LocalAuditSandboxRun",
+    "SandboxArtifactManifest",
+    "SandboxArtifactRecord",
     "SandboxBackendKind",
     "SandboxCommandRequest",
     "SandboxCommandResult",
@@ -45,5 +53,7 @@ __all__ = [
     "SandboxNetworkPolicy",
     "SandboxProfile",
     "SandboxResourceLimits",
+    "SandboxWorkspace",
+    "SandboxWorkspaceManager",
     "default_wave6_local_audit_profile",
 ]
