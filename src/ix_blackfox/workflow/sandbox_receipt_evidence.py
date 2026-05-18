@@ -185,7 +185,11 @@ def sandbox_receipt_bundle_to_evidence_artifact(
     artifact_id: str = "sandbox-receipt-bundle",
     produced_by: str = "blackfox-wave6-sandbox",
 ) -> EvidenceArtifact:
-    payload = json.dumps(receipt_bundle.to_dict(), sort_keys=True, separators=(",", ":")).encode("utf-8")
+    payload = json.dumps(
+        receipt_bundle.to_dict(include_digest=False),
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
     digest = hashlib.sha256(payload).hexdigest()
     if digest != receipt_bundle.digest:
         raise ValueError("receipt bundle digest does not match deterministic artifact payload digest.")
