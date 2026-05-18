@@ -171,7 +171,7 @@ def test_wave5_pr_evidence_pack_rejects_unsafe_changed_paths() -> None:
         )
 
 
-def test_wave5_pr_evidence_pack_warns_on_missing_artifact_measurements() -> None:
+def test_wave5_pr_evidence_pack_fails_required_artifacts_without_measurements() -> None:
     artifacts = tuple(
         EvidenceArtifact(
             artifact_id=artifact.artifact_id,
@@ -182,10 +182,10 @@ def test_wave5_pr_evidence_pack_warns_on_missing_artifact_measurements() -> None
         for artifact in _required_artifacts()
     )
     pack = PullRequestEvidencePack(
-        pack_id="wave5-pack-unmeasured-artifacts",
+        pack_id="wave5-pack-unmeasured-required-artifacts",
         pull_request=_identity(),
         created_at=_now(),
-        summary="Artifacts can be referenced before digest enforcement is complete.",
+        summary="Required artifacts must have identity before Wave 6 can consume them.",
         changed_files=("src/ix_blackfox/runtime/example.py",),
         requested_checks=("pytest",),
         artifacts=artifacts,
@@ -194,11 +194,70 @@ def test_wave5_pr_evidence_pack_warns_on_missing_artifact_measurements() -> None
 
     report = PullRequestEvidencePackValidator().validate(pack)
 
+    assert report.passed is False
+    assert report.error_count == 8
+    assert report.warning_count == 0
+    assert report.issue_codes.count("wave5.artifact_digest_missing") == 4
+    assert report.issue_codes.count("wave5.artifact_size_missing") == 4
+
+
+def test_wave5_pr_evidence_pack_warns_on_optional_artifacts_without_measurements() -> None:
+    pack = PullRequestEvidencePack(
+        pack_id="wave5-pack-unmeasured-optional-artifact",
+        pull_request=_identity(),
+        created_at=_now(),
+        summary="Optional artifacts may be advisory, but missing identity is still reported.",
+        changed_files=("src/ix_blackfox/runtime/example.py",),
+        requested_checks=("pytest",),
+        artifacts=(
+            *_required_artifacts(),
+            EvidenceArtifact(
+                artifact_id="optional-policy-note",
+                kind=EvidenceArtifactKind.OTHER,
+                uri="artifacts/optional-policy-note.json",
+                produced_by="blackfox-workflow",
+            ),
+        ),
+        approvals=(_human_approval(),),
+    )
+
+    report = PullRequestEvidencePackValidator().validate(pack)
+
     assert report.passed is True
     assert report.error_count == 0
-    assert report.warning_count == 8
+    assert report.warning_count == 2
     assert "wave5.artifact_digest_missing" in report.issue_codes
     assert "wave5.artifact_size_missing" in report.issue_codes
+
+
+def test_wave5_pr_evidence_pack_fails_zero_byte_required_artifact() -> None:
+    run_bundle, *remaining = _required_artifacts()
+    pack = PullRequestEvidencePack(
+        pack_id="wave5-pack-empty-required-artifact",
+        pull_request=_identity(),
+        created_at=_now(),
+        summary="A zero-byte required artifact is not acceptable merge evidence.",
+        changed_files=("src/ix_blackfox/runtime/example.py",),
+        requested_checks=("pytest",),
+        artifacts=(
+            EvidenceArtifact(
+                artifact_id=run_bundle.artifact_id,
+                kind=run_bundle.kind,
+                uri=run_bundle.uri,
+                produced_by=run_bundle.produced_by,
+                sha256=run_bundle.sha256,
+                size_bytes=0,
+            ),
+            *remaining,
+        ),
+        approvals=(_human_approval(),),
+    )
+
+    report = PullRequestEvidencePackValidator().validate(pack)
+
+    assert report.passed is False
+    assert report.error_count == 1
+    assert "wave5.required_artifact_empty" in report.issue_codes
 
 
 def _complete_pack() -> PullRequestEvidencePack:
