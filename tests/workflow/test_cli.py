@@ -192,6 +192,7 @@ def _artifact(artifact_id: str, kind: str, uri: str) -> dict[str, object]:
         "produced_by": "blackfox-test-fixture",
         "sha256": "a" * 64,
         "size_bytes": 512,
+        "head_sha": "abc1234",
     }
 
 
