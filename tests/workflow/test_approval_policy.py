@@ -188,6 +188,7 @@ def _artifacts(*, include_reliability: bool) -> tuple[EvidenceArtifact, ...]:
             produced_by="blackfox-runtime",
             sha256=_DIGEST,
             size_bytes=512,
+            head_sha="def5678",
         ),
         EvidenceArtifact(
             artifact_id="test-report",
@@ -196,6 +197,7 @@ def _artifacts(*, include_reliability: bool) -> tuple[EvidenceArtifact, ...]:
             produced_by="pytest",
             sha256="b" * 64,
             size_bytes=768,
+            head_sha="def5678",
         ),
         EvidenceArtifact(
             artifact_id="governance-receipt",
@@ -204,6 +206,7 @@ def _artifacts(*, include_reliability: bool) -> tuple[EvidenceArtifact, ...]:
             produced_by="blackfox-governance",
             sha256="c" * 64,
             size_bytes=384,
+            head_sha="def5678",
         ),
     ]
     if include_reliability:
@@ -215,6 +218,7 @@ def _artifacts(*, include_reliability: bool) -> tuple[EvidenceArtifact, ...]:
                 produced_by="blackfox-reliability-lab",
                 sha256="d" * 64,
                 size_bytes=1024,
+                head_sha="def5678",
             )
         )
     return tuple(artifacts)
