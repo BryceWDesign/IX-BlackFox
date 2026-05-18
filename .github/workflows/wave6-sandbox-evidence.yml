@@ -1,0 +1,50 @@
+name: Wave 6 Sandbox Evidence
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  wave6-sandbox-evidence:
+    name: Wave 6 sandbox evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" || python -m pip install -e .
+
+      - name: Run Wave 6 sandbox and evidence tests
+        run: |
+          python -m pytest \
+            tests/sandbox \
+            tests/workflow/test_sandbox_receipt_evidence.py \
+            tests/workflow/test_sandbox_adversarial_evidence.py \
+            tests/ci/test_wave6_sandbox_ci_integration.py \
+            -q
+
+      - name: Generate Wave 6 sandbox CI evidence
+        run: |
+          python scripts/run_wave6_sandbox_ci.py --head-sha "${{ github.sha }}"
+
+      - name: Upload Wave 6 sandbox evidence artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave6-sandbox-ci-evidence
+          path: .blackfox-artifacts/wave6/wave6-sandbox-ci-report.json
+          if-no-files-found: error
