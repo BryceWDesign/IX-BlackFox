@@ -51,6 +51,10 @@ from ix_blackfox.workflow.pr_gate import (
     PullRequestGateStatus,
     evaluate_default_pull_request_gate,
 )
+from ix_blackfox.workflow.sandbox_receipt_evidence import (
+    SandboxReceiptEvidenceVerifier,
+    sandbox_receipt_bundle_to_evidence_artifact,
+)
 
 __all__ = [
     "ApprovalPolicyDecision",
@@ -78,6 +82,7 @@ __all__ = [
     "PullRequestIdentity",
     "ReviewDecision",
     "ReviewerKind",
+    "SandboxReceiptEvidenceVerifier",
     "Wave5ValidationIssue",
     "Wave5ValidationReport",
     "Wave5ValidationSeverity",
@@ -85,4 +90,5 @@ __all__ = [
     "evaluate_default_pull_request_gate",
     "evaluate_default_wave5_approval_policy",
     "load_pr_evidence_pack",
+    "sandbox_receipt_bundle_to_evidence_artifact",
 ]
