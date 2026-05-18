@@ -73,7 +73,8 @@ def test_wave6_workspace_manager_collects_output_artifact_manifest(tmp_path: Pat
     manifest = manager.collect_artifacts(workspace)
 
     assert manifest.artifact_count == 2
-    assert manifest.total_size_bytes == len("sandbox artifact\n".encode("utf-8")) + len('{"passed":true}\n'.encode("utf-8"))
+    expected_size = len(b"sandbox artifact\n") + len(b'{"passed":true}\n')
+    assert manifest.total_size_bytes == expected_size
     assert tuple(record.path for record in manifest.artifacts) == ("nested/result.txt", "summary.json")
     assert manifest.artifacts[0].sha256 == hashlib.sha256(b"sandbox artifact\n").hexdigest()
     assert len(manifest.digest) == 64
