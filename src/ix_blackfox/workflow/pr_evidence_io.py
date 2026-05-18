@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any, cast
 
 from ix_blackfox.workflow.pr_evidence_pack import (
+    ArtifactAttestation,
+    ArtifactAttestationKind,
     EvidenceArtifact,
     EvidenceArtifactKind,
     PullRequestApproval,
@@ -77,7 +79,32 @@ class PullRequestEvidencePackNormalizer:
             sha256=_optional_str(artifact.get("sha256"), label="sha256"),
             size_bytes=_optional_int(artifact.get("size_bytes"), label="size_bytes"),
             head_sha=_optional_str(artifact.get("head_sha"), label="head_sha"),
+            attestations=tuple(
+                self.attestation_from_mapping(attestation)
+                for attestation in _optional_sequence(
+                    artifact.get("attestations"),
+                    key="attestations",
+                )
+            ),
             metadata=_optional_mapping(artifact.get("metadata")),
+        )
+
+    def attestation_from_mapping(self, payload: Any) -> ArtifactAttestation:
+        if not isinstance(payload, Mapping):
+            raise ValueError("attestation entries must be JSON objects.")
+        attestation = cast(Mapping[str, Any], payload)
+        return ArtifactAttestation(
+            attestation_id=_require_str(attestation, "attestation_id"),
+            kind=_attestation_kind_from_value(_require_str(attestation, "kind")),
+            uri=_require_str(attestation, "uri"),
+            produced_by=_require_str(attestation, "produced_by"),
+            predicate_type=_require_str(attestation, "predicate_type"),
+            sha256=_require_str(attestation, "sha256"),
+            size_bytes=_require_int(attestation, "size_bytes"),
+            head_sha=_require_str(attestation, "head_sha"),
+            subject_sha256=_require_str(attestation, "subject_sha256"),
+            verified=_optional_bool(attestation.get("verified"), default=False, label="verified"),
+            metadata=_optional_mapping(attestation.get("metadata")),
         )
 
     def approval_from_mapping(self, payload: Any) -> PullRequestApproval:
@@ -120,6 +147,14 @@ def _artifact_kind_from_value(value: str) -> EvidenceArtifactKind:
         return EvidenceArtifactKind(cleaned)
     except ValueError as exc:
         raise ValueError(f"unsupported evidence artifact kind: {value!r}.") from exc
+
+
+def _attestation_kind_from_value(value: str) -> ArtifactAttestationKind:
+    cleaned = _enum_value(value)
+    try:
+        return ArtifactAttestationKind(cleaned)
+    except ValueError as exc:
+        raise ValueError(f"unsupported artifact attestation kind: {value!r}.") from exc
 
 
 def _reviewer_kind_from_value(value: str) -> ReviewerKind:
@@ -181,6 +216,13 @@ def _require_str(payload: Mapping[str, Any], key: str) -> str:
     return value
 
 
+def _require_int(payload: Mapping[str, Any], key: str) -> int:
+    value = payload.get(key)
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"PR evidence pack field '{key}' must be an integer.")
+    return value
+
+
 def _require_str_value(value: Any, label: str) -> str:
     if not isinstance(value, str):
         raise ValueError(f"{label} entries must be strings.")
@@ -200,6 +242,14 @@ def _optional_int(value: Any, *, label: str) -> int | None:
         return None
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError(f"{label} must be an integer when provided.")
+    return value
+
+
+def _optional_bool(value: Any, *, default: bool, label: str) -> bool:
+    if value is None:
+        return default
+    if not isinstance(value, bool):
+        raise ValueError(f"{label} must be a boolean when provided.")
     return value
 
 
