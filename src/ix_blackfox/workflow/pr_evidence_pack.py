@@ -22,6 +22,7 @@ class EvidenceArtifactKind(StrEnum):
     CI_SUMMARY = auto()
     HUMAN_REVIEW = auto()
     SANDBOX_RECEIPT_BUNDLE = auto()
+    SANDBOX_ADVERSARIAL_REPORT = auto()
     OTHER = auto()
 
 
@@ -330,6 +331,7 @@ class PullRequestEvidencePackValidator:
     allow_model_approval_only: bool = False
     require_attestations_for_required_artifacts: bool = False
     require_sandbox_receipt_bundle: bool = False
+    require_sandbox_adversarial_report: bool = False
 
     def validate(self, pack: PullRequestEvidencePack) -> Wave5ValidationReport:
         issues: list[Wave5ValidationIssue] = []
@@ -436,6 +438,11 @@ def _required_artifact_kinds(
         and EvidenceArtifactKind.SANDBOX_RECEIPT_BUNDLE not in required
     ):
         required.append(EvidenceArtifactKind.SANDBOX_RECEIPT_BUNDLE)
+    if (
+        validator.require_sandbox_adversarial_report
+        and EvidenceArtifactKind.SANDBOX_ADVERSARIAL_REPORT not in required
+    ):
+        required.append(EvidenceArtifactKind.SANDBOX_ADVERSARIAL_REPORT)
     return tuple(required)
 
 
