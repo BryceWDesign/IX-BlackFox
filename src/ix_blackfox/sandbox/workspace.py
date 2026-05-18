@@ -236,7 +236,13 @@ def _stage_mount(
     workspace_root: Path,
     filesystem: SandboxFilesystemPolicy,
 ) -> Path:
-    host_source = (repo_root / mount.source).resolve()
+    host_source_raw = repo_root / mount.source
+    if _path_contains_symlink(host_source_raw, root=repo_root):
+        raise ValueError("sandbox mount source must not be a symlink.")
+    host_source = host_source_raw.resolve()
+    if not _is_relative_to(host_source, repo_root):
+        raise ValueError("sandbox mount source escapes the repository root.")
+
     target_path = _host_path_for_sandbox_target(workspace_root, mount.target)
     if not _is_relative_to(target_path, workspace_root):
         raise ValueError("mount target escapes the workspace root.")
@@ -249,8 +255,6 @@ def _stage_mount(
         target_path.mkdir(parents=True, exist_ok=True)
         return target_path
 
-    if host_source.is_symlink():
-        raise ValueError("sandbox mount source must not be a symlink.")
     if mount.access is SandboxMountAccess.READ_WRITE:
         target_path.mkdir(parents=True, exist_ok=True)
         if host_source.is_file():
@@ -267,6 +271,15 @@ def _stage_mount(
         _copy_directory_contents(host_source, target_path)
         return target_path
     raise ValueError("sandbox mount source must be a file or directory.")
+
+
+def _path_contains_symlink(path: Path, *, root: Path) -> bool:
+    current = root
+    for part in path.relative_to(root).parts:
+        current = current / part
+        if current.is_symlink():
+            return True
+    return False
 
 
 def _copy_directory_contents(source: Path, target: Path) -> None:
