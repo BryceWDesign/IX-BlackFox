@@ -8,6 +8,11 @@ scaffolding only and must not be treated as a hardened sandbox backend.
 
 from __future__ import annotations
 
+from ix_blackfox.sandbox.container import (
+    ContainerSandboxBackend,
+    ContainerSandboxRun,
+    default_wave6_container_profile,
+)
 from ix_blackfox.sandbox.contracts import (
     SandboxBackendKind,
     SandboxCommandRequest,
@@ -36,6 +41,8 @@ from ix_blackfox.sandbox.workspace import (
 )
 
 __all__ = [
+    "ContainerSandboxBackend",
+    "ContainerSandboxRun",
     "LocalAuditSandboxBackend",
     "LocalAuditSandboxRun",
     "SandboxArtifactManifest",
@@ -55,5 +62,6 @@ __all__ = [
     "SandboxResourceLimits",
     "SandboxWorkspace",
     "SandboxWorkspaceManager",
+    "default_wave6_container_profile",
     "default_wave6_local_audit_profile",
 ]
