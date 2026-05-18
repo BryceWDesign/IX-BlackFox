@@ -24,6 +24,15 @@ class EvidenceArtifactKind(StrEnum):
     OTHER = auto()
 
 
+class ArtifactAttestationKind(StrEnum):
+    LOCAL_MANIFEST = auto()
+    GITHUB_ARTIFACT_ATTESTATION = auto()
+    SIGSTORE_BUNDLE = auto()
+    IN_TOTO_STATEMENT = auto()
+    SLSA_PROVENANCE = auto()
+    OTHER = auto()
+
+
 class ReviewerKind(StrEnum):
     HUMAN = auto()
     SYSTEM = auto()
@@ -138,6 +147,59 @@ class PullRequestIdentity:
 
 
 @dataclass(frozen=True, slots=True)
+class ArtifactAttestation:
+    attestation_id: str
+    kind: ArtifactAttestationKind
+    uri: str
+    produced_by: str
+    predicate_type: str
+    sha256: str
+    size_bytes: int
+    head_sha: str
+    subject_sha256: str
+    verified: bool = False
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "attestation_id",
+            _normalize_token(self.attestation_id, label="attestation_id"),
+        )
+        object.__setattr__(self, "uri", _normalize_uri(self.uri))
+        object.__setattr__(self, "produced_by", _normalize_text(self.produced_by, label="produced_by"))
+        object.__setattr__(
+            self,
+            "predicate_type",
+            _normalize_text(self.predicate_type, label="predicate_type"),
+        )
+        object.__setattr__(self, "sha256", _normalize_required_sha256(self.sha256, label="sha256"))
+        object.__setattr__(self, "size_bytes", _normalize_required_size(self.size_bytes))
+        object.__setattr__(self, "head_sha", _normalize_sha(self.head_sha))
+        object.__setattr__(
+            self,
+            "subject_sha256",
+            _normalize_required_sha256(self.subject_sha256, label="subject_sha256"),
+        )
+        object.__setattr__(self, "metadata", dict(self.metadata))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "attestation_id": self.attestation_id,
+            "kind": self.kind.value,
+            "uri": self.uri,
+            "produced_by": self.produced_by,
+            "predicate_type": self.predicate_type,
+            "sha256": self.sha256,
+            "size_bytes": self.size_bytes,
+            "head_sha": self.head_sha,
+            "subject_sha256": self.subject_sha256,
+            "verified": self.verified,
+            "metadata": dict(self.metadata),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class EvidenceArtifact:
     artifact_id: str
     kind: EvidenceArtifactKind
@@ -146,6 +208,7 @@ class EvidenceArtifact:
     sha256: str | None = None
     size_bytes: int | None = None
     head_sha: str | None = None
+    attestations: tuple[ArtifactAttestation, ...] = field(default_factory=tuple)
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -155,6 +218,7 @@ class EvidenceArtifact:
         object.__setattr__(self, "sha256", _normalize_optional_sha256(self.sha256))
         object.__setattr__(self, "size_bytes", _normalize_optional_size(self.size_bytes))
         object.__setattr__(self, "head_sha", _normalize_optional_sha(self.head_sha, label="head_sha"))
+        object.__setattr__(self, "attestations", tuple(self.attestations))
         object.__setattr__(self, "metadata", dict(self.metadata))
 
     def to_dict(self) -> dict[str, Any]:
@@ -166,6 +230,7 @@ class EvidenceArtifact:
             "sha256": self.sha256,
             "size_bytes": self.size_bytes,
             "head_sha": self.head_sha,
+            "attestations": [attestation.to_dict() for attestation in self.attestations],
             "metadata": dict(self.metadata),
         }
 
@@ -262,12 +327,13 @@ class PullRequestEvidencePackValidator:
     )
     require_human_approval: bool = True
     allow_model_approval_only: bool = False
+    require_attestations_for_required_artifacts: bool = False
 
     def validate(self, pack: PullRequestEvidencePack) -> Wave5ValidationReport:
         issues: list[Wave5ValidationIssue] = []
         issues.extend(_validate_changed_files(pack.changed_files))
         issues.extend(_validate_requested_checks(pack.requested_checks))
-        issues.extend(_validate_artifacts(pack, self.required_artifact_kinds))
+        issues.extend(_validate_artifacts(pack, self))
         issues.extend(_validate_approvals(pack, self))
         return Wave5ValidationReport(
             pack_id=pack.pack_id,
@@ -290,15 +356,15 @@ def _validate_requested_checks(requested_checks: tuple[str, ...]) -> tuple[Wave5
 
 def _validate_artifacts(
     pack: PullRequestEvidencePack,
-    required_artifact_kinds: tuple[EvidenceArtifactKind, ...],
+    validator: PullRequestEvidencePackValidator,
 ) -> tuple[Wave5ValidationIssue, ...]:
     issues: list[Wave5ValidationIssue] = []
     for artifact_id in _duplicates(pack.artifact_ids()):
         issues.append(_error("wave5.duplicate_artifact_id", f"Artifact id '{artifact_id}' appears more than once.", "artifacts"))
 
-    required_kind_set = set(required_artifact_kinds)
+    required_kind_set = set(validator.required_artifact_kinds)
     artifact_kinds = set(pack.artifact_kinds())
-    for required_kind in required_artifact_kinds:
+    for required_kind in validator.required_artifact_kinds:
         if required_kind not in artifact_kinds:
             issues.append(_error("wave5.required_artifact_missing", f"Required artifact kind '{required_kind.value}' is missing.", "artifacts"))
 
@@ -345,6 +411,76 @@ def _validate_artifacts(
                     "wave5.artifact_head_sha_mismatch",
                     f"Artifact '{artifact.artifact_id}' was produced for head SHA '{artifact.head_sha}', not PR head SHA '{pack.pull_request.head_sha}'.",
                     f"artifacts.{artifact.artifact_id}.head_sha",
+                )
+            )
+        issues.extend(
+            _validate_artifact_attestations(
+                pack=pack,
+                artifact=artifact,
+                artifact_is_required=artifact_is_required,
+                require_attestation=validator.require_attestations_for_required_artifacts,
+            )
+        )
+    return tuple(issues)
+
+
+def _validate_artifact_attestations(
+    *,
+    pack: PullRequestEvidencePack,
+    artifact: EvidenceArtifact,
+    artifact_is_required: bool,
+    require_attestation: bool,
+) -> tuple[Wave5ValidationIssue, ...]:
+    issues: list[Wave5ValidationIssue] = []
+    if require_attestation and artifact_is_required and not artifact.attestations:
+        issues.append(
+            _error(
+                "wave5.artifact_attestation_missing",
+                f"Required artifact '{artifact.artifact_id}' does not include an attestation record.",
+                f"artifacts.{artifact.artifact_id}.attestations",
+            )
+        )
+    for attestation_id in _duplicates(
+        attestation.attestation_id for attestation in artifact.attestations
+    ):
+        issues.append(
+            _error(
+                "wave5.duplicate_attestation_id",
+                f"Attestation id '{attestation_id}' appears more than once on artifact '{artifact.artifact_id}'.",
+                f"artifacts.{artifact.artifact_id}.attestations",
+            )
+        )
+    for attestation in artifact.attestations:
+        if artifact.sha256 is None:
+            issues.append(
+                _error(
+                    "wave5.attestation_subject_digest_unverifiable",
+                    f"Attestation '{attestation.attestation_id}' cannot be matched because artifact '{artifact.artifact_id}' has no SHA-256 digest.",
+                    f"artifacts.{artifact.artifact_id}.attestations.{attestation.attestation_id}.subject_sha256",
+                )
+            )
+        elif attestation.subject_sha256 != artifact.sha256:
+            issues.append(
+                _error(
+                    "wave5.attestation_subject_digest_mismatch",
+                    f"Attestation '{attestation.attestation_id}' subject digest does not match artifact '{artifact.artifact_id}'.",
+                    f"artifacts.{artifact.artifact_id}.attestations.{attestation.attestation_id}.subject_sha256",
+                )
+            )
+        if artifact.head_sha is not None and attestation.head_sha != artifact.head_sha:
+            issues.append(
+                _error(
+                    "wave5.attestation_artifact_head_sha_mismatch",
+                    f"Attestation '{attestation.attestation_id}' head SHA does not match artifact '{artifact.artifact_id}'.",
+                    f"artifacts.{artifact.artifact_id}.attestations.{attestation.attestation_id}.head_sha",
+                )
+            )
+        if attestation.head_sha != pack.pull_request.head_sha:
+            issues.append(
+                _error(
+                    "wave5.attestation_pr_head_sha_mismatch",
+                    f"Attestation '{attestation.attestation_id}' head SHA does not match the PR head SHA.",
+                    f"artifacts.{artifact.artifact_id}.attestations.{attestation.attestation_id}.head_sha",
                 )
             )
     return tuple(issues)
@@ -433,13 +569,17 @@ def _normalize_sha(value: str) -> str:
     return cleaned
 
 
+def _normalize_required_sha256(value: str, *, label: str) -> str:
+    cleaned = _normalize_text(value.lower(), label=label)
+    if not _SHA256_RE.fullmatch(cleaned):
+        raise ValueError(f"{label} must be a 64-character lowercase hexadecimal digest.")
+    return cleaned
+
+
 def _normalize_optional_sha256(value: str | None) -> str | None:
     if value is None:
         return None
-    cleaned = _normalize_text(value.lower(), label="sha256")
-    if not _SHA256_RE.fullmatch(cleaned):
-        raise ValueError("sha256 must be a 64-character lowercase hexadecimal digest.")
-    return cleaned
+    return _normalize_required_sha256(value, label="sha256")
 
 
 def _normalize_optional_sha(value: str | None, *, label: str) -> str | None:
@@ -454,6 +594,12 @@ def _normalize_optional_sha(value: str | None, *, label: str) -> str | None:
 def _normalize_optional_size(value: int | None) -> int | None:
     if value is not None and value < 0:
         raise ValueError("size_bytes must be non-negative.")
+    return value
+
+
+def _normalize_required_size(value: int) -> int:
+    if value <= 0:
+        raise ValueError("size_bytes must be greater than zero.")
     return value
 
 
