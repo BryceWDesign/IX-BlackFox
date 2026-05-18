@@ -41,6 +41,11 @@ from ix_blackfox.sandbox.local_audit import (
     LocalAuditSandboxBackend,
     LocalAuditSandboxRun,
 )
+from ix_blackfox.sandbox.receipt import (
+    SandboxReceiptBundle,
+    SandboxRunReceipt,
+    SandboxRunReceiptBuilder,
+)
 from ix_blackfox.sandbox.workspace import (
     SandboxArtifactManifest,
     SandboxArtifactRecord,
@@ -72,7 +77,10 @@ __all__ = [
     "SandboxNetworkMode",
     "SandboxNetworkPolicy",
     "SandboxProfile",
+    "SandboxReceiptBundle",
     "SandboxResourceLimits",
+    "SandboxRunReceipt",
+    "SandboxRunReceiptBuilder",
     "SandboxWorkspace",
     "SandboxWorkspaceManager",
     "default_wave6_container_profile",
