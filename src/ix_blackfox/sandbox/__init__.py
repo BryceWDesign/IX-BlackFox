@@ -54,6 +54,15 @@ from ix_blackfox.sandbox.receipt import (
     SandboxRunReceipt,
     SandboxRunReceiptBuilder,
 )
+from ix_blackfox.sandbox.signing import (
+    SandboxArtifactSignatureVerifier,
+    SandboxArtifactSigner,
+    SandboxSignatureAlgorithm,
+    SandboxSignatureVerificationIssue,
+    SandboxSignatureVerificationReport,
+    SandboxSignatureVerificationSeverity,
+    SandboxSignedArtifactStatement,
+)
 from ix_blackfox.sandbox.workspace import (
     SandboxArtifactManifest,
     SandboxArtifactRecord,
@@ -74,6 +83,8 @@ __all__ = [
     "SandboxAdversarialScenarioResult",
     "SandboxArtifactManifest",
     "SandboxArtifactRecord",
+    "SandboxArtifactSignatureVerifier",
+    "SandboxArtifactSigner",
     "SandboxBackendKind",
     "SandboxCommandRequest",
     "SandboxCommandResult",
@@ -95,6 +106,11 @@ __all__ = [
     "SandboxResourceLimits",
     "SandboxRunReceipt",
     "SandboxRunReceiptBuilder",
+    "SandboxSignatureAlgorithm",
+    "SandboxSignatureVerificationIssue",
+    "SandboxSignatureVerificationReport",
+    "SandboxSignatureVerificationSeverity",
+    "SandboxSignedArtifactStatement",
     "SandboxWorkspace",
     "SandboxWorkspaceManager",
     "default_wave6_container_profile",
