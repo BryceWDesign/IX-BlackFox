@@ -1,4 +1,4 @@
-"""Wave 6 sandbox execution contracts.
+"""Wave 6 sandbox execution contracts and backends.
 
 This package begins the Wave 6 boundary for IX-BlackFox. The contracts define
 how hardened execution should be described, hashed, and validated before later
@@ -24,8 +24,14 @@ from ix_blackfox.sandbox.contracts import (
     SandboxResourceLimits,
     default_wave6_local_audit_profile,
 )
+from ix_blackfox.sandbox.local_audit import (
+    LocalAuditSandboxBackend,
+    LocalAuditSandboxRun,
+)
 
 __all__ = [
+    "LocalAuditSandboxBackend",
+    "LocalAuditSandboxRun",
     "SandboxBackendKind",
     "SandboxCommandRequest",
     "SandboxCommandResult",
