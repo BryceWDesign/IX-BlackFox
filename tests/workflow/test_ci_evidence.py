@@ -130,7 +130,9 @@ def test_wave5_ci_evidence_bundle_creates_ci_summary_artifact() -> None:
 
     assert artifact.kind is EvidenceArtifactKind.CI_SUMMARY
     assert artifact.artifact_id == "ci-summary-ci-bundle-1"
+    assert artifact.sha256 is not None
     assert artifact.size_bytes is not None
+    assert artifact.head_sha == "abc1234"
     assert artifact.metadata["passed_required_check_count"] == 1
 
 
