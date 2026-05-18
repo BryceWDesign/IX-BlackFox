@@ -158,7 +158,11 @@ def sandbox_adversarial_report_to_evidence_artifact(
     artifact_id: str = "sandbox-adversarial-report",
     produced_by: str = "blackfox-wave6-adversarial-harness",
 ) -> EvidenceArtifact:
-    payload = json.dumps(adversarial_report.to_dict(), sort_keys=True, separators=(",", ":")).encode("utf-8")
+    payload = json.dumps(
+        adversarial_report.to_dict(include_digest=False),
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
     digest = hashlib.sha256(payload).hexdigest()
     if digest != adversarial_report.digest:
         raise ValueError("adversarial report digest does not match deterministic artifact payload digest.")
