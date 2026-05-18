@@ -15,6 +15,7 @@ from ix_blackfox.workflow import (
     ReviewerKind,
 )
 
+_HEAD_SHA = "abc1234"
 _DIGEST = "a" * 64
 
 
@@ -45,6 +46,7 @@ def test_wave5_pr_evidence_pack_fails_closed_without_required_artifacts() -> Non
                 produced_by="blackfox-runtime",
                 sha256=_DIGEST,
                 size_bytes=512,
+                head_sha=_HEAD_SHA,
             ),
         ),
         approvals=(
@@ -178,6 +180,7 @@ def test_wave5_pr_evidence_pack_fails_required_artifacts_without_measurements() 
             kind=artifact.kind,
             uri=artifact.uri,
             produced_by=artifact.produced_by,
+            head_sha=artifact.head_sha,
         )
         for artifact in _required_artifacts()
     )
@@ -201,6 +204,68 @@ def test_wave5_pr_evidence_pack_fails_required_artifacts_without_measurements() 
     assert report.issue_codes.count("wave5.artifact_size_missing") == 4
 
 
+def test_wave5_pr_evidence_pack_fails_required_artifacts_without_head_sha() -> None:
+    artifacts = tuple(
+        EvidenceArtifact(
+            artifact_id=artifact.artifact_id,
+            kind=artifact.kind,
+            uri=artifact.uri,
+            produced_by=artifact.produced_by,
+            sha256=artifact.sha256,
+            size_bytes=artifact.size_bytes,
+        )
+        for artifact in _required_artifacts()
+    )
+    pack = PullRequestEvidencePack(
+        pack_id="wave5-pack-unbound-required-artifacts",
+        pull_request=_identity(),
+        created_at=_now(),
+        summary="Required artifacts must declare the PR head SHA they were produced for.",
+        changed_files=("src/ix_blackfox/runtime/example.py",),
+        requested_checks=("pytest",),
+        artifacts=artifacts,
+        approvals=(_human_approval(),),
+    )
+
+    report = PullRequestEvidencePackValidator().validate(pack)
+
+    assert report.passed is False
+    assert report.error_count == 4
+    assert report.warning_count == 0
+    assert report.issue_codes.count("wave5.artifact_head_sha_missing") == 4
+
+
+def test_wave5_pr_evidence_pack_rejects_stale_artifact_head_sha() -> None:
+    run_bundle, *remaining = _required_artifacts()
+    pack = PullRequestEvidencePack(
+        pack_id="wave5-pack-stale-artifact",
+        pull_request=_identity(),
+        created_at=_now(),
+        summary="A stale artifact from another commit must not satisfy the PR gate.",
+        changed_files=("src/ix_blackfox/runtime/example.py",),
+        requested_checks=("pytest",),
+        artifacts=(
+            EvidenceArtifact(
+                artifact_id=run_bundle.artifact_id,
+                kind=run_bundle.kind,
+                uri=run_bundle.uri,
+                produced_by=run_bundle.produced_by,
+                sha256=run_bundle.sha256,
+                size_bytes=run_bundle.size_bytes,
+                head_sha="def5678",
+            ),
+            *remaining,
+        ),
+        approvals=(_human_approval(),),
+    )
+
+    report = PullRequestEvidencePackValidator().validate(pack)
+
+    assert report.passed is False
+    assert report.error_count == 1
+    assert "wave5.artifact_head_sha_mismatch" in report.issue_codes
+
+
 def test_wave5_pr_evidence_pack_warns_on_optional_artifacts_without_measurements() -> None:
     pack = PullRequestEvidencePack(
         pack_id="wave5-pack-unmeasured-optional-artifact",
@@ -216,6 +281,7 @@ def test_wave5_pr_evidence_pack_warns_on_optional_artifacts_without_measurements
                 kind=EvidenceArtifactKind.OTHER,
                 uri="artifacts/optional-policy-note.json",
                 produced_by="blackfox-workflow",
+                head_sha=_HEAD_SHA,
             ),
         ),
         approvals=(_human_approval(),),
@@ -228,6 +294,36 @@ def test_wave5_pr_evidence_pack_warns_on_optional_artifacts_without_measurements
     assert report.warning_count == 2
     assert "wave5.artifact_digest_missing" in report.issue_codes
     assert "wave5.artifact_size_missing" in report.issue_codes
+
+
+def test_wave5_pr_evidence_pack_warns_on_optional_artifact_without_head_sha() -> None:
+    pack = PullRequestEvidencePack(
+        pack_id="wave5-pack-unbound-optional-artifact",
+        pull_request=_identity(),
+        created_at=_now(),
+        summary="Optional evidence without head binding remains advisory but visible.",
+        changed_files=("src/ix_blackfox/runtime/example.py",),
+        requested_checks=("pytest",),
+        artifacts=(
+            *_required_artifacts(),
+            EvidenceArtifact(
+                artifact_id="optional-policy-note",
+                kind=EvidenceArtifactKind.OTHER,
+                uri="artifacts/optional-policy-note.json",
+                produced_by="blackfox-workflow",
+                sha256="e" * 64,
+                size_bytes=128,
+            ),
+        ),
+        approvals=(_human_approval(),),
+    )
+
+    report = PullRequestEvidencePackValidator().validate(pack)
+
+    assert report.passed is True
+    assert report.error_count == 0
+    assert report.warning_count == 1
+    assert "wave5.artifact_head_sha_missing" in report.issue_codes
 
 
 def test_wave5_pr_evidence_pack_fails_zero_byte_required_artifact() -> None:
@@ -247,6 +343,7 @@ def test_wave5_pr_evidence_pack_fails_zero_byte_required_artifact() -> None:
                 produced_by=run_bundle.produced_by,
                 sha256=run_bundle.sha256,
                 size_bytes=0,
+                head_sha=run_bundle.head_sha,
             ),
             *remaining,
         ),
@@ -281,7 +378,7 @@ def _identity() -> PullRequestIdentity:
         pull_request_id="pr-1",
         base_ref="main",
         head_ref="wave5-pr-evidence-pack",
-        head_sha="abc1234",
+        head_sha=_HEAD_SHA,
         author="Bryce Lovell",
     )
 
@@ -295,6 +392,7 @@ def _required_artifacts() -> tuple[EvidenceArtifact, ...]:
             produced_by="blackfox-runtime",
             sha256=_DIGEST,
             size_bytes=512,
+            head_sha=_HEAD_SHA,
         ),
         EvidenceArtifact(
             artifact_id="test-report",
@@ -303,6 +401,7 @@ def _required_artifacts() -> tuple[EvidenceArtifact, ...]:
             produced_by="pytest",
             sha256="b" * 64,
             size_bytes=768,
+            head_sha=_HEAD_SHA,
         ),
         EvidenceArtifact(
             artifact_id="governance-receipt",
@@ -311,6 +410,7 @@ def _required_artifacts() -> tuple[EvidenceArtifact, ...]:
             produced_by="blackfox-governance",
             sha256="c" * 64,
             size_bytes=384,
+            head_sha=_HEAD_SHA,
         ),
         EvidenceArtifact(
             artifact_id="reliability-report",
@@ -319,6 +419,7 @@ def _required_artifacts() -> tuple[EvidenceArtifact, ...]:
             produced_by="blackfox-reliability-lab",
             sha256="d" * 64,
             size_bytes=1024,
+            head_sha=_HEAD_SHA,
         ),
     )
 
