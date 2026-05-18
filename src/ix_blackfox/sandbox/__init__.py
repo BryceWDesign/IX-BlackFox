@@ -29,6 +29,14 @@ from ix_blackfox.sandbox.contracts import (
     SandboxResourceLimits,
     default_wave6_local_audit_profile,
 )
+from ix_blackfox.sandbox.egress import (
+    SandboxEgressAuditBundle,
+    SandboxEgressDecision,
+    SandboxEgressDecisionStatus,
+    SandboxEgressGuard,
+    SandboxEgressRequest,
+    network_policy_digest,
+)
 from ix_blackfox.sandbox.local_audit import (
     LocalAuditSandboxBackend,
     LocalAuditSandboxRun,
@@ -50,6 +58,11 @@ __all__ = [
     "SandboxBackendKind",
     "SandboxCommandRequest",
     "SandboxCommandResult",
+    "SandboxEgressAuditBundle",
+    "SandboxEgressDecision",
+    "SandboxEgressDecisionStatus",
+    "SandboxEgressGuard",
+    "SandboxEgressRequest",
     "SandboxEnvironmentPolicy",
     "SandboxExecutionStatus",
     "SandboxFilesystemPolicy",
@@ -64,4 +77,5 @@ __all__ = [
     "SandboxWorkspaceManager",
     "default_wave6_container_profile",
     "default_wave6_local_audit_profile",
+    "network_policy_digest",
 ]
