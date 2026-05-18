@@ -293,16 +293,40 @@ def _validate_artifacts(
     for artifact_id in _duplicates(pack.artifact_ids()):
         issues.append(_error("wave5.duplicate_artifact_id", f"Artifact id '{artifact_id}' appears more than once.", "artifacts"))
 
+    required_kind_set = set(required_artifact_kinds)
     artifact_kinds = set(pack.artifact_kinds())
     for required_kind in required_artifact_kinds:
         if required_kind not in artifact_kinds:
             issues.append(_error("wave5.required_artifact_missing", f"Required artifact kind '{required_kind.value}' is missing.", "artifacts"))
 
     for artifact in pack.artifacts:
+        artifact_is_required = artifact.kind in required_kind_set
         if artifact.sha256 is None:
-            issues.append(_warning("wave5.artifact_digest_missing", f"Artifact '{artifact.artifact_id}' does not include a SHA-256 digest.", f"artifacts.{artifact.artifact_id}.sha256"))
+            issue = _error if artifact_is_required else _warning
+            issues.append(
+                issue(
+                    "wave5.artifact_digest_missing",
+                    f"Artifact '{artifact.artifact_id}' does not include a SHA-256 digest.",
+                    f"artifacts.{artifact.artifact_id}.sha256",
+                )
+            )
         if artifact.size_bytes is None:
-            issues.append(_warning("wave5.artifact_size_missing", f"Artifact '{artifact.artifact_id}' does not include a byte size.", f"artifacts.{artifact.artifact_id}.size_bytes"))
+            issue = _error if artifact_is_required else _warning
+            issues.append(
+                issue(
+                    "wave5.artifact_size_missing",
+                    f"Artifact '{artifact.artifact_id}' does not include a byte size.",
+                    f"artifacts.{artifact.artifact_id}.size_bytes",
+                )
+            )
+        elif artifact.size_bytes == 0 and artifact_is_required:
+            issues.append(
+                _error(
+                    "wave5.required_artifact_empty",
+                    f"Required artifact '{artifact.artifact_id}' has a zero byte size.",
+                    f"artifacts.{artifact.artifact_id}.size_bytes",
+                )
+            )
     return tuple(issues)
 
 
