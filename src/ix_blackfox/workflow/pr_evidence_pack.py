@@ -21,6 +21,7 @@ class EvidenceArtifactKind(StrEnum):
     APPROVAL_RECORD = auto()
     CI_SUMMARY = auto()
     HUMAN_REVIEW = auto()
+    SANDBOX_RECEIPT_BUNDLE = auto()
     OTHER = auto()
 
 
@@ -328,6 +329,7 @@ class PullRequestEvidencePackValidator:
     require_human_approval: bool = True
     allow_model_approval_only: bool = False
     require_attestations_for_required_artifacts: bool = False
+    require_sandbox_receipt_bundle: bool = False
 
     def validate(self, pack: PullRequestEvidencePack) -> Wave5ValidationReport:
         issues: list[Wave5ValidationIssue] = []
@@ -362,9 +364,10 @@ def _validate_artifacts(
     for artifact_id in _duplicates(pack.artifact_ids()):
         issues.append(_error("wave5.duplicate_artifact_id", f"Artifact id '{artifact_id}' appears more than once.", "artifacts"))
 
-    required_kind_set = set(validator.required_artifact_kinds)
+    required_artifact_kinds = _required_artifact_kinds(validator)
+    required_kind_set = set(required_artifact_kinds)
     artifact_kinds = set(pack.artifact_kinds())
-    for required_kind in validator.required_artifact_kinds:
+    for required_kind in required_artifact_kinds:
         if required_kind not in artifact_kinds:
             issues.append(_error("wave5.required_artifact_missing", f"Required artifact kind '{required_kind.value}' is missing.", "artifacts"))
 
@@ -422,6 +425,18 @@ def _validate_artifacts(
             )
         )
     return tuple(issues)
+
+
+def _required_artifact_kinds(
+    validator: PullRequestEvidencePackValidator,
+) -> tuple[EvidenceArtifactKind, ...]:
+    required = list(validator.required_artifact_kinds)
+    if (
+        validator.require_sandbox_receipt_bundle
+        and EvidenceArtifactKind.SANDBOX_RECEIPT_BUNDLE not in required
+    ):
+        required.append(EvidenceArtifactKind.SANDBOX_RECEIPT_BUNDLE)
+    return tuple(required)
 
 
 def _validate_artifact_attestations(
