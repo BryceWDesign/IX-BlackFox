@@ -3,11 +3,16 @@ from __future__ import annotations
 from ix_blackfox.brains import (
     BrainCapability,
     BrainContextWindow,
+    BrainExecutionProfile,
     BrainManifest,
     BrainManifestRegistry,
     BrainModality,
     BrainModalityProfile,
     BrainModelProfile,
+    BrainProviderHealth,
+    BrainProviderHealthRegistry,
+    BrainProviderHealthStatus,
+    BrainProviderTopology,
     BrainRole,
     BrainRouter,
     BrainRoutingPolicy,
@@ -150,9 +155,127 @@ def test_routing_request_normalizes_pack_name_labels_and_modalities() -> None:
     assert request.metadata == {"temperature": 0}
 
 
+def test_router_attaches_budget_health_evidence_to_candidates() -> None:
+    registry = BrainManifestRegistry()
+    registry.register(_make_manifest(brain_name="local-repair"))
+
+    decision = BrainRouter(registry).route(
+        BrainRoutingRequest(required_role=BrainRole.PRIMARY)
+    )
+
+    candidate = decision.candidates[0]
+    payload = decision.to_dict()
+
+    assert candidate.budget_health is not None
+    assert candidate.budget_health.eligible is True
+    assert candidate.budget_health.provider_name == "ollama"
+    assert payload["selected_brain_name"] == "local-repair"
+    assert payload["candidates"][0]["budget_health"]["eligible"] is True
+
+
+def test_router_blocks_unavailable_provider_before_selection() -> None:
+    registry = BrainManifestRegistry()
+    registry.register(
+        _make_manifest(
+            brain_name="remote-default",
+            provider_name="openai-compatible",
+            is_default=True,
+        )
+    )
+    registry.register(_make_manifest(brain_name="local-fallback", provider_name="ollama"))
+    health_registry = BrainProviderHealthRegistry(
+        providers=(
+            BrainProviderHealth(
+                provider_name="openai-compatible",
+                status=BrainProviderHealthStatus.UNAVAILABLE,
+                topology=BrainProviderTopology.REMOTE,
+            ),
+            BrainProviderHealth(provider_name="ollama"),
+        )
+    )
+
+    decision = BrainRouter(
+        registry,
+        execution_profile=BrainExecutionProfile.hybrid(),
+        provider_health_registry=health_registry,
+    ).route(BrainRoutingRequest(required_role=BrainRole.PRIMARY))
+
+    assert decision.selected_brain_name == "local-fallback"
+    rejected = decision.rejected_candidates[0]
+    assert rejected.manifest.brain_name == "remote-default"
+    assert rejected.budget_health is not None
+    assert rejected.budget_health.eligible is False
+    assert "provider is unavailable: openai-compatible" in rejected.reasons
+
+
+def test_router_prefers_healthier_preferred_provider_when_base_scores_match() -> None:
+    registry = BrainManifestRegistry()
+    registry.register(_make_manifest(brain_name="vllm-repair", provider_name="vllm"))
+    registry.register(_make_manifest(brain_name="ollama-repair", provider_name="ollama"))
+    health_registry = BrainProviderHealthRegistry(
+        providers=(
+            BrainProviderHealth(
+                provider_name="vllm",
+                observed_latency_seconds=4.0,
+            ),
+            BrainProviderHealth(
+                provider_name="ollama",
+                observed_latency_seconds=1.0,
+            ),
+        )
+    )
+
+    decision = BrainRouter(
+        registry,
+        execution_profile=BrainExecutionProfile.local_first(
+            allowed_providers=("vllm", "ollama"),
+            preferred_providers=("ollama",),
+        ),
+        provider_health_registry=health_registry,
+    ).route(BrainRoutingRequest(required_role=BrainRole.PRIMARY))
+
+    assert decision.selected_brain_name == "ollama-repair"
+    assert decision.eligible_candidates[0].score > decision.eligible_candidates[1].score
+    assert decision.eligible_candidates[0].budget_health is not None
+    assert decision.eligible_candidates[0].budget_health.score_adjustment > (
+        decision.eligible_candidates[1].budget_health.score_adjustment
+    )
+
+
+def test_router_blocks_remote_provider_when_profile_is_local_only() -> None:
+    registry = BrainManifestRegistry()
+    registry.register(
+        _make_manifest(
+            brain_name="remote-repair",
+            provider_name="openai-compatible",
+        )
+    )
+    health_registry = BrainProviderHealthRegistry(
+        providers=(
+            BrainProviderHealth(
+                provider_name="openai-compatible",
+                topology=BrainProviderTopology.REMOTE,
+            ),
+        )
+    )
+
+    decision = BrainRouter(
+        registry,
+        execution_profile=BrainExecutionProfile.local_first(),
+        provider_health_registry=health_registry,
+    ).route(BrainRoutingRequest(required_role=BrainRole.PRIMARY))
+
+    assert decision.selected is None
+    assert decision.rejected_candidates[0].manifest.brain_name == "remote-repair"
+    assert "remote provider is not allowed: openai-compatible" in (
+        decision.rejected_candidates[0].reasons
+    )
+
+
 def _make_manifest(
     *,
     brain_name: str,
+    provider_name: str = "ollama",
     role: BrainRole = BrainRole.PRIMARY,
     capability: BrainCapability = BrainCapability.TEXT_GENERATION,
     input_modalities: tuple[BrainModality, ...] = (BrainModality.TEXT,),
@@ -162,7 +285,7 @@ def _make_manifest(
 ) -> BrainManifest:
     return BrainManifest(
         brain_name=brain_name,
-        provider_name="ollama",
+        provider_name=provider_name,
         model_name=brain_name,
         version="0.1.0",
         labels=labels,
