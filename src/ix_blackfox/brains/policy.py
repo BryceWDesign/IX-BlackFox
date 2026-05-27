@@ -60,6 +60,21 @@ class BrainRoutingRequest:
         )
         object.__setattr__(self, "metadata", dict(self.metadata))
 
+    def to_dict(self) -> dict[str, object]:
+        """
+        Return a JSON-serializable routing request view for evidence reports.
+        """
+        return {
+            "required_role": self.required_role.value,
+            "required_capabilities": [
+                capability.value for capability in self.required_capabilities
+            ],
+            "input_modalities": [modality.value for modality in self.input_modalities],
+            "pack_name": self.pack_name,
+            "preferred_labels": list(self.preferred_labels),
+            "metadata": dict(self.metadata),
+        }
+
 
 @dataclass(frozen=True, slots=True)
 class BrainScoreBreakdown:
@@ -88,6 +103,21 @@ class BrainScoreBreakdown:
             + self.label_score
             + self.default_score
         )
+
+    def to_dict(self) -> dict[str, object]:
+        """
+        Return a JSON-serializable score breakdown for routing evidence.
+        """
+        return {
+            "role_score": self.role_score,
+            "capability_score": self.capability_score,
+            "modality_score": self.modality_score,
+            "pack_score": self.pack_score,
+            "label_score": self.label_score,
+            "default_score": self.default_score,
+            "total": self.total,
+            "penalties": list(self.penalties),
+        }
 
 
 @dataclass(frozen=True, slots=True)
