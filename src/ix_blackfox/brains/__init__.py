@@ -32,6 +32,15 @@ from ix_blackfox.brains.catalog import (
     build_wave1_extended_brain_catalog,
     build_wave1_operating_catalog,
 )
+from ix_blackfox.brains.comparison import (
+    BrainComparisonCandidate,
+    BrainComparisonDecision,
+    BrainComparisonDisposition,
+    BrainComparisonRequest,
+    BrainComparisonResult,
+    BrainComparisonScore,
+    BrainModelComparator,
+)
 from ix_blackfox.brains.contracts import (
     BrainCapability,
     BrainFailure,
@@ -90,6 +99,13 @@ from ix_blackfox.brains.safety import (
 )
 
 __all__ = [
+    "BrainComparisonCandidate",
+    "BrainComparisonDecision",
+    "BrainComparisonDisposition",
+    "BrainComparisonRequest",
+    "BrainComparisonResult",
+    "BrainComparisonScore",
+    "BrainModelComparator",
     "BrainCapability",
     "BrainCatalog",
     "BrainContextBudget",
