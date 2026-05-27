@@ -105,6 +105,19 @@ from ix_blackfox.brains.safety import (
     SafeguardFinding,
     SafeguardFindingSeverity,
 )
+from ix_blackfox.brains.tribunal import (
+    BrainModelTribunal,
+    BrainTribunalAction,
+    BrainTribunalAssignment,
+    BrainTribunalDecision,
+    BrainTribunalDisposition,
+    BrainTribunalFinding,
+    BrainTribunalIdentity,
+    BrainTribunalPolicy,
+    BrainTribunalReviewRequest,
+    BrainTribunalRole,
+    BrainTribunalRoleKind,
+)
 
 __all__ = [
     "BrainComparisonCandidate",
@@ -115,6 +128,17 @@ __all__ = [
     "BrainComparisonScore",
     "BrainModelComparator",
     "BrainProviderTopology",
+    "BrainTribunalRoleKind",
+    "BrainTribunalRole",
+    "BrainTribunalReviewRequest",
+    "BrainTribunalPolicy",
+    "BrainTribunalIdentity",
+    "BrainTribunalFinding",
+    "BrainTribunalDisposition",
+    "BrainTribunalDecision",
+    "BrainTribunalAssignment",
+    "BrainTribunalAction",
+    "BrainModelTribunal",
     "BrainProviderHealthStatus",
     "BrainProviderHealthRegistry",
     "BrainProviderHealth",
