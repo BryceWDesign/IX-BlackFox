@@ -25,6 +25,7 @@ _EXPORTS: dict[str, str] = {
     "AuthoredRepairRuntimeConfig": "ix_blackfox.runtime.authoring_repair",
     "AuthoredRepairStatus": "ix_blackfox.runtime.authoring_repair",
     "BlackFoxRuntime": "ix_blackfox.runtime.orchestrator",
+    "BrainPatchProposalProvider": "ix_blackfox.runtime.brain_proposal",
     "ControlPlaneCliError": "ix_blackfox.runtime.control_plane_cli",
     "ControlPlaneCliResult": "ix_blackfox.runtime.control_plane_cli",
     "DeterministicTaskClassifier": "ix_blackfox.runtime.inference",
