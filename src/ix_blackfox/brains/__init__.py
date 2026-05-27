@@ -58,6 +58,14 @@ from ix_blackfox.brains.escalation import (
     BrainEscalationReason,
     BrainEscalationTrigger,
 )
+from ix_blackfox.brains.health import (
+    BrainBudgetHealthEvaluation,
+    BrainBudgetHealthEvaluator,
+    BrainProviderHealth,
+    BrainProviderHealthRegistry,
+    BrainProviderHealthStatus,
+    BrainProviderTopology,
+)
 from ix_blackfox.brains.manifest import BrainManifest, BrainManifestSnapshot
 from ix_blackfox.brains.models import (
     BrainContextWindow,
@@ -106,6 +114,12 @@ __all__ = [
     "BrainComparisonResult",
     "BrainComparisonScore",
     "BrainModelComparator",
+    "BrainProviderTopology",
+    "BrainProviderHealthStatus",
+    "BrainProviderHealthRegistry",
+    "BrainProviderHealth",
+    "BrainBudgetHealthEvaluator",
+    "BrainBudgetHealthEvaluation",
     "BrainCapability",
     "BrainCatalog",
     "BrainContextBudget",
