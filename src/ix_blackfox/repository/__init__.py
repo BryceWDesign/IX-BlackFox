@@ -3,13 +3,23 @@ Repository-intelligence primitives for IX-BlackFox Wave 8.
 
 The repository package builds deterministic, reviewable evidence about a
 workspace before model-assisted code-change decisions are trusted. Commit 1
-exposes only the stable model contracts; later Wave 8 commits add scanners,
-code graphs, dependency mapping, impact analysis, architectural memory, and CI
+exposes the stable model contracts; later Wave 8 commits add scanners, code
+graphs, dependency mapping, impact analysis, architectural memory, and CI
 evidence export on top of these contracts.
 """
 
 from __future__ import annotations
 
+from ix_blackfox.repository.inventory import (
+    RepositoryInventoryScanner,
+    build_file_record,
+    classify_generated_reason,
+    classify_repository_file,
+    classify_repository_sensitivity,
+    hash_file,
+    is_text_repository_file,
+    scan_repository,
+)
 from ix_blackfox.repository.models import (
     RepositoryArchitectureRecord,
     RepositoryCodeGraph,
@@ -45,9 +55,17 @@ __all__ = [
     "RepositoryImpactFinding",
     "RepositoryImpactReport",
     "RepositoryImpactSeverity",
+    "RepositoryInventoryScanner",
     "RepositoryNodeKind",
     "RepositorySensitivity",
     "RepositorySnapshot",
     "RepositorySymbolRecord",
+    "build_file_record",
+    "classify_generated_reason",
+    "classify_repository_file",
+    "classify_repository_sensitivity",
     "digest_payload",
+    "hash_file",
+    "is_text_repository_file",
+    "scan_repository",
 ]
