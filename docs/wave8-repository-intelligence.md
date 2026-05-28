@@ -2,6 +2,8 @@
 
 Wave 8 adds a conservative repository-intelligence layer to IX-BlackFox.
 
+Wave 8 makes repository-change boundaries more inspectable before AI-assisted code changes are trusted.
+
 It is designed to make AI-assisted code-change boundaries more inspectable before a human reviewer is asked to trust a patch, repair candidate, workflow change, or evidence bundle.
 
 Wave 8 does not make the repository self-authorizing. It does not certify correctness. It does not replace human review. It gives maintainers a deterministic evidence path for understanding what a proposed repository change may touch.
@@ -258,6 +260,7 @@ Evidence ledger
 Wave 8 produces digest-chained repository evidence.
 
 The required Wave 8 event sequence is:
+```
 inventory_snapshot
 code_graph_built
 dependency_map_built
@@ -267,7 +270,7 @@ impact_analyzed
 report_exported
 ```
 Each receipt records:
-
+```
 receipt ID
 event type
 summary
@@ -407,16 +410,16 @@ What a passing Wave 8 report does not mean
 
 A passing Wave 8 report does not mean:
 
-the repository is production-ready
-the code is formally verified
-the code is certified
-the code is approved by any government or defense organization
+does not mean the repository is production-ready
+does not mean the code is formally verified
+does not mean the code is certified
+does not mean the code is approved by any government or defense organization
 the dependency graph is perfect
 the test map is complete
 every possible runtime effect was identified
-a model-generated patch is safe
-a human reviewer can be skipped
-autonomous execution authority has been granted
+does not mean a model-generated patch is safe
+does not mean a human reviewer can be skipped
+does not mean autonomous execution authority has been granted
 
 Wave 8 provides review evidence. It does not provide automatic trust.
 
@@ -455,6 +458,18 @@ human-review findings
 bounded claims
 
 Wave 8 should not be described as DoD-approved, certified, deployed, affiliated, or production-ready. It is a source-available research implementation that produces repository-intelligence evidence for review.
+
+Positioning language
+
+Avoid wording like:
+
+The repo understands itself.
+Wave 8 proves patches are safe.
+Wave 8 makes AI coding autonomous.
+
+The correct positioning is:
+
+Wave 8 makes repository-change boundaries more inspectable before AI-assisted code changes are trusted.
 
 Operator workflow
 
