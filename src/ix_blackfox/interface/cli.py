@@ -33,6 +33,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         return workflow_main(raw_argv[1:])
 
+    if raw_argv and raw_argv[0] in {"repository", "repo-intel"}:
+        from ix_blackfox.repository.cli import main as repository_main
+
+        return repository_main(raw_argv[1:])
+
     parser = _build_parser()
     args = parser.parse_args(raw_argv)
 
@@ -132,6 +137,14 @@ def _build_parser() -> argparse.ArgumentParser:
         "workflow",
         help="Run Wave 5 organization workflow commands.",
     )
+    subparsers.add_parser(
+        "repository",
+        help="Run Wave 8 repository-intelligence commands.",
+    )
+    subparsers.add_parser(
+        "repo-intel",
+        help="Alias for Wave 8 repository-intelligence commands.",
+    )
 
     return parser
 
@@ -155,7 +168,8 @@ def _load_runtime_metadata(args: argparse.Namespace) -> dict[str, Any] | None:
             raw_approvals = payload.get("governance_approvals")
             if not isinstance(raw_approvals, list):
                 raise ValueError(
-                    "--approval-file JSON object must contain a 'governance_approvals' list."
+                    "--approval-file JSON object must contain a "
+                    "'governance_approvals' list."
                 )
             approvals = _normalize_approval_entries(raw_approvals)
         else:
