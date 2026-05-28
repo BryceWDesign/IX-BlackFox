@@ -38,7 +38,6 @@ from ix_blackfox.repository.models import (
 )
 from ix_blackfox.repository.python_graph import build_python_code_graph
 
-
 _REPOSITORY_INTELLIGENCE_SCHEMA_VERSION = "wave8.repository_intelligence.v1"
 
 
