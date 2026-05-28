@@ -4,11 +4,22 @@ Repository-intelligence primitives for IX-BlackFox Wave 8.
 The repository package builds deterministic, reviewable evidence about a
 workspace before model-assisted code-change decisions are trusted. The first
 Wave 8 layers expose stable model contracts, deterministic inventory scanning,
-and conservative Python AST graph extraction without importing repository code.
+conservative Python AST graph extraction, and dependency mapping without
+importing repository code.
 """
 
 from __future__ import annotations
 
+from ix_blackfox.repository.dependencies import (
+    RepositoryDependencyMapper,
+    build_dependency_map,
+    dependencies_from_pyproject,
+    dependencies_from_workflows,
+    dependency_name_from_requirement,
+    external_import_dependencies,
+    internal_import_edges,
+    sensitive_dependency_paths,
+)
 from ix_blackfox.repository.inventory import (
     RepositoryInventoryScanner,
     build_file_record,
@@ -61,6 +72,7 @@ __all__ = [
     "RepositoryCodeGraph",
     "RepositoryCoverageLink",
     "RepositoryDependencyMap",
+    "RepositoryDependencyMapper",
     "RepositoryDependencyRecord",
     "RepositoryDependencyScope",
     "RepositoryEdgeKind",
@@ -76,23 +88,30 @@ __all__ = [
     "RepositorySnapshot",
     "RepositorySymbolRecord",
     "assignment_target_names",
+    "build_dependency_map",
     "build_file_record",
     "build_python_code_graph",
     "classify_generated_reason",
     "classify_repository_file",
     "classify_repository_sensitivity",
     "decorator_names",
+    "dependencies_from_pyproject",
+    "dependencies_from_workflows",
+    "dependency_name_from_requirement",
     "digest_payload",
     "dotted_name",
+    "external_import_dependencies",
     "extract_constant_symbols",
     "extract_method_symbols",
     "extract_python_import_edges",
     "extract_python_symbols",
     "hash_file",
+    "internal_import_edges",
     "is_internal_module",
     "is_text_repository_file",
     "module_name_from_path",
     "resolve_from_import_module",
     "resolve_imported_module",
     "scan_repository",
+    "sensitive_dependency_paths",
 ]
