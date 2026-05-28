@@ -22,7 +22,7 @@ _REQUIREMENT_NAME_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"^\s*([A-Za-z0-9_.-]+)"
 )
 _WORKFLOW_USES_PATTERN: Final[re.Pattern[str]] = re.compile(
-    r"^\s*uses:\s*([A-Za-z0-9_.\-/]+)(?:@([A-Za-z0-9_.\-/]+))?\s*$"
+    r"^\s*(?:-\s+)?uses:\s*([A-Za-z0-9_.\-/]+)(?:@([A-Za-z0-9_.\-/]+))?\s*$"
 )
 
 DEPENDENCY_FILE_NAMES: Final[frozenset[str]] = frozenset(
