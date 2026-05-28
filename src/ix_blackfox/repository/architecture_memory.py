@@ -11,7 +11,6 @@ from ix_blackfox.repository.models import (
     RepositorySnapshot,
     digest_payload,
     normalize_identifier,
-    normalize_path_tuple,
     normalize_relative_path,
 )
 
