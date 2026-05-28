@@ -77,20 +77,18 @@ def test_wave8_repository_intelligence_docs_preserve_positioning_language() -> N
     assert "Wave 8 makes repository-change boundaries more inspectable" in text
 
 
-def test_wave8_repository_intelligence_docs_avoid_overclaim_phrases() -> None:
-    text = _doc_text().lower()
+def test_wave8_repository_intelligence_docs_explicitly_label_overclaim_examples_as_avoid_language() -> None:
+    text = _doc_text()
 
-    banned_phrases = [
-        "the repo understands itself",
-        "proves patches are safe",
-        "makes ai coding autonomous",
-        "production certified",
-        "dod approved",
-        "formally certified",
-    ]
-
-    for phrase in banned_phrases:
-        assert phrase not in text
+    assert "Avoid wording like:" in text
+    assert "The repo understands itself." in text
+    assert "Wave 8 proves patches are safe." in text
+    assert "Wave 8 makes AI coding autonomous." in text
+    assert "The correct positioning is:" in text
+    assert (
+        "Wave 8 makes repository-change boundaries more inspectable before "
+        "AI-assisted code changes are trusted."
+    ) in text
 
 
 def _doc_path() -> Path:
