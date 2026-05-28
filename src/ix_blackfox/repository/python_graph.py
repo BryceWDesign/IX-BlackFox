@@ -148,7 +148,7 @@ def extract_python_symbols(
                 )
             )
             symbols.extend(extract_method_symbols(node, path, module_name))
-        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             symbols.append(
                 RepositorySymbolRecord(
                     path=path,
@@ -180,7 +180,7 @@ def extract_method_symbols(
 ) -> tuple[RepositorySymbolRecord, ...]:
     symbols: list[RepositorySymbolRecord] = []
     for child in node.body:
-        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef):
             symbols.append(
                 RepositorySymbolRecord(
                     path=path,
@@ -222,7 +222,7 @@ def extract_constant_symbols(
 def assignment_target_names(target: ast.expr) -> tuple[str, ...]:
     if isinstance(target, ast.Name):
         return (target.id,)
-    if isinstance(target, (ast.Tuple, ast.List)):
+    if isinstance(target, ast.Tuple | ast.List):
         names: list[str] = []
         for element in target.elts:
             names.extend(assignment_target_names(element))
