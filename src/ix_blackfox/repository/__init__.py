@@ -4,12 +4,27 @@ Repository-intelligence primitives for IX-BlackFox Wave 8.
 The repository package builds deterministic, reviewable evidence about a
 workspace before model-assisted code-change decisions are trusted. The first
 Wave 8 layers expose stable model contracts, deterministic inventory scanning,
-conservative Python AST graph extraction, and dependency mapping without
-importing repository code.
+conservative Python AST graph extraction, dependency mapping, and source-test
+coverage/subsystem inference without importing repository code.
 """
 
 from __future__ import annotations
 
+from ix_blackfox.repository.coverage_map import (
+    RepositoryCoverageMap,
+    RepositoryCoverageMapper,
+    RepositorySubsystemRecord,
+    build_coverage_map,
+    direct_test_candidates,
+    graph_based_links,
+    infer_source_test_links,
+    infer_subsystem_id,
+    infer_subsystem_records,
+    module_path_lookup,
+    owned_paths_for_subsystem,
+    source_module_test_candidates,
+    stem_match_candidates,
+)
 from ix_blackfox.repository.dependencies import (
     RepositoryDependencyMapper,
     build_dependency_map,
@@ -71,6 +86,8 @@ __all__ = [
     "RepositoryArchitectureRecord",
     "RepositoryCodeGraph",
     "RepositoryCoverageLink",
+    "RepositoryCoverageMap",
+    "RepositoryCoverageMapper",
     "RepositoryDependencyMap",
     "RepositoryDependencyMapper",
     "RepositoryDependencyRecord",
@@ -86,8 +103,10 @@ __all__ = [
     "RepositoryNodeKind",
     "RepositorySensitivity",
     "RepositorySnapshot",
+    "RepositorySubsystemRecord",
     "RepositorySymbolRecord",
     "assignment_target_names",
+    "build_coverage_map",
     "build_dependency_map",
     "build_file_record",
     "build_python_code_graph",
@@ -99,19 +118,28 @@ __all__ = [
     "dependencies_from_workflows",
     "dependency_name_from_requirement",
     "digest_payload",
+    "direct_test_candidates",
     "dotted_name",
     "external_import_dependencies",
     "extract_constant_symbols",
     "extract_method_symbols",
     "extract_python_import_edges",
     "extract_python_symbols",
+    "graph_based_links",
     "hash_file",
+    "infer_source_test_links",
+    "infer_subsystem_id",
+    "infer_subsystem_records",
     "internal_import_edges",
     "is_internal_module",
     "is_text_repository_file",
     "module_name_from_path",
+    "module_path_lookup",
+    "owned_paths_for_subsystem",
     "resolve_from_import_module",
     "resolve_imported_module",
     "scan_repository",
     "sensitive_dependency_paths",
+    "source_module_test_candidates",
+    "stem_match_candidates",
 ]
