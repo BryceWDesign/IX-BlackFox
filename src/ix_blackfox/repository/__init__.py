@@ -4,12 +4,23 @@ Repository-intelligence primitives for IX-BlackFox Wave 8.
 The repository package builds deterministic, reviewable evidence about a
 workspace before model-assisted code-change decisions are trusted. The first
 Wave 8 layers expose stable model contracts, deterministic inventory scanning,
-conservative Python AST graph extraction, dependency mapping, and source-test
-coverage/subsystem inference without importing repository code.
+conservative Python AST graph extraction, dependency mapping, source-test
+coverage/subsystem inference, and digestable architectural memory.
 """
 
 from __future__ import annotations
 
+from ix_blackfox.repository.architecture_memory import (
+    ArchitectureMemorySnapshot,
+    architecture_memory_summary,
+    architecture_records_by_subsystem,
+    architecture_records_for_path,
+    build_architecture_memory,
+    default_architecture_records,
+    discovered_architecture_records,
+    owned_paths_from_records,
+    validate_architecture_memory,
+)
 from ix_blackfox.repository.coverage_map import (
     RepositoryCoverageMap,
     RepositoryCoverageMapper,
@@ -59,6 +70,7 @@ from ix_blackfox.repository.models import (
     RepositoryImpactFinding,
     RepositoryImpactReport,
     RepositoryImpactSeverity,
+    RepositoryInventoryScanner,
     RepositoryNodeKind,
     RepositorySensitivity,
     RepositorySnapshot,
@@ -82,6 +94,7 @@ from ix_blackfox.repository.python_graph import (
 )
 
 __all__ = [
+    "ArchitectureMemorySnapshot",
     "PythonCodeGraphBuilder",
     "RepositoryArchitectureRecord",
     "RepositoryCodeGraph",
@@ -105,7 +118,11 @@ __all__ = [
     "RepositorySnapshot",
     "RepositorySubsystemRecord",
     "RepositorySymbolRecord",
+    "architecture_memory_summary",
+    "architecture_records_by_subsystem",
+    "architecture_records_for_path",
     "assignment_target_names",
+    "build_architecture_memory",
     "build_coverage_map",
     "build_dependency_map",
     "build_file_record",
@@ -114,11 +131,13 @@ __all__ = [
     "classify_repository_file",
     "classify_repository_sensitivity",
     "decorator_names",
+    "default_architecture_records",
     "dependencies_from_pyproject",
     "dependencies_from_workflows",
     "dependency_name_from_requirement",
     "digest_payload",
     "direct_test_candidates",
+    "discovered_architecture_records",
     "dotted_name",
     "external_import_dependencies",
     "extract_constant_symbols",
@@ -136,10 +155,12 @@ __all__ = [
     "module_name_from_path",
     "module_path_lookup",
     "owned_paths_for_subsystem",
+    "owned_paths_from_records",
     "resolve_from_import_module",
     "resolve_imported_module",
     "scan_repository",
     "sensitive_dependency_paths",
     "source_module_test_candidates",
     "stem_match_candidates",
+    "validate_architecture_memory",
 ]
