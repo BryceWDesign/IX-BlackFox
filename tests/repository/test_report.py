@@ -8,12 +8,11 @@ import pytest
 
 from ix_blackfox.repository import (
     RepositoryEvidenceEventType,
-    RepositoryIntelligenceRunner,
     RepositoryImpactSeverity,
+    RepositoryIntelligenceRunner,
     build_repository_intelligence_report,
     validate_repository_evidence_snapshot,
 )
-
 
 _FIXED_TIME = datetime(2026, 5, 27, 12, 0, 0, tzinfo=UTC)
 
