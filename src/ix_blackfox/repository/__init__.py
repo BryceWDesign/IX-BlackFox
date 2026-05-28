@@ -5,7 +5,8 @@ The repository package builds deterministic, reviewable evidence about a
 workspace before model-assisted code-change decisions are trusted. The first
 Wave 8 layers expose stable model contracts, deterministic inventory scanning,
 conservative Python AST graph extraction, dependency mapping, source-test
-coverage/subsystem inference, and digestable architectural memory.
+coverage/subsystem inference, digestable architectural memory, and conservative
+impact analysis.
 """
 
 from __future__ import annotations
@@ -46,6 +47,23 @@ from ix_blackfox.repository.dependencies import (
     internal_import_edges,
     sensitive_dependency_paths,
 )
+from ix_blackfox.repository.impact import (
+    RepositoryImpactAnalyzer,
+    analyze_repository_impact,
+    build_recommended_commands,
+    cross_subsystem_findings,
+    deduplicate_commands,
+    deduplicate_findings,
+    dependency_impacted_paths,
+    path_basename,
+    path_requires_compile_check,
+    role_findings,
+    sensitivity_findings,
+    snapshot_records_by_path,
+    tests_impacted_by_record,
+    unknown_path_findings,
+    unmapped_test_findings,
+)
 from ix_blackfox.repository.inventory import (
     RepositoryInventoryScanner,
     build_file_record,
@@ -70,7 +88,6 @@ from ix_blackfox.repository.models import (
     RepositoryImpactFinding,
     RepositoryImpactReport,
     RepositoryImpactSeverity,
-    RepositoryInventoryScanner,
     RepositoryNodeKind,
     RepositorySensitivity,
     RepositorySnapshot,
@@ -109,6 +126,7 @@ __all__ = [
     "RepositoryFileRecord",
     "RepositoryFileRole",
     "RepositoryGraphEdge",
+    "RepositoryImpactAnalyzer",
     "RepositoryImpactFinding",
     "RepositoryImpactReport",
     "RepositoryImpactSeverity",
@@ -118,6 +136,7 @@ __all__ = [
     "RepositorySnapshot",
     "RepositorySubsystemRecord",
     "RepositorySymbolRecord",
+    "analyze_repository_impact",
     "architecture_memory_summary",
     "architecture_records_by_subsystem",
     "architecture_records_for_path",
@@ -127,13 +146,18 @@ __all__ = [
     "build_dependency_map",
     "build_file_record",
     "build_python_code_graph",
+    "build_recommended_commands",
     "classify_generated_reason",
     "classify_repository_file",
     "classify_repository_sensitivity",
+    "cross_subsystem_findings",
     "decorator_names",
+    "deduplicate_commands",
+    "deduplicate_findings",
     "default_architecture_records",
     "dependencies_from_pyproject",
     "dependencies_from_workflows",
+    "dependency_impacted_paths",
     "dependency_name_from_requirement",
     "digest_payload",
     "direct_test_candidates",
@@ -156,11 +180,19 @@ __all__ = [
     "module_path_lookup",
     "owned_paths_for_subsystem",
     "owned_paths_from_records",
+    "path_basename",
+    "path_requires_compile_check",
     "resolve_from_import_module",
     "resolve_imported_module",
+    "role_findings",
     "scan_repository",
     "sensitive_dependency_paths",
+    "sensitivity_findings",
+    "snapshot_records_by_path",
     "source_module_test_candidates",
     "stem_match_candidates",
+    "tests_impacted_by_record",
+    "unknown_path_findings",
+    "unmapped_test_findings",
     "validate_architecture_memory",
 ]
