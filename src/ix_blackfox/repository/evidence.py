@@ -167,7 +167,7 @@ class RepositoryEvidenceLedger:
         self._receipts.append(receipt)
         return receipt
 
-    def snapshot(self) -> "RepositoryEvidenceSnapshot":
+    def snapshot(self) -> RepositoryEvidenceSnapshot:
         return RepositoryEvidenceSnapshot(
             run_id=self.run_id,
             receipts=tuple(self._receipts),
