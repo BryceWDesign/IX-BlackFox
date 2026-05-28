@@ -6,13 +6,13 @@ from pathlib import Path
 import pytest
 
 from ix_blackfox.repository import (
+    WAVE8_REQUIRED_EVENT_SEQUENCE,
     RepositoryEvidenceEventType,
     RepositoryEvidenceLedger,
     RepositoryEvidenceReceipt,
     RepositoryEvidenceSnapshot,
     RepositoryImpactSeverity,
     RepositoryInventoryScanner,
-    WAVE8_REQUIRED_EVENT_SEQUENCE,
     build_architecture_memory,
     build_coverage_map,
     build_dependency_map,
@@ -23,7 +23,6 @@ from ix_blackfox.repository import (
 )
 from ix_blackfox.repository.models import digest_payload
 from ix_blackfox.repository.python_graph import PythonCodeGraphBuilder
-
 
 _FIXED_TIME = datetime(2026, 5, 27, 12, 0, 0, tzinfo=UTC)
 
