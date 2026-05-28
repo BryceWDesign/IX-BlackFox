@@ -16,7 +16,6 @@ from ix_blackfox.repository.models import (
     normalize_identifier,
     normalize_path_tuple,
     normalize_relative_path,
-    normalize_text,
 )
 from ix_blackfox.repository.python_graph import module_name_from_path
 
