@@ -1,0 +1,57 @@
+name: Wave 8 Repository Intelligence
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wave8-repository-intelligence:
+    name: Wave 8 repository intelligence evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package with development tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run Wave 8 repository-intelligence tests
+        run: |
+          python -m pytest tests/repository -q
+          python -m pytest tests/ci/test_wave8_repository_intelligence_ci_integration.py -q
+          python -m pytest tests/ci/test_wave8_repository_intelligence_workflow_contract.py -q
+
+      - name: Compile Wave 8 repository-intelligence code
+        run: |
+          python -m compileall -q src/ix_blackfox/repository scripts tests/repository tests/ci
+
+      - name: Generate Wave 8 repository-intelligence CI evidence
+        run: |
+          python scripts/run_wave8_repository_intelligence_ci.py \
+            --head-sha "${{ github.sha }}" \
+            --output ".blackfox-artifacts/wave8/wave8-repository-intelligence-ci-report.json" \
+            --evidence-output ".blackfox-artifacts/wave8/wave8-repository-intelligence-evidence.json"
+
+      - name: Upload Wave 8 repository-intelligence artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave8-repository-intelligence-evidence
+          path: |
+            .blackfox-artifacts/wave8/wave8-repository-intelligence-ci-report.json
+            .blackfox-artifacts/wave8/wave8-repository-intelligence-evidence.json
+          if-no-files-found: error
