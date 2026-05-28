@@ -5,8 +5,8 @@ The repository package builds deterministic, reviewable evidence about a
 workspace before model-assisted code-change decisions are trusted. The first
 Wave 8 layers expose stable model contracts, deterministic inventory scanning,
 conservative Python AST graph extraction, dependency mapping, source-test
-coverage/subsystem inference, digestable architectural memory, and conservative
-impact analysis.
+coverage/subsystem inference, digestable architectural memory, conservative
+impact analysis, and digest-chained repository evidence.
 """
 
 from __future__ import annotations
@@ -46,6 +46,17 @@ from ix_blackfox.repository.dependencies import (
     external_import_dependencies,
     internal_import_edges,
     sensitive_dependency_paths,
+)
+from ix_blackfox.repository.evidence import (
+    WAVE8_REQUIRED_EVENT_SEQUENCE,
+    RepositoryEvidenceEventType,
+    RepositoryEvidenceLedger,
+    RepositoryEvidenceReceipt,
+    RepositoryEvidenceSnapshot,
+    build_repository_evidence_snapshot,
+    receipt_id_for_event,
+    repository_evidence_summary,
+    validate_repository_evidence_snapshot,
 )
 from ix_blackfox.repository.impact import (
     RepositoryImpactAnalyzer,
@@ -123,6 +134,10 @@ __all__ = [
     "RepositoryDependencyRecord",
     "RepositoryDependencyScope",
     "RepositoryEdgeKind",
+    "RepositoryEvidenceEventType",
+    "RepositoryEvidenceLedger",
+    "RepositoryEvidenceReceipt",
+    "RepositoryEvidenceSnapshot",
     "RepositoryFileRecord",
     "RepositoryFileRole",
     "RepositoryGraphEdge",
@@ -136,6 +151,7 @@ __all__ = [
     "RepositorySnapshot",
     "RepositorySubsystemRecord",
     "RepositorySymbolRecord",
+    "WAVE8_REQUIRED_EVENT_SEQUENCE",
     "analyze_repository_impact",
     "architecture_memory_summary",
     "architecture_records_by_subsystem",
@@ -147,6 +163,7 @@ __all__ = [
     "build_file_record",
     "build_python_code_graph",
     "build_recommended_commands",
+    "build_repository_evidence_snapshot",
     "classify_generated_reason",
     "classify_repository_file",
     "classify_repository_sensitivity",
@@ -182,6 +199,8 @@ __all__ = [
     "owned_paths_from_records",
     "path_basename",
     "path_requires_compile_check",
+    "receipt_id_for_event",
+    "repository_evidence_summary",
     "resolve_from_import_module",
     "resolve_imported_module",
     "role_findings",
@@ -195,4 +214,5 @@ __all__ = [
     "unknown_path_findings",
     "unmapped_test_findings",
     "validate_architecture_memory",
+    "validate_repository_evidence_snapshot",
 ]
