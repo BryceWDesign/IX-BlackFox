@@ -2,11 +2,12 @@
 Repository-intelligence primitives for IX-BlackFox Wave 8.
 
 The repository package builds deterministic, reviewable evidence about a
-workspace before model-assisted code-change decisions are trusted. The first
-Wave 8 layers expose stable model contracts, deterministic inventory scanning,
+workspace before model-assisted code-change decisions are trusted. The Wave 8
+layers expose stable model contracts, deterministic inventory scanning,
 conservative Python AST graph extraction, dependency mapping, source-test
 coverage/subsystem inference, digestable architectural memory, conservative
-impact analysis, and digest-chained repository evidence.
+impact analysis, digest-chained repository evidence, and exportable repository
+intelligence reports.
 """
 
 from __future__ import annotations
@@ -120,6 +121,13 @@ from ix_blackfox.repository.python_graph import (
     resolve_from_import_module,
     resolve_imported_module,
 )
+from ix_blackfox.repository.report import (
+    RepositoryIntelligenceReport,
+    RepositoryIntelligenceRunner,
+    build_report_export_receipt,
+    build_repository_intelligence_report,
+    repository_intelligence_summary,
+)
 
 __all__ = [
     "ArchitectureMemorySnapshot",
@@ -145,6 +153,8 @@ __all__ = [
     "RepositoryImpactFinding",
     "RepositoryImpactReport",
     "RepositoryImpactSeverity",
+    "RepositoryIntelligenceReport",
+    "RepositoryIntelligenceRunner",
     "RepositoryInventoryScanner",
     "RepositoryNodeKind",
     "RepositorySensitivity",
@@ -163,7 +173,9 @@ __all__ = [
     "build_file_record",
     "build_python_code_graph",
     "build_recommended_commands",
+    "build_report_export_receipt",
     "build_repository_evidence_snapshot",
+    "build_repository_intelligence_report",
     "classify_generated_reason",
     "classify_repository_file",
     "classify_repository_sensitivity",
@@ -201,6 +213,7 @@ __all__ = [
     "path_requires_compile_check",
     "receipt_id_for_event",
     "repository_evidence_summary",
+    "repository_intelligence_summary",
     "resolve_from_import_module",
     "resolve_imported_module",
     "role_findings",
