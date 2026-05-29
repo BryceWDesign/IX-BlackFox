@@ -157,7 +157,7 @@ Default Wave 9 outputs:
 ```
 Why the default CI report is blocked
 
-The default GitHub Actions workflow intentionally expects a blocked disposition.
+The default GitHub Actions workflow intentionally expects a `blocked` disposition.
 
 That is correct behavior.
 
