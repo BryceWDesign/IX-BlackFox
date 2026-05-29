@@ -38,6 +38,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         return repository_main(raw_argv[1:])
 
+    if raw_argv and raw_argv[0] == "audit":
+        from ix_blackfox.audit.cli import main as audit_main
+
+        return audit_main(raw_argv[1:])
+
     parser = _build_parser()
     args = parser.parse_args(raw_argv)
 
@@ -144,6 +149,10 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "repo-intel",
         help="Alias for Wave 8 repository-intelligence commands.",
+    )
+    subparsers.add_parser(
+        "audit",
+        help="Run Wave 9 compliance/audit attestation commands.",
     )
 
     return parser
