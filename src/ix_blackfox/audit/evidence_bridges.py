@@ -25,11 +25,21 @@ from ix_blackfox.audit.models import (
 from ix_blackfox.workflow.pr_evidence_io import load_pr_evidence_pack
 from ix_blackfox.workflow.pr_evidence_pack import (
     ArtifactAttestationKind as Wave5ArtifactAttestationKind,
+)
+from ix_blackfox.workflow.pr_evidence_pack import (
     EvidenceArtifact as Wave5EvidenceArtifact,
+)
+from ix_blackfox.workflow.pr_evidence_pack import (
     EvidenceArtifactKind as Wave5EvidenceArtifactKind,
+)
+from ix_blackfox.workflow.pr_evidence_pack import (
     PullRequestApproval,
     PullRequestEvidencePack,
+)
+from ix_blackfox.workflow.pr_evidence_pack import (
     ReviewDecision as Wave5ReviewDecision,
+)
+from ix_blackfox.workflow.pr_evidence_pack import (
     ReviewerKind as Wave5ReviewerKind,
 )
 
@@ -399,7 +409,7 @@ def _metadata_from_json_evidence(repo_root: str | Path, relative_path: str) -> d
         "schema_version",
     ):
         value = payload.get(key)
-        if isinstance(value, (str, bool, int, float)):
+        if isinstance(value, str | bool | int | float):
             metadata[key] = value
     nested_report = payload.get("report")
     if isinstance(nested_report, Mapping):
