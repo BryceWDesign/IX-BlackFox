@@ -17,6 +17,7 @@ def test_wave9_compliance_audit_workflow_runs_targeted_wave9_checks() -> None:
     assert "python -m pytest tests/audit -q" in text
     assert "python -m pytest tests/ci/test_wave9_compliance_audit_ci_integration.py -q" in text
     assert "python -m pytest tests/ci/test_wave9_compliance_audit_workflow_contract.py -q" in text
+    assert "python -m pytest tests/docs/test_wave9_compliance_audit_docs.py -q" in text
     assert "python -m pytest tests/interface/test_audit_cli_routing.py -q" in text
     assert (
         "python -m compileall -q src/ix_blackfox/audit scripts tests/audit tests/ci tests/interface"
