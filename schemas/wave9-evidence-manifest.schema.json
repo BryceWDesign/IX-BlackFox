@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ix-blackfox.local/schemas/wave9-evidence-manifest.schema.json",
+  "title": "IX-BlackFox Wave 9 Evidence Manifest",
+  "description": "Schema contract for deterministic Wave 9 evidence manifests. This validates evidence metadata shape only; it does not certify production readiness, ATO/cATO, DoD approval, procurement readiness, or autonomous authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "manifest_id",
+    "subject",
+    "generated_at",
+    "artifact_count",
+    "artifacts",
+    "metadata",
+    "digest"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "wave9.evidence_manifest.v1"
+    },
+    "manifest_id": {
+      "$ref": "#/$defs/safe_identifier"
+    },
+    "subject": {
+      "$ref": "#/$defs/audit_subject"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "artifact_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence_artifact"
+      },
+      "uniqueItems": true
+    },
+    "metadata": {
+      "$ref": "#/$defs/metadata"
+    },
+    "digest": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "audit_subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "repository",
+        "head_sha",
+        "scope",
+        "changed_paths",
+        "metadata",
+        "digest"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "wave9.attestation_subject.v1"
+        },
+        "repository": {
+          "$ref": "#/$defs/safe_identifier"
+        },
+        "head_sha": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "scope": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "changed_paths": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/repository_relative_path"
+          },
+          "uniqueItems": true
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "digest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "evidence_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "kind",
+        "source_wave",
+        "path",
+        "sha256",
+        "size_bytes",
+        "producer",
+        "head_sha",
+        "schema_version",
+        "verified",
+        "metadata"
+      ],
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/safe_identifier"
+        },
+        "kind": {
+          "$ref": "#/$defs/evidence_kind"
+        },
+        "source_wave": {
+          "$ref": "#/$defs/evidence_source_wave"
+        },
+        "path": {
+          "$ref": "#/$defs/repository_relative_path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "producer": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "head_sha": {
+          "type": "string"
+        },
+        "schema_version": {
+          "type": "string"
+        },
+        "verified": {
+          "type": "boolean"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "evidence_kind": {
+      "type": "string",
+      "enum": [
+        "pr_evidence_pack",
+        "ci_evidence",
+        "approval_record",
+        "human_review",
+        "governance_receipt",
+        "sandbox_receipt_bundle",
+        "sandbox_adversarial_report",
+        "model_repair_report",
+        "model_repair_receipt",
+        "repository_intelligence_report",
+        "repository_evidence_snapshot",
+        "policy_decision",
+        "attestation",
+        "governance_report",
+        "other"
+      ]
+    },
+    "evidence_source_wave": {
+      "type": "string",
+      "enum": [
+        "wave5",
+        "wave6",
+        "wave7",
+        "wave8",
+        "wave9",
+        "external",
+        "unknown"
+      ]
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repository_relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "anyOf": [
+          {
+            "pattern": "^/"
+          },
+          {
+            "pattern": "^[A-Za-z]:"
+          },
+          {
+            "pattern": "(^|/)\\.\\.(/|$)"
+          },
+          {
+            "pattern": "(^|/)\\.(/|$)"
+          },
+          {
+            "pattern": "://"
+          }
+        ]
+      }
+    },
+    "safe_identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/#-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}
