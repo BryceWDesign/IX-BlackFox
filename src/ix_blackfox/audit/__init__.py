@@ -10,6 +10,13 @@ readiness, or autonomous authority.
 
 from __future__ import annotations
 
+from ix_blackfox.audit.controls import (
+    AuditControlEvaluation,
+    AuditControlEvaluationContext,
+    control_is_applicable,
+    evaluate_control,
+    evaluate_policy_pack,
+)
 from ix_blackfox.audit.evidence_bridges import (
     WAVE6_CI_REPORT_PATH,
     WAVE7_CI_REPORT_PATH,
@@ -98,6 +105,8 @@ __all__ = [
     "WAVE9_GOVERNANCE_REPORT_SCHEMA_VERSION",
     "WAVE9_POLICY_PACK_SCHEMA_VERSION",
     "AuditControlFinding",
+    "AuditControlEvaluationContext",
+    "AuditControlEvaluation",
     "AuditControlRequirement",
     "AuditControlSeverity",
     "AuditControlStatus",
@@ -129,6 +138,9 @@ __all__ = [
     "default_artifact_id",
     "default_known_wave_evidence_paths",
     "default_wave9_policy_pack",
+    "evaluate_policy_pack",
+    "evaluate_control",
+    "control_is_applicable",
     "derive_audit_disposition",
     "digest_payload",
     "inspect_evidence_file",
