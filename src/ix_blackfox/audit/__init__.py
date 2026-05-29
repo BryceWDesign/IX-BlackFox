@@ -10,6 +10,19 @@ readiness, or autonomous authority.
 
 from __future__ import annotations
 
+from ix_blackfox.audit.evidence_standard import (
+    EvidenceManifestIssue,
+    EvidenceManifestIssueSeverity,
+    EvidenceManifestValidationResult,
+    build_evidence_manifest,
+    default_artifact_id,
+    inspect_evidence_file,
+    read_json_evidence_file,
+    resolve_evidence_path,
+    resolve_repo_root,
+    sha256_file,
+    validate_evidence_manifest,
+)
 from ix_blackfox.audit.models import (
     WAVE9_ATTESTATION_SUBJECT_SCHEMA_VERSION,
     WAVE9_EVIDENCE_MANIFEST_SCHEMA_VERSION,
@@ -77,9 +90,15 @@ __all__ = [
     "AuditStandardsMapping",
     "AuditStandardsMappingKind",
     "AuditSubject",
+    "EvidenceManifestIssue",
+    "EvidenceManifestIssueSeverity",
+    "EvidenceManifestValidationResult",
+    "build_evidence_manifest",
+    "default_artifact_id",
     "default_wave9_policy_pack",
     "derive_audit_disposition",
     "digest_payload",
+    "inspect_evidence_file",
     "normalize_head_sha",
     "normalize_identifier",
     "normalize_identifier_tuple",
@@ -90,4 +109,9 @@ __all__ = [
     "normalize_sha256",
     "normalize_text",
     "normalize_text_tuple",
+    "read_json_evidence_file",
+    "resolve_evidence_path",
+    "resolve_repo_root",
+    "sha256_file",
+    "validate_evidence_manifest",
 ]
