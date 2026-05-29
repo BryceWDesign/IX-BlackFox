@@ -35,6 +35,7 @@ jobs:
           python -m pytest tests/audit -q
           python -m pytest tests/ci/test_wave9_compliance_audit_ci_integration.py -q
           python -m pytest tests/ci/test_wave9_compliance_audit_workflow_contract.py -q
+          python -m pytest tests/docs/test_wave9_compliance_audit_docs.py -q
           python -m pytest tests/interface/test_audit_cli_routing.py -q
 
       - name: Compile Wave 9 audit code
