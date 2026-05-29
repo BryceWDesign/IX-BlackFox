@@ -1,0 +1,66 @@
+name: Wave 9 Compliance Audit Attestation
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wave9-compliance-audit:
+    name: Wave 9 compliance/audit attestation evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package with development tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run Wave 9 compliance/audit tests
+        run: |
+          python -m pytest tests/audit -q
+          python -m pytest tests/ci/test_wave9_compliance_audit_ci_integration.py -q
+          python -m pytest tests/ci/test_wave9_compliance_audit_workflow_contract.py -q
+          python -m pytest tests/interface/test_audit_cli_routing.py -q
+
+      - name: Compile Wave 9 audit code
+        run: |
+          python -m compileall -q src/ix_blackfox/audit scripts tests/audit tests/ci tests/interface
+
+      - name: Generate Wave 9 compliance/audit CI evidence
+        run: |
+          python scripts/run_wave9_compliance_audit_ci.py \
+            --head-sha "${{ github.sha }}" \
+            --output ".blackfox-artifacts/wave9/wave9-compliance-audit-report.json" \
+            --engine-evidence-output ".blackfox-artifacts/wave9/wave9-ci-engine-evidence.json" \
+            --summary-output ".blackfox-artifacts/wave9/wave9-compliance-audit-ci-summary.json" \
+            --expected-disposition "blocked"
+
+      - name: Validate Wave 9 governance report shape and digest
+        run: |
+          python -m ix_blackfox.interface.cli audit validate \
+            --report ".blackfox-artifacts/wave9/wave9-compliance-audit-report.json"
+
+      - name: Upload Wave 9 compliance/audit artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave9-compliance-audit-evidence
+          path: |
+            .blackfox-artifacts/wave9/wave9-compliance-audit-report.json
+            .blackfox-artifacts/wave9/wave9-ci-engine-evidence.json
+            .blackfox-artifacts/wave9/wave9-compliance-audit-ci-summary.json
+          if-no-files-found: error
