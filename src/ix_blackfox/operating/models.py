@@ -193,6 +193,10 @@ class OperatingEnvelope:
         return tuple(finding for finding in self.findings if finding.blocking)
 
     @property
+    def warning_findings(self) -> tuple[OperatingFinding, ...]:
+        return tuple(finding for finding in self.findings if not finding.blocking)
+
+    @property
     def disposition(self) -> OperatingDisposition:
         if self.blocking_findings:
             return OperatingDisposition.BLOCKED
