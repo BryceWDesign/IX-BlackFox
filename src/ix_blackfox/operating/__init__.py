@@ -3,10 +3,11 @@ Wave 10 AI engineering operating-system primitives.
 
 The operating package is the top-level Wave 10 layer for multi-repo,
 multi-team, policy-governed, measurable, replayable, and reviewable AI-assisted
-engineering workflows. Commit 17 adds the final operating report/dossier
-assembler that pulls every Wave 10 gate into one digest-bound, human-reviewable
-executive report without claiming certification, approval, or production
-readiness.
+engineering workflows. Commit 18 adds the local export pack manifest that binds
+the final report, review bundle, standards crosswalk, cloud-security export,
+and optional validation payloads into a deterministic digest-checked evidence
+package without writing files, uploading to cloud services, or granting
+execution authority.
 """
 
 from __future__ import annotations
@@ -53,6 +54,14 @@ from ix_blackfox.operating.evidence import (
     default_wave5_to_wave9_evidence_requirements,
     operating_artifact_kind_from_audit,
     operating_source_wave_from_audit,
+)
+from ix_blackfox.operating.export import (
+    OperatingExportFormat,
+    OperatingExportPack,
+    OperatingExportPackValidation,
+    OperatingExportPayload,
+    build_wave10_local_export_pack,
+    json_payload,
 )
 from ix_blackfox.operating.falsification import (
     FalsificationGate,
@@ -241,6 +250,10 @@ __all__ = [
     "OperatingEnvelope",
     "OperatingEvidenceInventory",
     "OperatingEvidenceItem",
+    "OperatingExportFormat",
+    "OperatingExportPack",
+    "OperatingExportPackValidation",
+    "OperatingExportPayload",
     "OperatingFinding",
     "OperatingGateDecision",
     "OperatingPolicyContext",
@@ -310,10 +323,12 @@ __all__ = [
     "aggregate_audit_evidence_for_operating_layer",
     "build_cloud_security_export_from_envelope",
     "build_default_wave10_standards_crosswalk",
+    "build_wave10_local_export_pack",
     "cloud_compliance_from_disposition",
     "cloud_severity_from_operating",
     "default_wave5_to_wave9_evidence_requirements",
     "digest_payload",
+    "json_payload",
     "normalize_dotted_name",
     "normalize_identifier",
     "normalize_identifier_tuple",
