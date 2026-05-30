@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum, auto
 from typing import Any
@@ -253,7 +253,7 @@ class OperatingReviewBundle:
     @property
     def section_artifact_ids(self) -> tuple[str, ...]:
         return normalize_identifier_tuple(
-            (
+            tuple(
                 artifact_id
                 for section in self.sections
                 for artifact_id in section.artifact_ids
