@@ -7,7 +7,6 @@ from typing import Any
 
 from ix_blackfox.operating.models import (
     OperatingArtifactKind,
-    OperatingDisposition,
     OperatingDomain,
     OperatingEnvelope,
     OperatingFinding,
@@ -17,7 +16,10 @@ from ix_blackfox.operating.models import (
     normalize_text,
     unique_sorted_enum_tuple,
 )
-from ix_blackfox.operating.registry import normalize_identifier_tuple, normalize_text_tuple
+from ix_blackfox.operating.registry import (
+    normalize_identifier_tuple,
+    normalize_text_tuple,
+)
 
 
 class TraceNodeKind(StrEnum):
@@ -653,19 +655,27 @@ class OperatingTraceabilityMap:
                 self._require_node_kind(node_id, TraceNodeKind.HUMAN_REVIEW, nodes_by_id)
             for artifact_id in mapping.required_evidence_artifact_ids:
                 normalize_identifier(artifact_id, label="required_evidence_artifact_ids")
-        for mapping in self.control_mappings:
-            self._require_node_kind(mapping.control_node_id, TraceNodeKind.CONTROL, nodes_by_id)
-            for node_id in mapping.requirement_node_ids:
+        for control_mapping in self.control_mappings:
+            self._require_node_kind(
+                control_mapping.control_node_id,
+                TraceNodeKind.CONTROL,
+                nodes_by_id,
+            )
+            for node_id in control_mapping.requirement_node_ids:
                 self._require_node_kind(node_id, TraceNodeKind.REQUIREMENT, nodes_by_id)
-            for artifact_id in mapping.evidence_artifact_ids:
+            for artifact_id in control_mapping.evidence_artifact_ids:
                 normalize_identifier(artifact_id, label="evidence_artifact_ids")
-        for mapping in self.hazard_mappings:
-            self._require_node_kind(mapping.hazard_node_id, TraceNodeKind.HAZARD, nodes_by_id)
-            for node_id in mapping.control_node_ids:
+        for hazard_mapping in self.hazard_mappings:
+            self._require_node_kind(
+                hazard_mapping.hazard_node_id,
+                TraceNodeKind.HAZARD,
+                nodes_by_id,
+            )
+            for node_id in hazard_mapping.control_node_ids:
                 self._require_node_kind(node_id, TraceNodeKind.CONTROL, nodes_by_id)
-            for node_id in mapping.accepted_by_human_review_node_ids:
+            for node_id in hazard_mapping.accepted_by_human_review_node_ids:
                 self._require_node_kind(node_id, TraceNodeKind.HUMAN_REVIEW, nodes_by_id)
-            for artifact_id in mapping.evidence_artifact_ids:
+            for artifact_id in hazard_mapping.evidence_artifact_ids:
                 normalize_identifier(artifact_id, label="evidence_artifact_ids")
         _ = evidence
 
