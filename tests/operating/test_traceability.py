@@ -9,9 +9,9 @@ from ix_blackfox.operating import (
     OperatingDisposition,
     OperatingDomain,
     OperatingSeverity,
+    OperatingTraceabilityMap,
     OperatingTraceEdge,
     OperatingTraceNode,
-    OperatingTraceabilityMap,
     TraceEdgeKind,
     TraceNodeKind,
 )
