@@ -15,10 +15,12 @@ from ix_blackfox.operating.models import (
     OperatingSeverity,
     digest_payload,
     normalize_identifier,
-    normalize_optional_text,
     normalize_text,
 )
-from ix_blackfox.operating.registry import normalize_identifier_tuple, normalize_text_tuple
+from ix_blackfox.operating.registry import (
+    normalize_identifier_tuple,
+    normalize_text_tuple,
+)
 
 
 class OperatingReportSectionKind(StrEnum):
@@ -247,9 +249,23 @@ class OperatingReport:
             "repository_ids",
             normalize_identifier_tuple(self.repository_ids, label="repository_ids"),
         )
+        required_section_kinds = unique_ordered_section_kinds(self.required_section_kinds)
+        object.__setattr__(self, "required_section_kinds", required_section_kinds)
         if not self.sections:
             raise ValueError("OperatingReport sections must not be empty.")
-        sections = tuple(sorted(self.sections, key=lambda section: section.section_id))
+        section_kind_order = {
+            section_kind: index
+            for index, section_kind in enumerate(required_section_kinds)
+        }
+        sections = tuple(
+            sorted(
+                self.sections,
+                key=lambda section: (
+                    section_kind_order.get(section.section_kind, len(section_kind_order)),
+                    section.section_id,
+                ),
+            )
+        )
         section_ids = [section.section_id for section in sections]
         if len(section_ids) != len(set(section_ids)):
             raise ValueError("OperatingReport section_id values must be unique.")
@@ -261,11 +277,6 @@ class OperatingReport:
         if len(claim_ids) != len(set(claim_ids)):
             raise ValueError("OperatingReport claim_id values must be unique.")
         object.__setattr__(self, "claims", claims)
-        object.__setattr__(
-            self,
-            "required_section_kinds",
-            unique_sorted_section_kinds(self.required_section_kinds),
-        )
         self._validate_claim_references()
         object.__setattr__(
             self,
@@ -562,7 +573,10 @@ class OperatingReportValidation:
         object.__setattr__(
             self,
             "observed_section_ids",
-            normalize_identifier_tuple(self.observed_section_ids, label="observed_section_ids"),
+            normalize_identifier_tuple_preserving_order(
+                self.observed_section_ids,
+                label="observed_section_ids",
+            ),
         )
         object.__setattr__(self, "metadata", dict(self.metadata))
 
@@ -672,3 +686,30 @@ def unique_sorted_section_kinds(
     for value in values:
         by_value[value.value] = value
     return tuple(by_value[key] for key in sorted(by_value))
+
+
+def unique_ordered_section_kinds(
+    values: Sequence[OperatingReportSectionKind],
+) -> tuple[OperatingReportSectionKind, ...]:
+    normalized: list[OperatingReportSectionKind] = []
+    seen: set[OperatingReportSectionKind] = set()
+    for value in values:
+        if value not in seen:
+            normalized.append(value)
+            seen.add(value)
+    return tuple(normalized)
+
+
+def normalize_identifier_tuple_preserving_order(
+    values: Sequence[str],
+    *,
+    label: str,
+) -> tuple[str, ...]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        item = normalize_identifier(value, label=label)
+        if item not in seen:
+            normalized.append(item)
+            seen.add(item)
+    return tuple(normalized)
