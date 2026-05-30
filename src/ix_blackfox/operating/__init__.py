@@ -3,9 +3,10 @@ Wave 10 AI engineering operating-system primitives.
 
 The operating package is the top-level Wave 10 layer for multi-repo,
 multi-team, policy-governed, measurable, replayable, and reviewable AI-assisted
-engineering workflows. Commit 14 adds measurable operating scorecards that turn
-coverage, risk, review, replay, policy, and evidence facts into buyer-readable
-metrics with fail-closed findings and a deterministic operating score.
+engineering workflows. Commit 15 adds standards crosswalk reports for
+mapping-ready evidence across SSDF, OSCAL-style assessment results, DoD cATO
+evidence categories, SLSA/provenance, SBOM, GitHub artifact attestations, and
+OpenSSF Scorecard-style signals without claiming certification or approval.
 """
 
 from __future__ import annotations
@@ -116,6 +117,15 @@ from ix_blackfox.operating.scorecard import (
     ReviewMetric,
     RiskMetric,
     ScorecardMetricKind,
+)
+from ix_blackfox.operating.standards import (
+    StandardsControlMapping,
+    StandardsCrosswalkReport,
+    StandardsEvidenceKind,
+    StandardsEvidenceReference,
+    StandardsFramework,
+    StandardsMappingStatus,
+    build_default_wave10_standards_crosswalk,
 )
 from ix_blackfox.operating.sustainment import (
     BlockerSeverity,
@@ -247,6 +257,12 @@ __all__ = [
     "RollbackRequirement",
     "ScorecardMetricKind",
     "SeparationOfDutiesRule",
+    "StandardsControlMapping",
+    "StandardsCrosswalkReport",
+    "StandardsEvidenceKind",
+    "StandardsEvidenceReference",
+    "StandardsFramework",
+    "StandardsMappingStatus",
     "TeamReviewDecision",
     "TeamRole",
     "TraceEdgeKind",
@@ -257,6 +273,7 @@ __all__ = [
     "WorkPackageDependencyKind",
     "WorkPackageStatus",
     "aggregate_audit_evidence_for_operating_layer",
+    "build_default_wave10_standards_crosswalk",
     "default_wave5_to_wave9_evidence_requirements",
     "digest_payload",
     "normalize_dotted_name",
