@@ -45,7 +45,6 @@ from ix_blackfox.operating.standards import (
     build_default_wave10_standards_crosswalk,
 )
 
-
 DEFAULT_WAVE10_REPORT_SECTION_KINDS: tuple[OperatingReportSectionKind, ...] = (
     OperatingReportSectionKind.REGISTRY,
     OperatingReportSectionKind.TEAM_AUTHORITY,
