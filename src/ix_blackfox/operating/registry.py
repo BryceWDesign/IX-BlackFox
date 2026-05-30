@@ -12,7 +12,6 @@ from ix_blackfox.operating.models import (
     OperatingEnvelope,
     OperatingFinding,
     OperatingSeverity,
-    OperatingSourceWave,
     normalize_identifier,
     normalize_optional_text,
     normalize_relative_path,
