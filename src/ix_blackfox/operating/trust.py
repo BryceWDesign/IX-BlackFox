@@ -14,7 +14,6 @@ from ix_blackfox.operating.models import (
     OperatingFinding,
     OperatingSeverity,
     normalize_identifier,
-    normalize_optional_text,
     normalize_text,
 )
 from ix_blackfox.operating.registry import normalize_identifier_tuple
@@ -185,7 +184,7 @@ class EvidenceTrustRecord:
     def trust_level(self) -> EvidenceTrustLevel:
         if self.blocking_gap:
             return EvidenceTrustLevel.UNTRUSTED
-        if self.trust_score >= 85:
+        if self.trust_score > 85:
             return EvidenceTrustLevel.TRUSTED
         if self.trust_score >= 65:
             return EvidenceTrustLevel.WATCH
