@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
 from ix_blackfox.operating.models import (
     OperatingArtifactKind,
     OperatingArtifactRef,
-    OperatingDisposition,
     OperatingDomain,
     OperatingEnvelope,
     OperatingFinding,
@@ -16,7 +15,10 @@ from ix_blackfox.operating.models import (
     normalize_relative_path,
     normalize_text,
 )
-from ix_blackfox.operating.registry import normalize_identifier_tuple, normalize_text_tuple
+from ix_blackfox.operating.registry import (
+    normalize_identifier_tuple,
+    normalize_text_tuple,
+)
 from ix_blackfox.operating.work_packages import normalize_command_tuple
 
 
