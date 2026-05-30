@@ -3,9 +3,10 @@ Wave 10 AI engineering operating-system primitives.
 
 The operating package is the top-level Wave 10 layer for multi-repo,
 multi-team, policy-governed, measurable, replayable, and reviewable AI-assisted
-engineering workflows. Commit 5 adds deterministic campaign graphs that compose
-bounded work packages into multi-step operating campaigns with phases,
-dependencies, readiness ordering, cycle detection, and campaign-level gates.
+engineering workflows. Commit 6 adds Wave 5-9 evidence aggregation so existing
+PR evidence, sandbox evidence, model-repair evidence, repository intelligence,
+and governance reports can be normalized into deterministic Wave 10 operating
+evidence inventories.
 """
 
 from __future__ import annotations
@@ -28,6 +29,16 @@ from ix_blackfox.operating.campaign import (
     CampaignValidationReport,
     OperatingCampaign,
     normalize_optional_identifier,
+)
+from ix_blackfox.operating.evidence import (
+    EvidenceAggregationResult,
+    OperatingEvidenceInventory,
+    OperatingEvidenceItem,
+    WaveEvidenceRequirement,
+    aggregate_audit_evidence_for_operating_layer,
+    default_wave5_to_wave9_evidence_requirements,
+    operating_artifact_kind_from_audit,
+    operating_source_wave_from_audit,
 )
 from ix_blackfox.operating.models import (
     WAVE10_OPERATING_SCHEMA_VERSION,
@@ -82,6 +93,7 @@ __all__ = [
     "CampaignPhase",
     "CampaignPhaseStatus",
     "CampaignValidationReport",
+    "EvidenceAggregationResult",
     "EvidenceRequirement",
     "ForbiddenAction",
     "ManagedRepository",
@@ -91,6 +103,8 @@ __all__ = [
     "OperatingDisposition",
     "OperatingDomain",
     "OperatingEnvelope",
+    "OperatingEvidenceInventory",
+    "OperatingEvidenceItem",
     "OperatingFinding",
     "OperatingRegistry",
     "OperatingSeverity",
@@ -114,9 +128,12 @@ __all__ = [
     "TeamReviewDecision",
     "TeamRole",
     "ValidationKind",
+    "WaveEvidenceRequirement",
     "WorkPackageDependency",
     "WorkPackageDependencyKind",
     "WorkPackageStatus",
+    "aggregate_audit_evidence_for_operating_layer",
+    "default_wave5_to_wave9_evidence_requirements",
     "digest_payload",
     "normalize_dotted_name",
     "normalize_identifier",
@@ -129,5 +146,7 @@ __all__ = [
     "normalize_sha256",
     "normalize_text",
     "normalize_text_tuple",
+    "operating_artifact_kind_from_audit",
+    "operating_source_wave_from_audit",
     "unique_sorted_enum_tuple",
 ]
