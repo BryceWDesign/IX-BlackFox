@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum, auto
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from ix_blackfox.operating.models import (
     OperatingArtifactKind,
@@ -623,13 +623,16 @@ class OperatingScorecard:
 
     @property
     def all_metrics(self) -> tuple[ScorecardMetric, ...]:
-        return (
-            *self.coverage_metrics,
-            *self.risk_metrics,
-            *self.review_metrics,
-            *self.replay_metrics,
-            *self.policy_metrics,
-            *self.evidence_metrics,
+        return cast(
+            tuple[ScorecardMetric, ...],
+            (
+                *self.coverage_metrics,
+                *self.evidence_metrics,
+                *self.policy_metrics,
+                *self.risk_metrics,
+                *self.replay_metrics,
+                *self.review_metrics,
+            ),
         )
 
     @property
