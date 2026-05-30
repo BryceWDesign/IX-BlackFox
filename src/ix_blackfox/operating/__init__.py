@@ -3,9 +3,9 @@ Wave 10 AI engineering operating-system primitives.
 
 The operating package is the top-level Wave 10 layer for multi-repo,
 multi-team, policy-governed, measurable, replayable, and reviewable AI-assisted
-engineering workflows. Commit 4 adds bounded work packages that bind AI-assisted
-engineering work to repositories, owners, evidence requirements, validation,
-rollback obligations, and explicit forbidden actions.
+engineering workflows. Commit 5 adds deterministic campaign graphs that compose
+bounded work packages into multi-step operating campaigns with phases,
+dependencies, readiness ordering, cycle detection, and campaign-level gates.
 """
 
 from __future__ import annotations
@@ -20,6 +20,14 @@ from ix_blackfox.operating.authority import (
     SeparationOfDutiesRule,
     TeamReviewDecision,
     TeamRole,
+)
+from ix_blackfox.operating.campaign import (
+    CampaignDependencyGraph,
+    CampaignPhase,
+    CampaignPhaseStatus,
+    CampaignValidationReport,
+    OperatingCampaign,
+    normalize_optional_identifier,
 )
 from ix_blackfox.operating.models import (
     WAVE10_OPERATING_SCHEMA_VERSION,
@@ -70,11 +78,16 @@ from ix_blackfox.operating.work_packages import (
 __all__ = [
     "WAVE10_OPERATING_SCHEMA_VERSION",
     "ApprovalQuorum",
+    "CampaignDependencyGraph",
+    "CampaignPhase",
+    "CampaignPhaseStatus",
+    "CampaignValidationReport",
     "EvidenceRequirement",
     "ForbiddenAction",
     "ManagedRepository",
     "OperatingArtifactKind",
     "OperatingArtifactRef",
+    "OperatingCampaign",
     "OperatingDisposition",
     "OperatingDomain",
     "OperatingEnvelope",
@@ -108,6 +121,7 @@ __all__ = [
     "normalize_dotted_name",
     "normalize_identifier",
     "normalize_identifier_tuple",
+    "normalize_optional_identifier",
     "normalize_optional_text",
     "normalize_path_tuple",
     "normalize_relative_path",
