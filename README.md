@@ -4,286 +4,555 @@
 
 # IX-BlackFox
 
-**AI proposes. Humans decide.**
+**AI proposes. Humans decide. Evidence decides trust.**
 
-IX-BlackFox is a source-available governed AI engineering control plane for AI-assisted code-change workflows.
+IX-BlackFox is a source-available AI engineering control plane for governing AI-assisted code-change workflows. It treats model output as untrusted input and wraps proposed software changes in policy gates, isolated workspaces, receipts, evidence bundles, replay checks, human authority, audit-ready reports, and reviewable operating evidence.
 
-It treats model output as untrusted input and wraps AI-generated or AI-assisted software changes with policy gates, evidence receipts, repository-impact analysis, sandbox/evidence boundaries, CI validation, audit-attestation reports, and human review.
+Wave 10 extends IX-BlackFox from a repo-level governed repair/control plane into a broader **AI engineering operating-system layer**: multi-repo, multi-team, policy-governed, measurable, replayable, reviewable, and evidence-bound.
 
-The point is not autonomous coding.
+This repository is built for serious review by DevSecOps, platform engineering, security engineering, AI governance, software assurance, cloud-security, and defense-adjacent technical audiences that need proof around AI-in-the-code-change-loop workflows.
 
-The point is making AI-assisted engineering inspectable, testable, auditable, and bounded before anyone trusts the output.
+It does **not** claim certification, compliance approval, production readiness, DoD approval, AWS approval, FedRAMP authorization, cATO authorization, Security Hub integration, or autonomous authority.
 
-## Why this matters
+---
 
-AI coding agents introduce a new software trust boundary.
+## What problem IX-BlackFox is built to address
 
-For DevSecOps, software assurance, test/evaluation, and regulated engineering environments, the hard questions are not just “did the model write code?” The hard questions are:
+AI coding agents create a new trust boundary.
 
-- What did the model propose?
-- What was selected, rejected, or blocked?
-- Was the selected model allowed to review its own output?
-- What files changed?
-- What repository subsystems are affected?
-- What tests are likely relevant?
-- Did the change touch CI, scripts, policy, licensing, release metadata, or security-sensitive code?
-- What validation commands should run?
-- What evidence was generated?
-- Are the evidence receipts chained and reviewable?
-- Which policy pack was used for audit evaluation?
-- Which evidence manifest was evaluated?
-- Which controls passed, warned, blocked, or did not apply?
-- Is the governance report digest-bound and inspectable?
-- Was human signoff bound to the current audit subject and policy pack?
-- Where did human authority remain in control?
+The hard question is not only:
 
-IX-BlackFox is built around those questions.
+> Can the model write code?
 
-## Current status
+The harder engineering question is:
 
-**Current stage: Wave 9 prototype/evidence layer implemented.**
+> When something breaks, can you reconstruct what the model proposed, what policy allowed it, what evidence was produced, what CI or replay validation checked, what a human actually approved, and why the final state was considered acceptable?
 
-Wave 9 adds a compliance/audit attestation layer for AI-assisted code-change governance:
+IX-BlackFox is built around that boundary.
 
-- default audit policy pack
-- evidence manifest standard
-- control evaluator
-- fail-closed audit disposition logic
-- Wave 5 PR evidence bridge
-- Wave 6 sandbox evidence bridge
-- Wave 7 model-repair evidence bridge
-- Wave 8 repository-intelligence evidence bridge
-- digest-bound reviewer signoff validation
-- human-authority gate
-- model/system self-approval prevention
-- deterministic governance report builder
-- JSON schema contracts
-- `blackfox audit` CLI commands
-- offline CI audit evidence generation
-- dedicated GitHub Actions workflow
+It is designed to make AI-assisted engineering workflows:
 
-This is a research prototype. It is not production-ready, certified, defense-approved, compliance-approved, formally verified, or authorized for operational deployment.
+- inspectable,
+- policy-governed,
+- evidence-bound,
+- replayable,
+- human-authorized,
+- measurable,
+- falsifiable,
+- and reviewable.
 
-## Evidence chain
+---
 
-IX-BlackFox is built around evidence before trust:
+## Core doctrine
+
+IX-BlackFox follows one operating rule:
+
+> **AI proposes. Humans decide. Evidence decides trust.**
+
+That means:
+
+- Model output is treated as untrusted input.
+- Policy gates decide whether a proposed action can proceed.
+- Evidence bundles record what happened.
+- Human authority remains separate from model output.
+- Self-approval, model approval, and system approval are not accepted as final human authority.
+- Readiness claims must be bounded to the evidence actually present.
+- Missing evidence fails closed.
+- Replay gaps, traceability gaps, trust gaps, policy failures, and unresolved blockers prevent readiness.
+
+---
+
+## Wave 10 target
+
+The locked Wave 10 roadmap target for IX-BlackFox is:
+
+> **Full AI engineering operating system: multi-repo, multi-team, policy-governed, measurable, replayable, and reviewable.**
+
+Wave 10 does not mean “autonomous AI can approve itself.”
+
+Wave 10 means the repository now contains operating-system primitives for assembling, evaluating, exporting, and reviewing evidence across a governed AI-assisted engineering workflow.
+
+---
+
+## What Wave 10 adds
+
+Wave 10 adds an operating layer under:
 
 ```
-model output
-  -> policy gates
-  -> sandbox/evidence boundary
-  -> repository impact analysis
-  -> validation commands
-  -> digest-chained receipts
-  -> audit policy pack
-  -> evidence manifest
-  -> control evaluation
-  -> reviewer signoff validation
-  -> governance report
-  -> human review
+src/ix_blackfox/operating/
 ```
-The governing rule is:
-```
-AI may propose.
-IX-BlackFox must gate, compare, sandbox, test, record, analyze impact, evaluate controls, and route for review.
-Humans retain authority.
-```
-Implemented waves
-| Wave | Status                               | Meaning                                                                                                               |
-| ---: | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
-|    1 | Implemented                          | Governed multi-brain runtime scaffold                                                                                 |
-|    2 | Implemented                          | Governed local patch-test-verify control plane                                                                        |
-|    3 | Implemented                          | Governed patch authoring and repair intelligence                                                                      |
-|    4 | Implemented                          | Reliability lab with scenario suites, adversarial tests, and repair metrics                                           |
-|    5 | Implemented                          | Organization-grade workflow with PR evidence packs, approvals, and CI integration                                     |
-|    6 | Prototype evidence layer implemented | Hardened sandbox execution layer with isolated workspaces, signed artifacts, and egress controls                      |
-|    7 | Prototype evidence layer implemented | Model-agnostic repair intelligence with model comparison, routing, budget controls, and provider abstraction          |
-|    8 | Prototype evidence layer implemented | Repository intelligence layer with code graph, dependency mapping, impact analysis, and architectural memory          |
-|    9 | Prototype evidence layer implemented | Compliance/audit attestation layer with policy packs, evidence standards, reviewer signoff, and governance reports    |
-|   10 | Planned                              | Full AI engineering operating system: multi-repo, multi-team, policy-governed, measurable, replayable, and reviewable |
-Wave 9 compliance/audit attestation
+The Wave 10 layer includes:
 
-Wave 9 adds this review path:
-```
-policy pack
-  -> evidence manifest
-  -> evidence validation
-  -> control evaluation
-  -> signoff validation
-  -> signoff authority summary
-  -> deterministic governance report
-```
-Core implementation:
-```
-src/ix_blackfox/audit/
-scripts/run_wave9_compliance_audit_ci.py
-.github/workflows/wave9-compliance-audit.yml
-schemas/wave9-evidence-manifest.schema.json
-schemas/wave9-governance-report.schema.json
-docs/wave9-compliance-audit-attestation.md
-```
-Wave 9 helps reviewers determine:
+operating models,
+managed repository registry,
+work packages,
+campaign graph validation,
+team authority and separation of duties,
+Wave 5–9 evidence aggregation,
+replay manifests and replay validation,
+deterministic review bundles,
+assurance traceability maps,
+policy packs and operating gates,
+sustainment blockers and readiness gates,
+evidence trust scoring,
+negative controls and kill criteria,
+measurable operating scorecards,
+standards crosswalk reports,
+local AWS/cloud-security finding exports,
+final operating report/dossier assembly,
+local export-pack manifests,
+and an end-to-end assembly smoke path.
 
-which policy pack was evaluated
-which evidence artifacts were included
-whether evidence was digest-bound and inspectable
-whether internal evidence was bound to the reviewed head SHA
-which controls passed, warned, blocked, or did not apply
-whether provenance or attestation claims were verified or merely recorded
-whether a human reviewer actually approved the current audit subject
-whether model/system signoffs were kept advisory
-why the final disposition is audit_ready, warning, or blocked
+Wave 10 module map
+| Module                    | Purpose                                                                                                                                                                                    |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `operating.models`        | Core Wave 10 enums, artifact references, envelopes, findings, dispositions, digest helpers, and normalization.                                                                             |
+| `operating.registry`      | Multi-repo registry, repository dependencies, risk surfaces, policy bindings, evidence posture, and governance scope.                                                                      |
+| `operating.work_packages` | Reviewable work packages, dependencies, validations, evidence requirements, rollback requirements, and forbidden actions.                                                                  |
+| `operating.campaign`      | Multi-phase operating campaign graph, dependency validation, blocked phase detection, and campaign-level evidence envelope.                                                                |
+| `operating.authority`     | Teams, reviewer roles, approval quorum, separation-of-duties rules, and human-authority enforcement.                                                                                       |
+| `operating.evidence`      | Normalizes Wave 5–9 evidence into Wave 10 operating evidence inventories.                                                                                                                  |
+| `operating.replay`        | Replay environments, replay commands, replay steps, replay manifests, and replay validation results.                                                                                       |
+| `operating.review_bundle` | Deterministic human-review bundle sections, artifacts, validation, and digest-bound review export.                                                                                         |
+| `operating.traceability`  | Assurance traceability graph connecting mission needs, requirements, scenarios, hazards, controls, evidence, human review, and bounded claims.                                             |
+| `operating.policy`        | Operating policy contexts, controls, policy packs, policy evaluations, and fail-closed gate decisions.                                                                                     |
+| `operating.sustainment`   | Sustainment blockers, readiness transitions, readiness states, and readiness gates.                                                                                                        |
+| `operating.trust`         | Evidence freshness, integrity, schema validity, producer trust, human-review binding, trust scores, and trust transitions.                                                                 |
+| `operating.falsification` | Negative controls, kill criteria, falsification gates, and “prove it blocks bad states” evidence.                                                                                          |
+| `operating.scorecard`     | Buyer-readable metrics for coverage, risk, review, replay, policy, and evidence trust.                                                                                                     |
+| `operating.standards`     | Mapping-ready crosswalks for SSDF, OSCAL-style assessment results, DoD cATO evidence categories, SLSA/provenance, SBOM, GitHub artifact attestations, and OpenSSF Scorecard-style signals. |
+| `operating.cloud`         | Local ASFF-shaped cloud-security finding export for review. No AWS API calls. No credentials. No live Security Hub integration.                                                            |
+| `operating.report`        | Final Wave 10 operating report/dossier assembler and report validation.                                                                                                                    |
+| `operating.export`        | Local export-pack manifest and payload digest validation.                                                                                                                                  |
+| `operating.assembly`      | End-to-end local Wave 10 assembly smoke path.                                                                                                                                              |
+End-to-end Wave 10 smoke path
 
-The default policy pack is:
+Wave 10 includes a compact local assembly path that proves the final layers can be joined together without granting execution authority.
 ```
-ix-blackfox.wave9.default
-```
-The primary report schema is:
-```
-wave9.compliance_audit_attestation.v1
-```
-The evidence-manifest schema is:
-```
-wave9.evidence_manifest.v1
-```
-Wave 9 is deliberately fail-closed. Missing required evidence, malformed evidence, head-SHA mismatch, unverified provenance claims, missing human approval, or model/system self-approval attempts cannot produce audit_ready.
+from ix_blackfox.operating import build_minimal_wave10_operating_assembly
 
-Why the Wave 9 CI report is blocked by default
+assembly = build_minimal_wave10_operating_assembly()
 
-The Wave 9 GitHub Actions workflow intentionally expects a valid blocked report.
+print(assembly.all_ready)
+print(assembly.dispositions)
+print(assembly.report.digest)
+print(assembly.export_pack.manifest_digest)
+```
+The assembly path builds:
 
-That is correct.
+a compact final operating report,
+report digest validation,
+a review bundle,
+a standards crosswalk,
+a local ASFF-shaped cloud-security export,
+a local export pack,
+and export-pack validation.
 
-CI can prove that the audit engine, policy pack, evidence manifest, report export, digest validation, and human-approval boundary are working. CI must not fabricate human signoff.
+This is a local deterministic smoke path. It does not call AWS, upload evidence, write files, grant approvals, or authorize execution.
 
-A valid blocked report is useful evidence because it says exactly why audit readiness has not been reached.
+What IX-BlackFox is not
 
-Commands
+IX-BlackFox is not:
 
-Run all tests:
-```
-python -m pytest
-```
-Run Wave 9 targeted checks:
-```
-python -m pytest \
-  tests/audit \
-  tests/ci/test_wave9_compliance_audit_ci_integration.py \
-  tests/ci/test_wave9_compliance_audit_workflow_contract.py \
-  tests/docs/test_wave9_compliance_audit_docs.py \
-  tests/interface/test_audit_cli_routing.py \
-  -q
-```
-Compile-check source, tests, and scripts:
-```
-python -m compileall -q src tests scripts
-```
-Generate a Wave 9 governance report:
-```
-blackfox audit report \
-  --root . \
-  --repository IX-BlackFox \
-  --head-sha local \
-  --scope "repository intelligence audit" \
-  --claim "repository intelligence impact architecture_memory" \
-  --output .blackfox-artifacts/wave9/wave9-compliance-audit-report.json
-```
-Validate a Wave 9 governance report:
-```
-blackfox audit validate \
-  --report .blackfox-artifacts/wave9/wave9-compliance-audit-report.json
-```
-Gate on a Wave 9 governance report:
-```
-blackfox audit gate \
-  --report .blackfox-artifacts/wave9/wave9-compliance-audit-report.json
-```
-Generate Wave 9 CI evidence:
-```
-python scripts/run_wave9_compliance_audit_ci.py --head-sha local
-```
-Default Wave 9 outputs:
-```
-.blackfox-artifacts/wave9/wave9-compliance-audit-report.json
-.blackfox-artifacts/wave9/wave9-ci-engine-evidence.json
-.blackfox-artifacts/wave9/wave9-compliance-audit-ci-summary.json
-```
-Wave 8 repository intelligence
+a replacement for human review,
+a production authorization system,
+a certified compliance product,
+a FedRAMP-authorized product,
+a DoD-approved product,
+an AWS-approved product,
+a live AWS Security Hub integration,
+an autonomous deployment authority,
+a claim that AI code changes are safe by default,
+or a guarantee that model-generated code is correct.
 
-Wave 8 added this review path:
+It is an evidence-bound control plane and research prototype for making AI-assisted engineering workflows more inspectable, reviewable, and governable.
+
+Why this matters for DevSecOps and platform teams
+
+Organizations adopting AI coding agents need more than faster code generation.
+
+They need to answer questions like:
+
+What did the model propose?
+What repository or workspace did the action affect?
+What policy gates were applied?
+What evidence was produced?
+What validations ran?
+What failed?
+What was replayable?
+What was traceable?
+Who reviewed it?
+Was the reviewer allowed to approve it?
+Was there separation of duties?
+Was any evidence stale, missing, untrusted, or tampered with?
+Were negative controls run?
+Did kill criteria trigger?
+What final claim is actually supported?
+
+IX-BlackFox is built to make those questions explicit.
+
+Why this matters for defense-adjacent software assurance
+
+Defense, autonomy, T&E, DevSecOps, and assurance workflows often require evidence chains, bounded claims, human authority, reproducibility, and auditability.
+
+IX-BlackFox is designed to support that style of review by producing structured evidence around:
+
+telemetry-like operating findings,
+policy decisions,
+human authority gates,
+reviewer separation,
+replay manifests,
+evidence digests,
+traceability maps,
+negative controls,
+scorecards,
+standards crosswalks,
+and final operating reports.
+
+This repository does not claim official defense adoption, approval, certification, or accreditation.
+
+It is intended to be technically reviewable by people who care about those evidence requirements.
+
+Why this matters for AWS and cloud-security audiences
+
+Wave 10 includes a local cloud-security export layer that emits ASFF-shaped JSON for review by cloud-security teams.
+
+That layer is intentionally local-only.
+
+It does not:
+
+call AWS APIs,
+upload findings,
+handle credentials,
+configure Security Hub,
+require an AWS account,
+claim AWS approval,
+or claim live AWS Security Hub integration.
+
+It gives cloud-security reviewers a familiar finding shape they can inspect, transform, or route through their own approved pipeline.
+
+Evidence-first design
+
+IX-BlackFox prioritizes evidence over assertion.
+
+A Wave 10 operating report can include:
+
+artifact IDs,
+SHA-256 digests,
+envelope digests,
+section dispositions,
+blocked/warning/ready states,
+required evidence,
+missing evidence,
+policy findings,
+replay validation findings,
+trust findings,
+scorecard findings,
+standards crosswalk findings,
+cloud-export findings,
+and final report validation.
+
+The goal is not to say “trust the model.”
+
+The goal is to say:
+
+Here is the evidence. Here is what passed. Here is what failed. Here is what is missing. Here is what a human still must review.
+
+Fail-closed behavior
+
+Wave 10 is intentionally conservative.
+
+Readiness is blocked when critical evidence is missing or invalid, including:
+
+missing required repository scope,
+missing required evidence artifacts,
+missing human review,
+self-approval attempts,
+model approval attempts,
+unresolved high/critical blockers,
+replay mismatches,
+nondeterministic replay steps,
+network-dependent replay steps,
+unsupported assurance claims,
+missing traceability,
+stale or untrusted evidence,
+failed policy controls,
+missing negative-control results,
+triggered kill criteria,
+prohibited overclaim language,
+digest mismatches,
+or missing export payloads.
+
+Warnings are preserved when evidence exists but still needs reviewer attention.
+
+Human authority
+
+Wave 10 separates human authority from model output.
+
+The authority layer supports:
+
+reviewer roles,
+team definitions,
+quorum requirements,
+separated author/reviewer authority,
+self-approval blocking,
+model-approval blocking,
+system-approval blocking,
+and team review decisions.
+
+The design assumption is simple:
+
+A model can propose. A system can record. A human authority must decide.
+
+Replayability
+
+The replay layer supports:
+
+deterministic replay environments,
+argv-based replay commands,
+dependency lock references,
+expected artifacts,
+evidence artifacts,
+replay step dependencies,
+cycle detection,
+digest checks,
+missing artifact detection,
+unexpected artifact detection,
+required-step execution checks,
+and replay validation envelopes.
+
+Replay evidence is not treated as decorative. It can block readiness.
+
+Traceability
+
+The traceability layer maps:
+
+mission needs,
+requirements,
+scenarios,
+hazards,
+controls,
+evidence,
+human reviews,
+assurance claims,
+operating decisions,
+repositories,
+and work packages.
+
+It is designed to prevent unsupported claims from passing through as “ready.”
+
+A bounded claim must be supported by traceable evidence and human review.
+
+Falsification and negative controls
+
+Wave 10 includes negative controls because a serious governance system must prove that it blocks bad states.
+
+Negative-control families include:
+
+missing evidence,
+tampered artifacts,
+self approval,
+model approval,
+system approval,
+policy bypass,
+replay mismatch,
+untrusted evidence,
+traceability gaps,
+claim overreach,
+and unresolved blockers.
+
+Kill criteria can block final readiness when severe failure conditions are triggered or not evaluated.
+
+Standards crosswalk
+
+Wave 10 includes mapping-ready evidence for review against several standards and evidence ecosystems:
+
+NIST SSDF-style secure software development evidence,
+OSCAL-style assessment-results evidence,
+DoD cATO evidence categories,
+SLSA/provenance evidence,
+SBOM evidence,
+GitHub artifact-attestation references,
+and OpenSSF Scorecard-style signals.
+
+This is mapping-ready evidence only.
+
+It does not claim:
+
+formal compliance,
+certification,
+accreditation,
+authorization,
+government approval,
+vendor approval,
+or production readiness.
+Local export pack
+
+Wave 10 can assemble a local export pack containing:
+
+the final operating report,
+report validation,
+review bundle,
+standards crosswalk,
+cloud-security export index,
+ASFF-shaped cloud-security finding JSON,
+payload digests,
+manifest digest,
+required payload IDs,
+optional payload IDs,
+and export-pack validation results.
+
+The export pack is local-only.
+
+It does not write files by itself, upload to cloud services, or grant execution authority.
+
+Repository structure
+
+Typical structure:
 ```
-inventory
-  -> Python code graph
-  -> dependency map
-  -> source-test coverage map
-  -> architectural memory
-  -> conservative impact analysis
-  -> digest-chained evidence
-  -> exportable report
+src/
+  ix_blackfox/
+    operating/
+      assembly.py
+      authority.py
+      campaign.py
+      cloud.py
+      evidence.py
+      export.py
+      falsification.py
+      models.py
+      policy.py
+      registry.py
+      replay.py
+      report.py
+      review_bundle.py
+      scorecard.py
+      standards.py
+      sustainment.py
+      traceability.py
+      trust.py
+      work_packages.py
+tests/
+  operating/
 ```
-Core implementation:
+Running tests
+
+From the repository root:
 ```
-src/ix_blackfox/repository/
-scripts/run_wave8_repository_intelligence_ci.py
-.github/workflows/wave8-repository-intelligence.yml
-docs/wave8-repository-intelligence.md
+PYTHONPATH=src python -m pytest
 ```
-Wave 8 helps reviewers determine what changed, what else may be affected, what tests are likely relevant, what subsystems are touched, whether sensitive review surfaces are involved, whether human review should be escalated, what validation commands should run, and what evidence chain was produced.
+For the Wave 10 operating package specifically:
+```
+PYTHONPATH=src python -m pytest tests/operating -q
+```
+For syntax compilation:
+```
+PYTHONPATH=src python -m compileall -q src tests
+```
+If your environment includes Ruff and Mypy, run:
+```
+ruff check .
+mypy src
+```
+Do not treat this README as a claim that those checks passed in your local environment. Run the checks in your own clone or GitHub Actions environment and trust the actual output.
 
-Wave 8 is conservative static evidence. It does not claim perfect repository understanding, complete dependency discovery, complete source-test mapping, complete runtime-effect analysis, patch safety, merge readiness, or approval authority.
+Example: build a local Wave 10 assembly
+```
+from ix_blackfox.operating import build_minimal_wave10_operating_assembly
 
-What this project does not claim
+assembly = build_minimal_wave10_operating_assembly(
+    assembly_id="wave10-demo",
+    registry_id="wave10-registry",
+    campaign_id="wave10-campaign",
+    repository_ids=("ix-blackfox",),
+)
 
-IX-BlackFox does not claim:
+assert assembly.all_ready is True
 
-production readiness
-safety certification
-security certification
-compliance certification
-official defense affiliation
-government approval
-ATO or cATO
-procurement approval
-deployment authority
-operational authority
-autonomous authority
-autonomous deployment approval
-patch safety
-merge readiness
-perfect repository understanding
-perfect dependency mapping
-complete source-test mapping
-that a model can approve itself
-that repository impact analysis replaces human review
-that local sandbox evidence equals formal certification
-that Wave 9 audit attestation equals formal compliance approval
-that recorded provenance metadata equals verified provenance
+report = assembly.report
+export_pack = assembly.export_pack
 
-This is a source-available research prototype and governed engineering control-plane experiment.
+print(report.disposition.value)
+print(report.digest)
+print(export_pack.manifest_digest)
+```
+Example: inspect final report findings
+```
+from ix_blackfox.operating import build_minimal_wave10_operating_assembly
 
-Locked roadmap
-| Wave | Locked meaning                                                                                                        |
-| ---: | --------------------------------------------------------------------------------------------------------------------- |
-|    1 | Governed multi-brain runtime scaffold                                                                                 |
-|    2 | Governed local patch-test-verify control plane                                                                        |
-|    3 | Governed patch authoring and repair intelligence                                                                      |
-|    4 | Reliability lab with scenario suites, adversarial tests, and repair metrics                                           |
-|    5 | Organization-grade workflow with PR evidence packs, approvals, and CI integration                                     |
-|    6 | Hardened sandbox execution layer with isolated workspaces, signed artifacts, and egress controls                      |
-|    7 | Model-agnostic repair intelligence with model comparison, routing, budget controls, and provider abstraction          |
-|    8 | Repository intelligence layer with code graph, dependency mapping, impact analysis, and architectural memory          |
-|    9 | Compliance/audit attestation layer with policy packs, evidence standards, reviewer signoff, and governance reports    |
-|   10 | Full AI engineering operating system: multi-repo, multi-team, policy-governed, measurable, replayable, and reviewable |
-This roadmap should not be renumbered or replaced.
+assembly = build_minimal_wave10_operating_assembly()
+report = assembly.report
 
-License
+for finding in report.findings:
+    print(finding.code, finding.severity.value, finding.blocking)
+```
+A clean minimal assembly should produce a ready report. A real workflow should expect findings when evidence is missing, stale, untrusted, incomplete, or not reviewed.
 
-IX-BlackFox is governed by the IX-BlackFox Source-Available Evaluation License v1.0 beginning with the license-transition commit.
+Example: export local ASFF-shaped cloud-security findings
+```
+from ix_blackfox.operating import build_minimal_wave10_operating_assembly
 
-The current source is available for review and limited noncommercial, non-operational evaluation only.
+assembly = build_minimal_wave10_operating_assembly()
+asff_json = assembly.cloud_security_export.export_asff_json()
 
-Commercial use, production use, hosted-service use, redistribution, modification, derivative deployment, government operational use, agency operational use, contractor use, procurement use, funded-pilot use, or organization-backed use requires prior written permission and a separate license agreement with Bryce Lovell.
+print(asff_json)
+```
+This produces local ASFF-shaped JSON.
 
-Earlier versions released under Apache License 2.0 remain governed by their original license terms.
+It does not send anything to AWS.
 
-Current license details are documented in LICENSE, COMMERCIAL.md, and NOTICE.md.
+Example: validate export pack payload digests
+```
+from ix_blackfox.operating import build_minimal_wave10_operating_assembly
+
+assembly = build_minimal_wave10_operating_assembly()
+validation = assembly.export_pack_validation
+
+assert validation.passed is True
+assert validation.manifest_digest_matches is True
+```
+Security posture
+
+IX-BlackFox assumes model output is untrusted.
+
+The repository is designed around:
+
+deny-by-default thinking,
+bounded evidence,
+digest checks,
+explicit review,
+human authority,
+policy gates,
+local deterministic artifacts,
+negative controls,
+and fail-closed readiness.
+
+Do not wire this directly into production deployment authority without a complete security review, environment-specific integration work, threat modeling, independent testing, and human governance.
+
+Commercial and evaluation posture
+
+IX-BlackFox is source-available for technical evaluation under the repository license.
+
+Unless a separate written commercial license says otherwise, do not treat public visibility as permission for commercial use, production use, hosted service use, contractor use, funded operational use, derivative operational use, procurement use, or resale.
+
+See the repository LICENSE for the exact legal terms.
+
+Authorship
+
+IX-BlackFox was originated and created by Bryce Lovell.
+
+The IX-BlackFox project is part of the IX research ecosystem focused on governed, evidence-bound, human-reviewable technical systems.
+
+Status
+
+IX-BlackFox Wave 10 implements the repository’s operating-system layer as source code, tests, models, and local evidence assembly primitives.
+
+It should be reviewed as a serious technical prototype and evidence architecture.
+
+It should not be represented as certified, officially adopted, accredited, production-authorized, government-approved, vendor-approved, or autonomous.
+
+Short positioning statement
+
+IX-BlackFox is a source-available AI engineering control plane for governing AI-assisted code change: policy gates, evidence bundles, replay checks, human authority, traceability, scorecards, standards crosswalks, local cloud-security finding exports, and final operating reports.
+
+AI proposes. Humans decide. Evidence decides trust.
