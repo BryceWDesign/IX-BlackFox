@@ -16,7 +16,10 @@ from ix_blackfox.operating.models import (
     normalize_optional_text,
     normalize_text,
 )
-from ix_blackfox.operating.registry import normalize_identifier_tuple, normalize_text_tuple
+from ix_blackfox.operating.registry import (
+    normalize_identifier_tuple,
+    normalize_text_tuple,
+)
 
 
 class NegativeControlType(StrEnum):
