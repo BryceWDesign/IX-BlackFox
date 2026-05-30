@@ -3,9 +3,10 @@ Wave 10 AI engineering operating-system primitives.
 
 The operating package is the top-level Wave 10 layer for multi-repo,
 multi-team, policy-governed, measurable, replayable, and reviewable AI-assisted
-engineering workflows. Commit 16 adds local ASFF-shaped cloud-security finding
-exports for AWS/cloud-security review without making live AWS calls, handling
-credentials, or claiming Security Hub integration.
+engineering workflows. Commit 17 adds the final operating report/dossier
+assembler that pulls every Wave 10 gate into one digest-bound, human-reviewable
+executive report without claiming certification, approval, or production
+readiness.
 """
 
 from __future__ import annotations
@@ -112,6 +113,13 @@ from ix_blackfox.operating.replay import (
     ReplayManifest,
     ReplayStep,
     ReplayValidationResult,
+)
+from ix_blackfox.operating.report import (
+    OperatingReport,
+    OperatingReportClaim,
+    OperatingReportSection,
+    OperatingReportSectionKind,
+    OperatingReportValidation,
 )
 from ix_blackfox.operating.review_bundle import (
     OperatingReviewBundle,
@@ -239,6 +247,11 @@ __all__ = [
     "OperatingPolicyEvaluation",
     "OperatingPolicyPack",
     "OperatingRegistry",
+    "OperatingReport",
+    "OperatingReportClaim",
+    "OperatingReportSection",
+    "OperatingReportSectionKind",
+    "OperatingReportValidation",
     "OperatingReviewBundle",
     "OperatingScorecard",
     "OperatingSeverity",
