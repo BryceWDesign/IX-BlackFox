@@ -3,9 +3,9 @@ Wave 10 AI engineering operating-system primitives.
 
 The operating package is the top-level Wave 10 layer for multi-repo,
 multi-team, policy-governed, measurable, replayable, and reviewable AI-assisted
-engineering workflows. Commit 3 adds deterministic multi-team review authority,
-quorum, and separation-of-duties models so approvals remain human-bound and
-cannot be supplied by the model, the system, or the subject author.
+engineering workflows. Commit 4 adds bounded work packages that bind AI-assisted
+engineering work to repositories, owners, evidence requirements, validation,
+rollback obligations, and explicit forbidden actions.
 """
 
 from __future__ import annotations
@@ -55,10 +55,23 @@ from ix_blackfox.operating.registry import (
     normalize_required_controls,
     normalize_text_tuple,
 )
+from ix_blackfox.operating.work_packages import (
+    EvidenceRequirement,
+    ForbiddenAction,
+    OperatingWorkPackage,
+    RequiredValidation,
+    RollbackRequirement,
+    ValidationKind,
+    WorkPackageDependency,
+    WorkPackageDependencyKind,
+    WorkPackageStatus,
+)
 
 __all__ = [
     "WAVE10_OPERATING_SCHEMA_VERSION",
     "ApprovalQuorum",
+    "EvidenceRequirement",
+    "ForbiddenAction",
     "ManagedRepository",
     "OperatingArtifactKind",
     "OperatingArtifactRef",
@@ -70,6 +83,8 @@ __all__ = [
     "OperatingSeverity",
     "OperatingSourceWave",
     "OperatingTeam",
+    "OperatingWorkPackage",
+    "RequiredValidation",
     "ReviewBoard",
     "ReviewDecision",
     "ReviewerAuthority",
@@ -81,9 +96,14 @@ __all__ = [
     "RepositoryRiskLevel",
     "RepositoryRiskSurface",
     "RepositoryRole",
+    "RollbackRequirement",
     "SeparationOfDutiesRule",
     "TeamReviewDecision",
     "TeamRole",
+    "ValidationKind",
+    "WorkPackageDependency",
+    "WorkPackageDependencyKind",
+    "WorkPackageStatus",
     "digest_payload",
     "normalize_dotted_name",
     "normalize_identifier",
