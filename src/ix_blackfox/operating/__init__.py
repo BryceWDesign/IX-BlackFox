@@ -3,9 +3,9 @@ Wave 10 AI engineering operating-system primitives.
 
 The operating package is the top-level Wave 10 layer for multi-repo,
 multi-team, policy-governed, measurable, replayable, and reviewable AI-assisted
-engineering workflows. Commit 9 adds assurance traceability mappings that connect mission needs,
-requirements, scenarios, hazards, controls, evidence, human review, and
-bounded assurance claims without pretending to certify compliance.
+engineering workflows. Commit 10 adds policy-governed operating controls, policy-pack evaluations, and
+fail-closed gate decisions so Wave 10 can block missing evidence, missing
+human authority, replay failures, traceability gaps, and unresolved blockers.
 """
 
 from __future__ import annotations
@@ -58,6 +58,16 @@ from ix_blackfox.operating.models import (
     normalize_sha256,
     normalize_text,
     unique_sorted_enum_tuple,
+)
+from ix_blackfox.operating.policy import (
+    OperatingControl,
+    OperatingControlEffect,
+    OperatingControlResult,
+    OperatingControlResultStatus,
+    OperatingGateDecision,
+    OperatingPolicyContext,
+    OperatingPolicyEvaluation,
+    OperatingPolicyPack,
 )
 from ix_blackfox.operating.registry import (
     ManagedRepository,
@@ -131,6 +141,14 @@ __all__ = [
     "OperatingArtifactKind",
     "OperatingArtifactRef",
     "OperatingCampaign",
+    "OperatingControl",
+    "OperatingControlEffect",
+    "OperatingControlResult",
+    "OperatingControlResultStatus",
+    "OperatingGateDecision",
+    "OperatingPolicyContext",
+    "OperatingPolicyEvaluation",
+    "OperatingPolicyPack",
     "OperatingDisposition",
     "OperatingDomain",
     "OperatingEnvelope",
