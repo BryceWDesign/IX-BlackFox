@@ -3,9 +3,9 @@ Wave 10 AI engineering operating-system primitives.
 
 The operating package is the top-level Wave 10 layer for multi-repo,
 multi-team, policy-governed, measurable, replayable, and reviewable AI-assisted
-engineering workflows. Commit 11 adds sustainment blockers and readiness gates
-so unresolved operational issues, missing artifacts, missing human review, and
-unreviewed ready transitions fail closed instead of being reported as ready.
+engineering workflows. Commit 12 adds evidence trust scoring so Wave 10 can
+classify evidence freshness, integrity, schema validity, producer trust, human
+review binding, and trust transitions before final operating disposition.
 """
 
 from __future__ import annotations
@@ -116,6 +116,14 @@ from ix_blackfox.operating.traceability import (
     TraceEdgeKind,
     TraceNodeKind,
 )
+from ix_blackfox.operating.trust import (
+    EvidenceFreshnessState,
+    EvidenceIntegrityState,
+    EvidenceTrustEvaluator,
+    EvidenceTrustLevel,
+    EvidenceTrustRecord,
+    EvidenceTrustTransition,
+)
 from ix_blackfox.operating.work_packages import (
     EvidenceRequirement,
     ForbiddenAction,
@@ -140,7 +148,13 @@ __all__ = [
     "CampaignValidationReport",
     "ControlObjectiveMapping",
     "EvidenceAggregationResult",
+    "EvidenceFreshnessState",
+    "EvidenceIntegrityState",
     "EvidenceRequirement",
+    "EvidenceTrustEvaluator",
+    "EvidenceTrustLevel",
+    "EvidenceTrustRecord",
+    "EvidenceTrustTransition",
     "ForbiddenAction",
     "HazardControlMapping",
     "ManagedRepository",
