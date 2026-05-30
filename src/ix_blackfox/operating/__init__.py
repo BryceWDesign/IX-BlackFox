@@ -3,13 +3,24 @@ Wave 10 AI engineering operating-system primitives.
 
 The operating package is the top-level Wave 10 layer for multi-repo,
 multi-team, policy-governed, measurable, replayable, and reviewable AI-assisted
-engineering workflows. Commit 2 adds the deterministic multi-repo registry
-foundation used by later team authority, campaign, replay, scorecard, and
-standards-export layers.
+engineering workflows. Commit 3 adds deterministic multi-team review authority,
+quorum, and separation-of-duties models so approvals remain human-bound and
+cannot be supplied by the model, the system, or the subject author.
 """
 
 from __future__ import annotations
 
+from ix_blackfox.operating.authority import (
+    ApprovalQuorum,
+    OperatingTeam,
+    ReviewBoard,
+    ReviewDecision,
+    ReviewerAuthority,
+    ReviewerKind,
+    SeparationOfDutiesRule,
+    TeamReviewDecision,
+    TeamRole,
+)
 from ix_blackfox.operating.models import (
     WAVE10_OPERATING_SCHEMA_VERSION,
     OperatingArtifactKind,
@@ -47,6 +58,7 @@ from ix_blackfox.operating.registry import (
 
 __all__ = [
     "WAVE10_OPERATING_SCHEMA_VERSION",
+    "ApprovalQuorum",
     "ManagedRepository",
     "OperatingArtifactKind",
     "OperatingArtifactRef",
@@ -57,6 +69,11 @@ __all__ = [
     "OperatingRegistry",
     "OperatingSeverity",
     "OperatingSourceWave",
+    "OperatingTeam",
+    "ReviewBoard",
+    "ReviewDecision",
+    "ReviewerAuthority",
+    "ReviewerKind",
     "RepositoryDependency",
     "RepositoryDependencyKind",
     "RepositoryEvidenceState",
@@ -64,6 +81,9 @@ __all__ = [
     "RepositoryRiskLevel",
     "RepositoryRiskSurface",
     "RepositoryRole",
+    "SeparationOfDutiesRule",
+    "TeamReviewDecision",
+    "TeamRole",
     "digest_payload",
     "normalize_dotted_name",
     "normalize_identifier",
