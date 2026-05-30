@@ -3,10 +3,9 @@ Wave 10 AI engineering operating-system primitives.
 
 The operating package is the top-level Wave 10 layer for multi-repo,
 multi-team, policy-governed, measurable, replayable, and reviewable AI-assisted
-engineering workflows. Commit 15 adds standards crosswalk reports for
-mapping-ready evidence across SSDF, OSCAL-style assessment results, DoD cATO
-evidence categories, SLSA/provenance, SBOM, GitHub artifact attestations, and
-OpenSSF Scorecard-style signals without claiming certification or approval.
+engineering workflows. Commit 16 adds local ASFF-shaped cloud-security finding
+exports for AWS/cloud-security review without making live AWS calls, handling
+credentials, or claiming Security Hub integration.
 """
 
 from __future__ import annotations
@@ -29,6 +28,20 @@ from ix_blackfox.operating.campaign import (
     CampaignValidationReport,
     OperatingCampaign,
     normalize_optional_identifier,
+)
+from ix_blackfox.operating.cloud import (
+    ASFF_SCHEMA_VERSION,
+    LOCAL_ASFF_EXPORT_FORMAT,
+    CloudFindingComplianceStatus,
+    CloudFindingRecordState,
+    CloudFindingResource,
+    CloudFindingSeverityLabel,
+    CloudFindingWorkflowStatus,
+    CloudSecurityFinding,
+    CloudSecurityFindingExport,
+    build_cloud_security_export_from_envelope,
+    cloud_compliance_from_disposition,
+    cloud_severity_from_operating,
 )
 from ix_blackfox.operating.evidence import (
     EvidenceAggregationResult,
@@ -167,6 +180,8 @@ from ix_blackfox.operating.work_packages import (
 )
 
 __all__ = [
+    "ASFF_SCHEMA_VERSION",
+    "LOCAL_ASFF_EXPORT_FORMAT",
     "WAVE10_OPERATING_SCHEMA_VERSION",
     "ApprovalQuorum",
     "AssuranceClaimMapping",
@@ -176,6 +191,13 @@ __all__ = [
     "CampaignPhase",
     "CampaignPhaseStatus",
     "CampaignValidationReport",
+    "CloudFindingComplianceStatus",
+    "CloudFindingRecordState",
+    "CloudFindingResource",
+    "CloudFindingSeverityLabel",
+    "CloudFindingWorkflowStatus",
+    "CloudSecurityFinding",
+    "CloudSecurityFindingExport",
     "ControlObjectiveMapping",
     "CoverageMetric",
     "EvidenceAggregationResult",
@@ -273,7 +295,10 @@ __all__ = [
     "WorkPackageDependencyKind",
     "WorkPackageStatus",
     "aggregate_audit_evidence_for_operating_layer",
+    "build_cloud_security_export_from_envelope",
     "build_default_wave10_standards_crosswalk",
+    "cloud_compliance_from_disposition",
+    "cloud_severity_from_operating",
     "default_wave5_to_wave9_evidence_requirements",
     "digest_payload",
     "normalize_dotted_name",
