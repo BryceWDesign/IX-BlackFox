@@ -3,9 +3,9 @@ Wave 10 AI engineering operating-system primitives.
 
 The operating package is the top-level Wave 10 layer for multi-repo,
 multi-team, policy-governed, measurable, replayable, and reviewable AI-assisted
-engineering workflows. Commit 7 adds replay manifests and validation results so
-Wave 10 evidence can be reproduced, digest-checked, dependency-ordered, and
-blocked when required replay steps or artifacts are missing.
+engineering workflows. Commit 8 adds deterministic human-review bundles
+that export digest-bound operating sections and artifact references without
+granting automatic execution authority.
 """
 
 from __future__ import annotations
@@ -80,6 +80,13 @@ from ix_blackfox.operating.replay import (
     ReplayStep,
     ReplayValidationResult,
 )
+from ix_blackfox.operating.review_bundle import (
+    OperatingReviewBundle,
+    ReviewBundleArtifact,
+    ReviewBundleSection,
+    ReviewBundleSectionKind,
+    ReviewBundleValidation,
+)
 from ix_blackfox.operating.work_packages import (
     EvidenceRequirement,
     ForbiddenAction,
@@ -113,6 +120,7 @@ __all__ = [
     "OperatingEvidenceItem",
     "OperatingFinding",
     "OperatingRegistry",
+    "OperatingReviewBundle",
     "OperatingSeverity",
     "OperatingSourceWave",
     "OperatingTeam",
@@ -122,6 +130,10 @@ __all__ = [
     "ReplayManifest",
     "ReplayStep",
     "ReplayValidationResult",
+    "ReviewBundleArtifact",
+    "ReviewBundleSection",
+    "ReviewBundleSectionKind",
+    "ReviewBundleValidation",
     "RequiredValidation",
     "ReviewBoard",
     "ReviewDecision",
