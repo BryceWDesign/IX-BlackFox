@@ -3,9 +3,9 @@ Wave 10 AI engineering operating-system primitives.
 
 The operating package is the top-level Wave 10 layer for multi-repo,
 multi-team, policy-governed, measurable, replayable, and reviewable AI-assisted
-engineering workflows. Commit 13 adds falsification gates, negative controls,
-and kill criteria so Wave 10 must prove it blocks bad states instead of
-reporting false readiness.
+engineering workflows. Commit 14 adds measurable operating scorecards that turn
+coverage, risk, review, replay, policy, and evidence facts into buyer-readable
+metrics with fail-closed findings and a deterministic operating score.
 """
 
 from __future__ import annotations
@@ -106,6 +106,17 @@ from ix_blackfox.operating.review_bundle import (
     ReviewBundleSectionKind,
     ReviewBundleValidation,
 )
+from ix_blackfox.operating.scorecard import (
+    CoverageMetric,
+    EvidenceMetric,
+    MetricStatus,
+    OperatingScorecard,
+    PolicyMetric,
+    ReplayMetric,
+    ReviewMetric,
+    RiskMetric,
+    ScorecardMetricKind,
+)
 from ix_blackfox.operating.sustainment import (
     BlockerSeverity,
     BlockerStatus,
@@ -156,9 +167,11 @@ __all__ = [
     "CampaignPhaseStatus",
     "CampaignValidationReport",
     "ControlObjectiveMapping",
+    "CoverageMetric",
     "EvidenceAggregationResult",
     "EvidenceFreshnessState",
     "EvidenceIntegrityState",
+    "EvidenceMetric",
     "EvidenceRequirement",
     "EvidenceTrustEvaluator",
     "EvidenceTrustLevel",
@@ -170,6 +183,7 @@ __all__ = [
     "KillCriterion",
     "KillCriterionStatus",
     "ManagedRepository",
+    "MetricStatus",
     "NegativeControlCase",
     "NegativeControlOutcome",
     "NegativeControlResult",
@@ -194,6 +208,7 @@ __all__ = [
     "OperatingPolicyPack",
     "OperatingRegistry",
     "OperatingReviewBundle",
+    "OperatingScorecard",
     "OperatingSeverity",
     "OperatingSourceWave",
     "OperatingTeam",
@@ -201,18 +216,21 @@ __all__ = [
     "OperatingTraceNode",
     "OperatingTraceabilityMap",
     "OperatingWorkPackage",
+    "PolicyMetric",
     "ReadinessGate",
     "ReadinessState",
     "ReadinessTransition",
     "ReplayCommand",
     "ReplayEnvironment",
     "ReplayManifest",
+    "ReplayMetric",
     "ReplayStep",
     "ReplayValidationResult",
     "ReviewBundleArtifact",
     "ReviewBundleSection",
     "ReviewBundleSectionKind",
     "ReviewBundleValidation",
+    "ReviewMetric",
     "RequiredValidation",
     "ReviewBoard",
     "ReviewDecision",
@@ -225,7 +243,9 @@ __all__ = [
     "RepositoryRiskLevel",
     "RepositoryRiskSurface",
     "RepositoryRole",
+    "RiskMetric",
     "RollbackRequirement",
+    "ScorecardMetricKind",
     "SeparationOfDutiesRule",
     "TeamReviewDecision",
     "TeamRole",
