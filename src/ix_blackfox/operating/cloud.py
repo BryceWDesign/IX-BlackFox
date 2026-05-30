@@ -18,8 +18,10 @@ from ix_blackfox.operating.models import (
     normalize_optional_text,
     normalize_text,
 )
-from ix_blackfox.operating.registry import normalize_identifier_tuple, normalize_text_tuple
-
+from ix_blackfox.operating.registry import (
+    normalize_identifier_tuple,
+    normalize_text_tuple,
+)
 
 ASFF_SCHEMA_VERSION = "2018-10-08"
 LOCAL_ASFF_EXPORT_FORMAT = "aws_security_finding_format.local_json.v1"
@@ -524,15 +526,19 @@ def build_cloud_security_export_from_envelope(
     """Build a deterministic local ASFF-shaped export from an operating envelope."""
 
     source_id = envelope.envelope_id
+    normalized_aws_account_id = normalize_aws_account_id(aws_account_id)
+    normalized_region = normalize_aws_region(region)
+    normalized_observed_at = normalize_timestamp_text(observed_at, label="observed_at")
+    normalized_product_fields = normalize_product_fields(product_fields or {})
     findings = tuple(
         CloudSecurityFinding.from_operating_finding(
             finding=finding,
             source_id=source_id,
-            aws_account_id=aws_account_id,
-            region=region,
-            observed_at=observed_at,
+            aws_account_id=normalized_aws_account_id,
+            region=normalized_region,
+            observed_at=normalized_observed_at,
             resource=resource,
-            product_fields=product_fields,
+            product_fields=normalized_product_fields,
         )
         for finding in envelope.findings
     )
