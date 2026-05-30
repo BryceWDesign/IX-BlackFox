@@ -3,15 +3,23 @@ Wave 10 AI engineering operating-system primitives.
 
 The operating package is the top-level Wave 10 layer for multi-repo,
 multi-team, policy-governed, measurable, replayable, and reviewable AI-assisted
-engineering workflows. Commit 18 adds the local export pack manifest that binds
-the final report, review bundle, standards crosswalk, cloud-security export,
-and optional validation payloads into a deterministic digest-checked evidence
-package without writing files, uploading to cloud services, or granting
-execution authority.
+engineering workflows. Commit 19 adds an end-to-end local assembly smoke path
+that builds a compact ready dossier, validates report and export-pack digests,
+and proves the final Wave 10 layers can be assembled without cloud upload,
+network access, certification claims, or execution authority.
 """
 
 from __future__ import annotations
 
+from ix_blackfox.operating.assembly import (
+    DEFAULT_WAVE10_REPORT_SECTION_KINDS,
+    Wave10AssemblyResult,
+    build_artifact_ref,
+    build_minimal_review_bundle,
+    build_minimal_wave10_operating_assembly,
+    build_ready_report_section,
+    section_id_for_report_kind,
+)
 from ix_blackfox.operating.authority import (
     ApprovalQuorum,
     OperatingTeam,
@@ -198,6 +206,7 @@ from ix_blackfox.operating.work_packages import (
 
 __all__ = [
     "ASFF_SCHEMA_VERSION",
+    "DEFAULT_WAVE10_REPORT_SECTION_KINDS",
     "LOCAL_ASFF_EXPORT_FORMAT",
     "WAVE10_OPERATING_SCHEMA_VERSION",
     "ApprovalQuorum",
@@ -316,13 +325,18 @@ __all__ = [
     "TraceEdgeKind",
     "TraceNodeKind",
     "ValidationKind",
+    "Wave10AssemblyResult",
     "WaveEvidenceRequirement",
     "WorkPackageDependency",
     "WorkPackageDependencyKind",
     "WorkPackageStatus",
     "aggregate_audit_evidence_for_operating_layer",
+    "build_artifact_ref",
     "build_cloud_security_export_from_envelope",
     "build_default_wave10_standards_crosswalk",
+    "build_minimal_review_bundle",
+    "build_minimal_wave10_operating_assembly",
+    "build_ready_report_section",
     "build_wave10_local_export_pack",
     "cloud_compliance_from_disposition",
     "cloud_severity_from_operating",
@@ -343,5 +357,6 @@ __all__ = [
     "operating_artifact_kind_from_audit",
     "operating_severity_from_blocker",
     "operating_source_wave_from_audit",
+    "section_id_for_report_kind",
     "unique_sorted_enum_tuple",
 ]
