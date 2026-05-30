@@ -3,9 +3,9 @@ Wave 10 AI engineering operating-system primitives.
 
 The operating package is the top-level Wave 10 layer for multi-repo,
 multi-team, policy-governed, measurable, replayable, and reviewable AI-assisted
-engineering workflows. Commit 10 adds policy-governed operating controls, policy-pack evaluations, and
-fail-closed gate decisions so Wave 10 can block missing evidence, missing
-human authority, replay failures, traceability gaps, and unresolved blockers.
+engineering workflows. Commit 11 adds sustainment blockers and readiness gates
+so unresolved operational issues, missing artifacts, missing human review, and
+unreviewed ready transitions fail closed instead of being reported as ready.
 """
 
 from __future__ import annotations
@@ -97,6 +97,15 @@ from ix_blackfox.operating.review_bundle import (
     ReviewBundleSectionKind,
     ReviewBundleValidation,
 )
+from ix_blackfox.operating.sustainment import (
+    BlockerSeverity,
+    BlockerStatus,
+    OperatingBlocker,
+    ReadinessGate,
+    ReadinessState,
+    ReadinessTransition,
+    operating_severity_from_blocker,
+)
 from ix_blackfox.operating.traceability import (
     AssuranceClaimMapping,
     ControlObjectiveMapping,
@@ -122,45 +131,49 @@ from ix_blackfox.operating.work_packages import (
 __all__ = [
     "WAVE10_OPERATING_SCHEMA_VERSION",
     "ApprovalQuorum",
+    "AssuranceClaimMapping",
+    "BlockerSeverity",
+    "BlockerStatus",
     "CampaignDependencyGraph",
     "CampaignPhase",
     "CampaignPhaseStatus",
     "CampaignValidationReport",
-    "AssuranceClaimMapping",
     "ControlObjectiveMapping",
-    "HazardControlMapping",
-    "OperatingTraceEdge",
-    "OperatingTraceNode",
-    "OperatingTraceabilityMap",
-    "TraceEdgeKind",
-    "TraceNodeKind",
     "EvidenceAggregationResult",
     "EvidenceRequirement",
     "ForbiddenAction",
+    "HazardControlMapping",
     "ManagedRepository",
     "OperatingArtifactKind",
     "OperatingArtifactRef",
+    "OperatingBlocker",
     "OperatingCampaign",
     "OperatingControl",
     "OperatingControlEffect",
     "OperatingControlResult",
     "OperatingControlResultStatus",
-    "OperatingGateDecision",
-    "OperatingPolicyContext",
-    "OperatingPolicyEvaluation",
-    "OperatingPolicyPack",
     "OperatingDisposition",
     "OperatingDomain",
     "OperatingEnvelope",
     "OperatingEvidenceInventory",
     "OperatingEvidenceItem",
     "OperatingFinding",
+    "OperatingGateDecision",
+    "OperatingPolicyContext",
+    "OperatingPolicyEvaluation",
+    "OperatingPolicyPack",
     "OperatingRegistry",
     "OperatingReviewBundle",
     "OperatingSeverity",
     "OperatingSourceWave",
     "OperatingTeam",
+    "OperatingTraceEdge",
+    "OperatingTraceNode",
+    "OperatingTraceabilityMap",
     "OperatingWorkPackage",
+    "ReadinessGate",
+    "ReadinessState",
+    "ReadinessTransition",
     "ReplayCommand",
     "ReplayEnvironment",
     "ReplayManifest",
@@ -186,6 +199,8 @@ __all__ = [
     "SeparationOfDutiesRule",
     "TeamReviewDecision",
     "TeamRole",
+    "TraceEdgeKind",
+    "TraceNodeKind",
     "ValidationKind",
     "WaveEvidenceRequirement",
     "WorkPackageDependency",
@@ -206,6 +221,7 @@ __all__ = [
     "normalize_text",
     "normalize_text_tuple",
     "operating_artifact_kind_from_audit",
+    "operating_severity_from_blocker",
     "operating_source_wave_from_audit",
     "unique_sorted_enum_tuple",
 ]
