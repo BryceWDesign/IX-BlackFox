@@ -128,7 +128,6 @@ from ix_blackfox.operating.replay import (
     ReplayCommand,
     ReplayEnvironment,
     ReplayManifest,
-    ReplayMetric,
     ReplayStep,
     ReplayValidationResult,
 )
@@ -179,9 +178,9 @@ from ix_blackfox.operating.traceability import (
     AssuranceClaimMapping,
     ControlObjectiveMapping,
     HazardControlMapping,
+    OperatingTraceabilityMap,
     OperatingTraceEdge,
     OperatingTraceNode,
-    OperatingTraceabilityMap,
     TraceEdgeKind,
     TraceNodeKind,
 )
