@@ -3,9 +3,9 @@ Wave 10 AI engineering operating-system primitives.
 
 The operating package is the top-level Wave 10 layer for multi-repo,
 multi-team, policy-governed, measurable, replayable, and reviewable AI-assisted
-engineering workflows. Commit 8 adds deterministic human-review bundles
-that export digest-bound operating sections and artifact references without
-granting automatic execution authority.
+engineering workflows. Commit 9 adds assurance traceability mappings that connect mission needs,
+requirements, scenarios, hazards, controls, evidence, human review, and
+bounded assurance claims without pretending to certify compliance.
 """
 
 from __future__ import annotations
@@ -87,6 +87,16 @@ from ix_blackfox.operating.review_bundle import (
     ReviewBundleSectionKind,
     ReviewBundleValidation,
 )
+from ix_blackfox.operating.traceability import (
+    AssuranceClaimMapping,
+    ControlObjectiveMapping,
+    HazardControlMapping,
+    OperatingTraceEdge,
+    OperatingTraceNode,
+    OperatingTraceabilityMap,
+    TraceEdgeKind,
+    TraceNodeKind,
+)
 from ix_blackfox.operating.work_packages import (
     EvidenceRequirement,
     ForbiddenAction,
@@ -106,6 +116,14 @@ __all__ = [
     "CampaignPhase",
     "CampaignPhaseStatus",
     "CampaignValidationReport",
+    "AssuranceClaimMapping",
+    "ControlObjectiveMapping",
+    "HazardControlMapping",
+    "OperatingTraceEdge",
+    "OperatingTraceNode",
+    "OperatingTraceabilityMap",
+    "TraceEdgeKind",
+    "TraceNodeKind",
     "EvidenceAggregationResult",
     "EvidenceRequirement",
     "ForbiddenAction",
