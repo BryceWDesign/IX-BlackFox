@@ -13,12 +13,14 @@ from ix_blackfox.operating.models import (
     OperatingSeverity,
     OperatingSourceWave,
     normalize_identifier,
-    normalize_optional_text,
     normalize_relative_path,
     normalize_text,
     unique_sorted_enum_tuple,
 )
-from ix_blackfox.operating.registry import normalize_identifier_tuple, normalize_text_tuple
+from ix_blackfox.operating.registry import (
+    normalize_identifier_tuple,
+    normalize_text_tuple,
+)
 
 
 class WorkPackageStatus(StrEnum):
