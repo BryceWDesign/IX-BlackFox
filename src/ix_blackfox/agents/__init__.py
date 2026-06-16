@@ -5,6 +5,7 @@ from __future__ import annotations
 from ix_blackfox.agents.authorization import (
     AgentAction,
     AgentAuthorizationDecision,
+    AgentAuthorizationEvaluator,
     AgentAuthorizationReason,
     AgentAuthorizationRequest,
     AgentAuthorizationStatus,
@@ -45,6 +46,7 @@ from ix_blackfox.agents.registry import (
 __all__ = [
     "AgentAction",
     "AgentAuthorizationDecision",
+    "AgentAuthorizationEvaluator",
     "AgentAuthorizationReason",
     "AgentAuthorizationRequest",
     "AgentAuthorizationStatus",
