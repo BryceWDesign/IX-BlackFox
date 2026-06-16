@@ -43,6 +43,11 @@ from ix_blackfox.agents.models import (
     CapabilityRiskTier,
     normalize_capability_grants,
 )
+from ix_blackfox.agents.provenance import (
+    AgentProvenanceLedger,
+    AgentProvenanceRecord,
+    build_provenance_record_id,
+)
 from ix_blackfox.agents.registry import (
     AgentRegistry,
     AgentRegistrySnapshot,
@@ -65,6 +70,9 @@ __all__ = [
     "AgentRegistry",
     "AgentRegistrySnapshot",
     "build_agent_registry",
+    "AgentProvenanceLedger",
+    "AgentProvenanceRecord",
+    "build_provenance_record_id",
     "HUMAN_ONLY_CAPABILITIES",
     "MODEL_DENIED_CAPABILITIES",
     "REQUIRES_HUMAN_REVIEW_CAPABILITIES",
