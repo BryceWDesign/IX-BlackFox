@@ -68,6 +68,13 @@ from ix_blackfox.agents.registry import (
     AgentRegistrySnapshot,
     build_agent_registry,
 )
+from ix_blackfox.agents.tool_gateway import (
+    AgentAuthorizedToolGateway,
+    AgentAuthorizedToolInvocationReport,
+    agent_action_for_tool_capability,
+    agent_capability_for_tool_capability,
+    build_tool_authorization_request,
+)
 
 __all__ = [
     "brain_manifest_to_agent_identity",
@@ -99,6 +106,11 @@ __all__ = [
     "agent_registry_to_operating_envelope",
     "authorization_decision_to_operating_envelope",
     "provenance_record_to_operating_envelope",
+    "AgentAuthorizedToolGateway",
+    "AgentAuthorizedToolInvocationReport",
+    "agent_action_for_tool_capability",
+    "agent_capability_for_tool_capability",
+    "build_tool_authorization_request",
     "HUMAN_ONLY_CAPABILITIES",
     "MODEL_DENIED_CAPABILITIES",
     "REQUIRES_HUMAN_REVIEW_CAPABILITIES",
