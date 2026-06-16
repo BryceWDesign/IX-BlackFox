@@ -1,11 +1,25 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import StrEnum, auto
 from typing import Any
 
-from ix_blackfox.agents.models import AgentCapability, CapabilityRiskTier
+from ix_blackfox.agents.capabilities import (
+    capability_requires_human_review,
+    validate_agent_capability_posture,
+)
+from ix_blackfox.agents.models import (
+    AgentCapability,
+    AgentCapabilityGrant,
+    AgentIdentity,
+    AgentKind,
+    AgentLifecycleState,
+    AgentTrustTier,
+    CapabilityRiskTier,
+)
+from ix_blackfox.agents.registry import AgentRegistry
 from ix_blackfox.operating.models import (
     OperatingDomain,
     digest_payload,
@@ -299,7 +313,177 @@ class AgentAuthorizationDecision:
         return payload
 
 
-def build_decision_id(request: AgentAuthorizationRequest, status: AgentAuthorizationStatus) -> str:
+@dataclass(frozen=True, slots=True)
+class AgentAuthorizationEvaluator:
+    """Evaluate Wave 11 agent requests against identity-bound capabilities."""
+
+    registry: AgentRegistry
+    default_reviewer_agent_id: str = "wave-11-human-review"
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "default_reviewer_agent_id",
+            normalize_identifier(
+                self.default_reviewer_agent_id,
+                label="default_reviewer_agent_id",
+            ),
+        )
+
+    def evaluate(
+        self,
+        request: AgentAuthorizationRequest,
+        *,
+        decided_at: str,
+        reviewer_agent_id: str = "",
+        evidence_artifact_ids: Sequence[str] = (),
+    ) -> AgentAuthorizationDecision:
+        """Return the deterministic authorization decision for one request."""
+
+        agent = self.registry.lookup(request.agent_id)
+        evidence_ids = normalize_identifier_tuple(
+            (*request.evidence_artifact_ids, *evidence_artifact_ids),
+            label="evidence_artifact_ids",
+        )
+
+        if agent is None:
+            return self._decision(
+                request=request,
+                status=AgentAuthorizationStatus.BLOCK,
+                reasons=(AgentAuthorizationReason.UNKNOWN_AGENT,),
+                decided_at=decided_at,
+                evidence_artifact_ids=evidence_ids,
+            )
+
+        lifecycle_decision = self._lifecycle_decision(
+            agent=agent,
+            request=request,
+            decided_at=decided_at,
+            evidence_artifact_ids=evidence_ids,
+            reviewer_agent_id=reviewer_agent_id,
+        )
+        if lifecycle_decision is not None:
+            return lifecycle_decision
+
+        posture = validate_agent_capability_posture(agent)
+        if posture.blocking_findings:
+            return self._decision(
+                request=request,
+                status=AgentAuthorizationStatus.BLOCK,
+                reasons=(AgentAuthorizationReason.POLICY_FINDING_BLOCKED,),
+                decided_at=decided_at,
+                evidence_artifact_ids=evidence_ids,
+            )
+
+        grants = agent.grants_for(request.capability)
+        if not grants:
+            return self._decision(
+                request=request,
+                status=AgentAuthorizationStatus.BLOCK,
+                reasons=(AgentAuthorizationReason.MISSING_CAPABILITY,),
+                decided_at=decided_at,
+                evidence_artifact_ids=evidence_ids,
+            )
+
+        expired_grants = tuple(
+            grant for grant in grants if _grant_is_expired(grant, request)
+        )
+        scoped_grants = tuple(
+            grant
+            for grant in grants
+            if not _grant_is_expired(grant, request)
+            and _grant_covers_request(grant, request)
+        )
+
+        if not scoped_grants:
+            reason = AgentAuthorizationReason.CAPABILITY_OUT_OF_SCOPE
+            if len(expired_grants) == len(grants):
+                reason = AgentAuthorizationReason.EXPIRED_GRANT
+            return self._decision(
+                request=request,
+                status=AgentAuthorizationStatus.BLOCK,
+                reasons=(reason,),
+                decided_at=decided_at,
+                evidence_artifact_ids=evidence_ids,
+            )
+
+        if _requires_review(agent=agent, request=request, grants=scoped_grants):
+            reasons = [AgentAuthorizationReason.REVIEW_REQUIRED_BY_SCOPE]
+            if not evidence_ids:
+                reasons.append(AgentAuthorizationReason.EVIDENCE_MISSING)
+            return self._decision(
+                request=request,
+                status=AgentAuthorizationStatus.REQUIRE_REVIEW,
+                reasons=tuple(reasons),
+                decided_at=decided_at,
+                reviewer_agent_id=reviewer_agent_id,
+                evidence_artifact_ids=evidence_ids,
+            )
+
+        return self._decision(
+            request=request,
+            status=AgentAuthorizationStatus.ALLOW,
+            reasons=(AgentAuthorizationReason.ALLOWED,),
+            decided_at=decided_at,
+            evidence_artifact_ids=evidence_ids,
+        )
+
+    def _lifecycle_decision(
+        self,
+        *,
+        agent: AgentIdentity,
+        request: AgentAuthorizationRequest,
+        decided_at: str,
+        evidence_artifact_ids: tuple[str, ...],
+        reviewer_agent_id: str,
+    ) -> AgentAuthorizationDecision | None:
+        if agent.lifecycle_state is AgentLifecycleState.REVOKED:
+            return self._decision(
+                request=request,
+                status=AgentAuthorizationStatus.BLOCK,
+                reasons=(AgentAuthorizationReason.REVOKED_AGENT,),
+                decided_at=decided_at,
+                evidence_artifact_ids=evidence_artifact_ids,
+            )
+        if agent.lifecycle_state is AgentLifecycleState.SUSPENDED:
+            return self._decision(
+                request=request,
+                status=AgentAuthorizationStatus.REQUIRE_REVIEW,
+                reasons=(AgentAuthorizationReason.SUSPENDED_AGENT,),
+                decided_at=decided_at,
+                reviewer_agent_id=reviewer_agent_id,
+                evidence_artifact_ids=evidence_artifact_ids,
+            )
+        return None
+
+    def _decision(
+        self,
+        *,
+        request: AgentAuthorizationRequest,
+        status: AgentAuthorizationStatus,
+        reasons: tuple[AgentAuthorizationReason, ...],
+        decided_at: str,
+        reviewer_agent_id: str = "",
+        evidence_artifact_ids: tuple[str, ...] = (),
+    ) -> AgentAuthorizationDecision:
+        reviewer = ""
+        if status is AgentAuthorizationStatus.REQUIRE_REVIEW:
+            reviewer = reviewer_agent_id or self.default_reviewer_agent_id
+        return AgentAuthorizationDecision(
+            decision_id=build_decision_id(request, status),
+            request=request,
+            status=status,
+            reasons=reasons,
+            decided_at=decided_at,
+            reviewer_agent_id=reviewer,
+            evidence_artifact_ids=evidence_artifact_ids,
+        )
+
+
+def build_decision_id(
+    request: AgentAuthorizationRequest,
+    status: AgentAuthorizationStatus,
+) -> str:
     """Build a stable decision id for deterministic tests and reports."""
 
     digest = digest_payload(
@@ -309,3 +493,125 @@ def build_decision_id(request: AgentAuthorizationRequest, status: AgentAuthoriza
         }
     )
     return f"agent-auth-{digest[:24]}"
+
+
+_RISK_ORDER: dict[CapabilityRiskTier, int] = {
+    CapabilityRiskTier.LOW: 1,
+    CapabilityRiskTier.MEDIUM: 2,
+    CapabilityRiskTier.HIGH: 3,
+    CapabilityRiskTier.CRITICAL: 4,
+}
+
+
+def _requires_review(
+    *,
+    agent: AgentIdentity,
+    request: AgentAuthorizationRequest,
+    grants: tuple[AgentCapabilityGrant, ...],
+) -> bool:
+    if agent.lifecycle_state is AgentLifecycleState.SUSPENDED:
+        return True
+    if any(grant.scope.requires_human_review for grant in grants):
+        return True
+    return (
+        capability_requires_human_review(request.capability)
+        and agent.trust_tier is not AgentTrustTier.HUMAN_AUTHORITY
+    )
+
+
+def _grant_is_expired(
+    grant: AgentCapabilityGrant,
+    request: AgentAuthorizationRequest,
+) -> bool:
+    if not grant.scope.expires_at:
+        return False
+    return _parse_datetime(grant.scope.expires_at) <= _parse_datetime(
+        request.requested_at
+    )
+
+
+def _grant_covers_request(
+    grant: AgentCapabilityGrant,
+    request: AgentAuthorizationRequest,
+) -> bool:
+    if not grant.active:
+        return False
+    if _RISK_ORDER[request.target.risk_tier] > _RISK_ORDER[grant.scope.max_risk_tier]:
+        return False
+    if not _repository_in_scope(grant, request):
+        return False
+    if not _domain_in_scope(grant, request):
+        return False
+    if not _tool_in_scope(grant, request):
+        return False
+    if not _pack_in_scope(grant, request):
+        return False
+    return _path_in_scope(grant, request)
+
+
+def _repository_in_scope(
+    grant: AgentCapabilityGrant,
+    request: AgentAuthorizationRequest,
+) -> bool:
+    if not grant.scope.repository_ids:
+        return True
+    if not request.target.repository_id:
+        return False
+    repository_id = normalize_identifier(
+        request.target.repository_id,
+        label="repository_id",
+    )
+    return repository_id in grant.scope.repository_ids
+
+
+def _domain_in_scope(
+    grant: AgentCapabilityGrant,
+    request: AgentAuthorizationRequest,
+) -> bool:
+    if not grant.scope.domains:
+        return True
+    if request.target.domain is None:
+        return False
+    return request.target.domain in grant.scope.domains
+
+
+def _tool_in_scope(
+    grant: AgentCapabilityGrant,
+    request: AgentAuthorizationRequest,
+) -> bool:
+    if not grant.scope.tool_ids:
+        return True
+    if not request.target.tool_id:
+        return False
+    tool_id = normalize_identifier(request.target.tool_id, label="tool_id")
+    return tool_id in grant.scope.tool_ids
+
+
+def _pack_in_scope(
+    grant: AgentCapabilityGrant,
+    request: AgentAuthorizationRequest,
+) -> bool:
+    if not grant.scope.pack_ids:
+        return True
+    if not request.target.pack_id:
+        return False
+    pack_id = normalize_identifier(request.target.pack_id, label="pack_id")
+    return pack_id in grant.scope.pack_ids
+
+
+def _path_in_scope(
+    grant: AgentCapabilityGrant,
+    request: AgentAuthorizationRequest,
+) -> bool:
+    if not grant.scope.path_roots:
+        return True
+    if not request.target.path:
+        return False
+    return any(
+        request.target.path == root or request.target.path.startswith(f"{root}/")
+        for root in grant.scope.path_roots
+    )
+
+
+def _parse_datetime(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
