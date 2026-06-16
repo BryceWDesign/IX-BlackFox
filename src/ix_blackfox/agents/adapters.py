@@ -19,6 +19,13 @@ from ix_blackfox.agents.registry import AgentRegistry, build_agent_registry
 from ix_blackfox.brains.contracts import BrainCapability
 from ix_blackfox.brains.manifest import BrainManifest, BrainManifestSnapshot
 from ix_blackfox.operating.models import OperatingDomain, normalize_identifier
+from ix_blackfox.tools.manifest import (
+    ToolApprovalMode,
+    ToolCapability,
+    ToolManifest,
+    ToolManifestRegistry,
+    ToolSideEffect,
+)
 
 
 _BRAIN_CAPABILITY_MAP: dict[BrainCapability, tuple[AgentCapability, ...]] = {
@@ -29,6 +36,29 @@ _BRAIN_CAPABILITY_MAP: dict[BrainCapability, tuple[AgentCapability, ...]] = {
     BrainCapability.TOOL_PLANNING: (AgentCapability.RUN_TESTS,),
     BrainCapability.LONG_CONTEXT_REASONING: (AgentCapability.READ_WORKSPACE,),
     BrainCapability.VISION_ANALYSIS: (AgentCapability.READ_WORKSPACE,),
+}
+
+_TOOL_CAPABILITY_MAP: dict[ToolCapability, tuple[AgentCapability, ...]] = {
+    ToolCapability.FILE_READ: (AgentCapability.READ_WORKSPACE,),
+    ToolCapability.FILE_WRITE: (AgentCapability.WRITE_WORKSPACE,),
+    ToolCapability.DIRECTORY_LIST: (AgentCapability.READ_WORKSPACE,),
+    ToolCapability.PATCH_PLAN: (AgentCapability.PROPOSE_PATCH,),
+    ToolCapability.PATCH_APPLY: (AgentCapability.APPLY_PATCH,),
+    ToolCapability.COMMAND_EXECUTION: (AgentCapability.RUN_PROCESS,),
+    ToolCapability.TEST_EXECUTION: (AgentCapability.RUN_TESTS,),
+    ToolCapability.STATIC_ANALYSIS: (AgentCapability.INSPECT_POLICY,),
+    ToolCapability.REPORT_GENERATION: (AgentCapability.EXPORT_EVIDENCE,),
+    ToolCapability.POLICY_INSPECTION: (AgentCapability.INSPECT_POLICY,),
+    ToolCapability.ARTIFACT_EXPORT: (AgentCapability.EXPORT_EVIDENCE,),
+}
+
+_TOOL_SIDE_EFFECT_MAP: dict[ToolSideEffect, tuple[AgentCapability, ...]] = {
+    ToolSideEffect.NONE: (),
+    ToolSideEffect.READ_WORKSPACE: (AgentCapability.READ_WORKSPACE,),
+    ToolSideEffect.WRITE_WORKSPACE: (AgentCapability.WRITE_WORKSPACE,),
+    ToolSideEffect.RUN_PROCESS: (AgentCapability.RUN_PROCESS,),
+    ToolSideEffect.ACCESS_NETWORK: (AgentCapability.ACCESS_NETWORK,),
+    ToolSideEffect.MUTATE_SYSTEM: (AgentCapability.MUTATE_SYSTEM,),
 }
 
 
@@ -126,12 +156,115 @@ def brain_snapshot_to_agent_registry(
     )
 
 
+def tool_manifest_to_agent_identity(
+    manifest: ToolManifest,
+    *,
+    repository_ids: Sequence[str] = ("ix-blackfox",),
+    domains: Sequence[OperatingDomain] = (OperatingDomain.POLICY_GOVERNED,),
+    path_roots: Sequence[str] = ("src/ix_blackfox",),
+    evidence_artifact_ids: Sequence[str] = (),
+) -> AgentIdentity:
+    """Convert a governed ToolManifest into a Wave 11 tool agent.
+
+    The adapter maps declared tool capabilities and side effects into scoped
+    BlackFox agent capabilities. It does not grant approval, delegation,
+    registration, revocation, or human authority to a tool. Risky side effects
+    are still visible as grants so capability posture validation and
+    authorization evaluation can block or require review deterministically.
+    """
+
+    capabilities = _agent_capabilities_from_tool_manifest(manifest)
+    evidence_ids = tuple(evidence_artifact_ids) or (
+        f"tool-manifest-{manifest.tool_id}",
+    )
+    roots = tuple(path_roots)
+    if manifest.path_policy and manifest.path_policy.allowed_roots:
+        roots = manifest.path_policy.allowed_roots
+    grants = tuple(
+        _grant_for_tool_capability(
+            manifest=manifest,
+            capability=capability,
+            repository_ids=repository_ids,
+            domains=domains,
+            path_roots=roots,
+            evidence_artifact_ids=evidence_ids,
+        )
+        for capability in capabilities
+    )
+
+    return AgentIdentity(
+        agent_id=f"tool-{manifest.tool_id}",
+        display_name=f"Tool: {manifest.name}",
+        kind=AgentKind.TOOL,
+        trust_tier=AgentTrustTier.REGISTERED_TOOL,
+        capability_grants=grants,
+        issuer="tool-manifest-registry",
+        subject=manifest.tool_id,
+        metadata={
+            "adapter": "tool-manifest",
+            "tool_id": manifest.tool_id,
+            "name": manifest.name,
+            "version": manifest.version,
+            "summary": manifest.summary,
+            "tool_capabilities": [
+                capability.value for capability in manifest.capabilities
+            ],
+            "side_effects": [effect.value for effect in manifest.side_effects],
+            "approval_mode": manifest.approval_mode.value,
+            "tags": list(manifest.tags),
+            "has_side_effects": manifest.has_side_effects,
+        },
+    )
+
+
+def tool_registry_to_agent_registry(
+    registry: ToolManifestRegistry,
+    *,
+    registry_id: str = "wave-11-tool-agents",
+    repository_ids: Sequence[str] = ("ix-blackfox",),
+    domains: Sequence[OperatingDomain] = (OperatingDomain.POLICY_GOVERNED,),
+    path_roots: Sequence[str] = ("src/ix_blackfox",),
+    evidence_artifact_ids: Sequence[str] = (),
+) -> AgentRegistry:
+    """Convert a ToolManifestRegistry into a Wave 11 AgentRegistry."""
+
+    manifests = registry.list_manifests()
+    return build_agent_registry(
+        registry_id,
+        (
+            tool_manifest_to_agent_identity(
+                manifest,
+                repository_ids=repository_ids,
+                domains=domains,
+                path_roots=path_roots,
+                evidence_artifact_ids=evidence_artifact_ids,
+            )
+            for manifest in manifests
+        ),
+        metadata={
+            "adapter": "tool-manifest-registry",
+            "tool_count": len(manifests),
+        },
+    )
+
+
 def _agent_capabilities_from_brain_manifest(
     manifest: BrainManifest,
 ) -> tuple[AgentCapability, ...]:
     mapped: set[AgentCapability] = set()
     for brain_capability in manifest.capabilities:
         mapped.update(_BRAIN_CAPABILITY_MAP[brain_capability])
+    return tuple(sorted(mapped, key=lambda capability: capability.value))
+
+
+def _agent_capabilities_from_tool_manifest(
+    manifest: ToolManifest,
+) -> tuple[AgentCapability, ...]:
+    mapped: set[AgentCapability] = set()
+    for tool_capability in manifest.capabilities:
+        mapped.update(_TOOL_CAPABILITY_MAP[tool_capability])
+    for side_effect in manifest.side_effects:
+        mapped.update(_TOOL_SIDE_EFFECT_MAP[side_effect])
     return tuple(sorted(mapped, key=lambda capability: capability.value))
 
 
@@ -173,6 +306,59 @@ def _grant_for_brain_capability(
             "model brain scoped participation authority only; it does not grant "
             "human approval, self-approval, mutation, secret, or deployment "
             "authority."
+        ),
+        metadata=metadata,
+    )
+
+
+def _grant_for_tool_capability(
+    *,
+    manifest: ToolManifest,
+    capability: AgentCapability,
+    repository_ids: Sequence[str],
+    domains: Sequence[OperatingDomain],
+    path_roots: Sequence[str],
+    evidence_artifact_ids: Sequence[str],
+) -> AgentCapabilityGrant:
+    normalized_capability = normalize_identifier(
+        capability.value,
+        label="capability",
+    )
+    manifest_requires_review = manifest.approval_mode in {
+        ToolApprovalMode.ALWAYS,
+        ToolApprovalMode.POLICY,
+    }
+    metadata: dict[str, Any] = {
+        "source_tool_id": manifest.tool_id,
+        "source_tool_version": manifest.version,
+        "source_tool_capabilities": [
+            tool_capability.value for tool_capability in manifest.capabilities
+        ],
+        "source_tool_side_effects": [
+            side_effect.value for side_effect in manifest.side_effects
+        ],
+        "source_tool_approval_mode": manifest.approval_mode.value,
+    }
+    return AgentCapabilityGrant(
+        grant_id=f"tool-{manifest.tool_id}-{normalized_capability}",
+        capability=capability,
+        scope=AgentCapabilityScope(
+            repository_ids=tuple(repository_ids),
+            domains=tuple(domains),
+            tool_ids=(manifest.tool_id,),
+            path_roots=tuple(path_roots),
+            max_risk_tier=capability_default_risk_tier(capability),
+            requires_human_review=(
+                manifest_requires_review or capability_requires_human_review(capability)
+            ),
+            evidence_artifact_ids=tuple(evidence_artifact_ids),
+            metadata=metadata,
+        ),
+        rationale=(
+            "Derived from a ToolManifest declaration. This grant records the "
+            "tool's scoped operational capability for Wave 11 preflight; it "
+            "does not grant human approval, delegation, registration, revocation, "
+            "or self-approval authority."
         ),
         metadata=metadata,
     )
