@@ -2,6 +2,15 @@
 
 from __future__ import annotations
 
+from ix_blackfox.agents.authorization import (
+    AgentAction,
+    AgentAuthorizationDecision,
+    AgentAuthorizationReason,
+    AgentAuthorizationRequest,
+    AgentAuthorizationStatus,
+    AgentAuthorizationTarget,
+    build_decision_id,
+)
 from ix_blackfox.agents.capabilities import (
     HUMAN_ONLY_CAPABILITIES,
     MODEL_DENIED_CAPABILITIES,
@@ -34,6 +43,13 @@ from ix_blackfox.agents.registry import (
 )
 
 __all__ = [
+    "AgentAction",
+    "AgentAuthorizationDecision",
+    "AgentAuthorizationReason",
+    "AgentAuthorizationRequest",
+    "AgentAuthorizationStatus",
+    "AgentAuthorizationTarget",
+    "build_decision_id",
     "AgentRegistry",
     "AgentRegistrySnapshot",
     "build_agent_registry",
