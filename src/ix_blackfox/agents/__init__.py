@@ -27,8 +27,16 @@ from ix_blackfox.agents.models import (
     CapabilityRiskTier,
     normalize_capability_grants,
 )
+from ix_blackfox.agents.registry import (
+    AgentRegistry,
+    AgentRegistrySnapshot,
+    build_agent_registry,
+)
 
 __all__ = [
+    "AgentRegistry",
+    "AgentRegistrySnapshot",
+    "build_agent_registry",
     "HUMAN_ONLY_CAPABILITIES",
     "MODEL_DENIED_CAPABILITIES",
     "REQUIRES_HUMAN_REVIEW_CAPABILITIES",
