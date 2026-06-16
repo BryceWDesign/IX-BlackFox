@@ -13,11 +13,18 @@ from ix_blackfox.agents.models import (
     AgentCapabilityScope,
     AgentIdentity,
     AgentKind,
+    AgentLifecycleState,
     AgentTrustTier,
 )
 from ix_blackfox.agents.registry import AgentRegistry, build_agent_registry
 from ix_blackfox.brains.contracts import BrainCapability
 from ix_blackfox.brains.manifest import BrainManifest, BrainManifestSnapshot
+from ix_blackfox.operating.authority import (
+    ReviewBoard,
+    ReviewerAuthority,
+    ReviewerKind,
+    TeamRole,
+)
 from ix_blackfox.operating.models import OperatingDomain, normalize_identifier
 from ix_blackfox.tools.manifest import (
     ToolApprovalMode,
@@ -59,6 +66,49 @@ _TOOL_SIDE_EFFECT_MAP: dict[ToolSideEffect, tuple[AgentCapability, ...]] = {
     ToolSideEffect.RUN_PROCESS: (AgentCapability.RUN_PROCESS,),
     ToolSideEffect.ACCESS_NETWORK: (AgentCapability.ACCESS_NETWORK,),
     ToolSideEffect.MUTATE_SYSTEM: (AgentCapability.MUTATE_SYSTEM,),
+}
+
+_TEAM_ROLE_CAPABILITY_MAP: dict[TeamRole, tuple[AgentCapability, ...]] = {
+    TeamRole.PLATFORM_OWNER: (
+        AgentCapability.REVIEW_PATCH,
+        AgentCapability.APPROVE_RELEASE,
+        AgentCapability.APPROVE_SECURITY,
+        AgentCapability.DELEGATE_CAPABILITY,
+    ),
+    TeamRole.SECURITY_REVIEWER: (
+        AgentCapability.REVIEW_PATCH,
+        AgentCapability.APPROVE_SECURITY,
+        AgentCapability.APPROVE_SANDBOX_EGRESS,
+    ),
+    TeamRole.DEVSECOPS_OPERATOR: (
+        AgentCapability.REVIEW_PATCH,
+        AgentCapability.RUN_TESTS,
+        AgentCapability.RUN_PROCESS,
+        AgentCapability.EXPORT_EVIDENCE,
+    ),
+    TeamRole.QA_VERIFIER: (
+        AgentCapability.REVIEW_PATCH,
+        AgentCapability.RUN_TESTS,
+    ),
+    TeamRole.COMPLIANCE_REVIEWER: (
+        AgentCapability.REVIEW_PATCH,
+        AgentCapability.APPROVE_COMPLIANCE,
+        AgentCapability.EXPORT_EVIDENCE,
+    ),
+    TeamRole.RELEASE_MANAGER: (
+        AgentCapability.REVIEW_PATCH,
+        AgentCapability.APPROVE_RELEASE,
+    ),
+    TeamRole.INCIDENT_COMMANDER: (
+        AgentCapability.REVIEW_PATCH,
+        AgentCapability.APPROVE_SANDBOX_EGRESS,
+        AgentCapability.ACCESS_NETWORK,
+        AgentCapability.EXPORT_EVIDENCE,
+    ),
+    TeamRole.OBSERVER: (
+        AgentCapability.READ_WORKSPACE,
+        AgentCapability.INSPECT_POLICY,
+    ),
 }
 
 
@@ -248,6 +298,91 @@ def tool_registry_to_agent_registry(
     )
 
 
+def reviewer_authority_to_agent_identity(
+    authority: ReviewerAuthority,
+    *,
+    path_roots: Sequence[str] = ("src/ix_blackfox",),
+    evidence_artifact_ids: Sequence[str] = (),
+) -> AgentIdentity:
+    """Convert Wave 10 ReviewerAuthority into a Wave 11 agent identity.
+
+    Human reviewers become human-authority agents. Model and system reviewers are
+    intentionally preserved as model/system agents so Wave 11 capability posture
+    validation can expose any attempted approval authority as blocking evidence.
+    """
+
+    capabilities = _agent_capabilities_from_reviewer_authority(authority)
+    evidence_ids = tuple(evidence_artifact_ids) or (
+        f"reviewer-authority-{authority.reviewer_id}",
+    )
+    grants = tuple(
+        _grant_for_reviewer_capability(
+            authority=authority,
+            capability=capability,
+            path_roots=path_roots,
+            evidence_artifact_ids=evidence_ids,
+        )
+        for capability in capabilities
+    )
+
+    return AgentIdentity(
+        agent_id=f"reviewer-{authority.reviewer_id}",
+        display_name=f"Reviewer: {authority.reviewer_id}",
+        kind=_agent_kind_from_reviewer_kind(authority.reviewer_kind),
+        trust_tier=_trust_tier_from_reviewer_kind(authority.reviewer_kind),
+        lifecycle_state=(
+            AgentLifecycleState.ACTIVE
+            if authority.active
+            else AgentLifecycleState.SUSPENDED
+        ),
+        capability_grants=grants,
+        issuer=authority.delegated_by or authority.team_id,
+        subject=authority.reviewer_id,
+        metadata={
+            "adapter": "reviewer-authority",
+            "reviewer_id": authority.reviewer_id,
+            "reviewer_kind": authority.reviewer_kind.value,
+            "team_id": authority.team_id,
+            "roles": [role.value for role in authority.roles],
+            "approved_repository_ids": list(authority.approved_repository_ids),
+            "approved_domains": [domain.value for domain in authority.approved_domains],
+            "active": authority.active,
+            "delegated_by": authority.delegated_by,
+            "can_issue_authoritative_approval": (
+                authority.can_issue_authoritative_approval
+            ),
+        },
+    )
+
+
+def review_board_to_agent_registry(
+    board: ReviewBoard,
+    *,
+    registry_id: str = "wave-11-reviewer-agents",
+    path_roots: Sequence[str] = ("src/ix_blackfox",),
+    evidence_artifact_ids: Sequence[str] = (),
+) -> AgentRegistry:
+    """Convert a Wave 10 ReviewBoard into a Wave 11 reviewer AgentRegistry."""
+
+    return build_agent_registry(
+        registry_id,
+        (
+            reviewer_authority_to_agent_identity(
+                authority,
+                path_roots=path_roots,
+                evidence_artifact_ids=evidence_artifact_ids,
+            )
+            for authority in board.reviewer_authorities
+        ),
+        metadata={
+            "adapter": "review-board",
+            "board_id": board.board_id,
+            "team_ids": list(board.team_ids),
+            "reviewer_count": len(board.reviewer_authorities),
+        },
+    )
+
+
 def _agent_capabilities_from_brain_manifest(
     manifest: BrainManifest,
 ) -> tuple[AgentCapability, ...]:
@@ -265,6 +400,17 @@ def _agent_capabilities_from_tool_manifest(
         mapped.update(_TOOL_CAPABILITY_MAP[tool_capability])
     for side_effect in manifest.side_effects:
         mapped.update(_TOOL_SIDE_EFFECT_MAP[side_effect])
+    return tuple(sorted(mapped, key=lambda capability: capability.value))
+
+
+def _agent_capabilities_from_reviewer_authority(
+    authority: ReviewerAuthority,
+) -> tuple[AgentCapability, ...]:
+    mapped: set[AgentCapability] = set()
+    for role in authority.roles:
+        mapped.update(_TEAM_ROLE_CAPABILITY_MAP[role])
+    if not mapped:
+        mapped.add(AgentCapability.READ_WORKSPACE)
     return tuple(sorted(mapped, key=lambda capability: capability.value))
 
 
@@ -362,3 +508,57 @@ def _grant_for_tool_capability(
         ),
         metadata=metadata,
     )
+
+
+def _grant_for_reviewer_capability(
+    *,
+    authority: ReviewerAuthority,
+    capability: AgentCapability,
+    path_roots: Sequence[str],
+    evidence_artifact_ids: Sequence[str],
+) -> AgentCapabilityGrant:
+    normalized_capability = normalize_identifier(
+        capability.value,
+        label="capability",
+    )
+    metadata: dict[str, Any] = {
+        "source_reviewer_id": authority.reviewer_id,
+        "source_reviewer_kind": authority.reviewer_kind.value,
+        "source_team_id": authority.team_id,
+        "source_roles": [role.value for role in authority.roles],
+        "can_issue_authoritative_approval": authority.can_issue_authoritative_approval,
+    }
+    return AgentCapabilityGrant(
+        grant_id=f"reviewer-{authority.reviewer_id}-{normalized_capability}",
+        capability=capability,
+        scope=AgentCapabilityScope(
+            repository_ids=authority.approved_repository_ids,
+            domains=authority.approved_domains,
+            path_roots=tuple(path_roots),
+            max_risk_tier=capability_default_risk_tier(capability),
+            requires_human_review=capability_requires_human_review(capability),
+            evidence_artifact_ids=tuple(evidence_artifact_ids),
+            delegated_by=authority.delegated_by or authority.team_id,
+            metadata=metadata,
+        ),
+        rationale=(
+            "Derived from a Wave 10 ReviewerAuthority record. The grant preserves "
+            "the reviewer's repository and domain boundary for Wave 11 "
+            "identity-bound authorization."
+        ),
+        metadata=metadata,
+    )
+
+
+def _agent_kind_from_reviewer_kind(reviewer_kind: ReviewerKind) -> AgentKind:
+    if reviewer_kind is ReviewerKind.HUMAN:
+        return AgentKind.HUMAN_OPERATOR
+    if reviewer_kind is ReviewerKind.MODEL:
+        return AgentKind.MODEL_BRAIN
+    return AgentKind.SYSTEM_SERVICE
+
+
+def _trust_tier_from_reviewer_kind(reviewer_kind: ReviewerKind) -> AgentTrustTier:
+    if reviewer_kind is ReviewerKind.HUMAN:
+        return AgentTrustTier.HUMAN_AUTHORITY
+    return AgentTrustTier.GOVERNED_AUTOMATION
