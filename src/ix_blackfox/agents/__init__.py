@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from ix_blackfox.agents.adapters import (
+    brain_manifest_to_agent_identity,
+    brain_snapshot_to_agent_registry,
+)
 from ix_blackfox.agents.authority import (
     AuthorityEvaluation,
     AuthorityFinding,
@@ -55,6 +59,8 @@ from ix_blackfox.agents.registry import (
 )
 
 __all__ = [
+    "brain_manifest_to_agent_identity",
+    "brain_snapshot_to_agent_registry",
     "AuthorityEvaluation",
     "AuthorityFinding",
     "AuthorityFindingCode",
