@@ -51,6 +51,13 @@ from ix_blackfox.agents.models import (
     CapabilityRiskTier,
     normalize_capability_grants,
 )
+from ix_blackfox.agents.operating_bridge import (
+    WAVE11_OPERATING_BRIDGE_SCHEMA_VERSION,
+    agent_registry_snapshot_to_operating_envelope,
+    agent_registry_to_operating_envelope,
+    authorization_decision_to_operating_envelope,
+    provenance_record_to_operating_envelope,
+)
 from ix_blackfox.agents.provenance import (
     AgentProvenanceLedger,
     AgentProvenanceRecord,
@@ -87,6 +94,11 @@ __all__ = [
     "AgentProvenanceLedger",
     "AgentProvenanceRecord",
     "build_provenance_record_id",
+    "WAVE11_OPERATING_BRIDGE_SCHEMA_VERSION",
+    "agent_registry_snapshot_to_operating_envelope",
+    "agent_registry_to_operating_envelope",
+    "authorization_decision_to_operating_envelope",
+    "provenance_record_to_operating_envelope",
     "HUMAN_ONLY_CAPABILITIES",
     "MODEL_DENIED_CAPABILITIES",
     "REQUIRES_HUMAN_REVIEW_CAPABILITIES",
