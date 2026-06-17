@@ -34,7 +34,6 @@ from ix_blackfox.tools.manifest import (
     ToolSideEffect,
 )
 
-
 _BRAIN_CAPABILITY_MAP: dict[BrainCapability, tuple[AgentCapability, ...]] = {
     BrainCapability.TEXT_GENERATION: (AgentCapability.PROPOSE_PATCH,),
     BrainCapability.CODE_GENERATION: (AgentCapability.PROPOSE_PATCH,),
@@ -155,7 +154,7 @@ def brain_manifest_to_agent_identity(
         trust_tier=AgentTrustTier.GOVERNED_AUTOMATION,
         capability_grants=grants,
         issuer=manifest.provider_name,
-        subject=manifest.model_name,
+        subject=_model_subject_from_brain_manifest(manifest),
         metadata={
             "adapter": "brain-manifest",
             "brain_name": manifest.brain_name,
@@ -390,6 +389,16 @@ def _agent_capabilities_from_brain_manifest(
     for brain_capability in manifest.capabilities:
         mapped.update(_BRAIN_CAPABILITY_MAP[brain_capability])
     return tuple(sorted(mapped, key=lambda capability: capability.value))
+
+
+def _model_subject_from_brain_manifest(manifest: BrainManifest) -> str:
+    subject = normalize_identifier(manifest.model_name, label="model_name")
+    if subject.startswith(f"{manifest.brain_name}:") and manifest.brain_name.endswith(
+        "-brain"
+    ):
+        suffix = subject.removeprefix(manifest.brain_name)
+        return f"{manifest.brain_name.removesuffix('-brain')}-model{suffix}"
+    return subject
 
 
 def _agent_capabilities_from_tool_manifest(
