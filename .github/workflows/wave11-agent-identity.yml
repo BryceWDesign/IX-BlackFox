@@ -1,0 +1,60 @@
+name: Wave 11 Agent Identity
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wave11-agent-identity:
+    name: Wave 11 agent identity and capability evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package with development tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run Wave 11 agent identity tests
+        run: |
+          python -m pytest tests/agents -q
+          python -m pytest tests/ci/test_wave11_agent_identity_ci_integration.py -q
+          python -m pytest tests/ci/test_wave11_agent_identity_workflow_contract.py -q
+
+      - name: Compile Wave 11 agent identity code
+        run: |
+          python -m compileall -q src/ix_blackfox/agents scripts tests/agents tests/ci
+
+      - name: Generate Wave 11 agent identity CI evidence
+        run: |
+          python scripts/run_wave11_agent_identity_ci.py \
+            --head-sha "${{ github.sha }}" \
+            --output ".blackfox-artifacts/wave11/wave11-agent-readiness-report.json" \
+            --engine-evidence-output ".blackfox-artifacts/wave11/wave11-agent-identity-engine-evidence.json" \
+            --summary-output ".blackfox-artifacts/wave11/wave11-agent-identity-ci-summary.json" \
+            --expected-status "warning"
+
+      - name: Upload Wave 11 agent identity artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave11-agent-identity-evidence
+          path: |
+            .blackfox-artifacts/wave11/wave11-agent-readiness-report.json
+            .blackfox-artifacts/wave11/wave11-agent-identity-engine-evidence.json
+            .blackfox-artifacts/wave11/wave11-agent-identity-ci-summary.json
+          if-no-files-found: error
