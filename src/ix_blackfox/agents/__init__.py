@@ -68,6 +68,13 @@ from ix_blackfox.agents.registry import (
     AgentRegistrySnapshot,
     build_agent_registry,
 )
+from ix_blackfox.agents.report import (
+    AgentReadinessFinding,
+    AgentReadinessFindingCode,
+    AgentReadinessReport,
+    AgentReadinessStatus,
+    build_agent_readiness_report,
+)
 from ix_blackfox.agents.tool_gateway import (
     AgentAuthorizedToolGateway,
     AgentAuthorizedToolInvocationReport,
@@ -106,6 +113,11 @@ __all__ = [
     "agent_registry_to_operating_envelope",
     "authorization_decision_to_operating_envelope",
     "provenance_record_to_operating_envelope",
+    "AgentReadinessFinding",
+    "AgentReadinessFindingCode",
+    "AgentReadinessReport",
+    "AgentReadinessStatus",
+    "build_agent_readiness_report",
     "AgentAuthorizedToolGateway",
     "AgentAuthorizedToolInvocationReport",
     "agent_action_for_tool_capability",
