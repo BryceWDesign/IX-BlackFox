@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from ix_blackfox.agents import (
+    WAVE11_OPERATING_BRIDGE_SCHEMA_VERSION,
     AgentAction,
     AgentAuthorizationDecision,
     AgentAuthorizationReason,
@@ -17,14 +18,17 @@ from ix_blackfox.agents import (
     AgentTrustTier,
     AuthorityFindingCode,
     CapabilityRiskTier,
-    WAVE11_OPERATING_BRIDGE_SCHEMA_VERSION,
     agent_registry_to_operating_envelope,
     authorization_decision_to_operating_envelope,
     build_decision_id,
     evaluate_human_authority,
     provenance_record_to_operating_envelope,
 )
-from ix_blackfox.operating import OperatingArtifactKind, OperatingDisposition, OperatingDomain
+from ix_blackfox.operating import (
+    OperatingArtifactKind,
+    OperatingDisposition,
+    OperatingDomain,
+)
 
 
 def test_agent_registry_exports_ready_operating_envelope() -> None:
