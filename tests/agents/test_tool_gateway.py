@@ -3,10 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ix_blackfox.agents import (
-    AgentAuthorizedToolGateway,
     AgentAuthorizationEvaluator,
     AgentAuthorizationReason,
     AgentAuthorizationStatus,
+    AgentAuthorizedToolGateway,
     AgentCapability,
     AgentCapabilityGrant,
     AgentCapabilityScope,
