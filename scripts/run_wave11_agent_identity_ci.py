@@ -10,7 +10,6 @@ from ix_blackfox.agents import (
     AgentAction,
     AgentAuthorizationEvaluator,
     AgentAuthorizationRequest,
-    AgentAuthorizationStatus,
     AgentAuthorizationTarget,
     AgentCapability,
     AgentCapabilityGrant,
