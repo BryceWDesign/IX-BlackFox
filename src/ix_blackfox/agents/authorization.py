@@ -14,7 +14,6 @@ from ix_blackfox.agents.models import (
     AgentCapability,
     AgentCapabilityGrant,
     AgentIdentity,
-    AgentKind,
     AgentLifecycleState,
     AgentTrustTier,
     CapabilityRiskTier,
@@ -606,7 +605,7 @@ def _path_in_scope(
     if not grant.scope.path_roots:
         return True
     if not request.target.path:
-        return False
+        return True
     return any(
         request.target.path == root or request.target.path.startswith(f"{root}/")
         for root in grant.scope.path_roots
