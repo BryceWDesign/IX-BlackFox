@@ -14,7 +14,7 @@ from ix_blackfox.agents.authorization import (
 )
 from ix_blackfox.agents.capabilities import capability_default_risk_tier
 from ix_blackfox.agents.models import AgentCapability, CapabilityRiskTier
-from ix_blackfox.operating.models import OperatingDomain
+from ix_blackfox.operating.models import OperatingDomain, normalize_identifier
 from ix_blackfox.tools.contracts import (
     ToolFailure,
     ToolFailureKind,
@@ -176,7 +176,7 @@ def build_tool_authorization_request(
         target=AgentAuthorizationTarget(
             repository_id=_repository_id_from_metadata(request.metadata),
             domain=_domain_from_metadata(request.metadata),
-            tool_id=request.tool_id,
+            tool_id=_tool_id_for_authorization(request.tool_id),
             path=_path_from_arguments(request.arguments),
             work_package_id=request.task_id or "",
             artifact_ids=(
@@ -315,6 +315,10 @@ def _authorization_failure_metadata(
 def _repository_id_from_metadata(metadata: Mapping[str, Any]) -> str:
     value = metadata.get("repository_id")
     return value if isinstance(value, str) and value.strip() else "ix-blackfox"
+
+
+def _tool_id_for_authorization(tool_id: str) -> str:
+    return normalize_identifier(tool_id, label="tool_id")
 
 
 def _domain_from_metadata(metadata: Mapping[str, Any]) -> OperatingDomain:
