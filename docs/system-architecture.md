@@ -530,6 +530,45 @@ The real intelligence runtime belongs underneath them.
 
 ---
 
+## 15. Assurance Evidence Packaging
+
+### Module
+- `assurance/`
+
+### Responsibility
+Wave 12 assembles real prior-wave and quality evidence into a deterministic,
+content-addressed package for separate external assessment.
+
+The serialized-package verifier recomputes the control crosswalk, review
+qualification, readiness decision, bundle index, and in-toto statement from the
+reopened archive. Local evidence is integrity verified, but only an externally
+verified human-review artifact can satisfy the external-assessment authority
+gate.
+
+### Current capabilities
+- revision-bound evidence collection
+- stale-evidence rejection through JSON pointers
+- symlink, traversal, secret, private-key, duplicate, and size rejection
+- required and optional assurance-profile controls
+- bounded NIST, OSCAL, SLSA, and in-toto mappings
+- explicit asserted claims and non-claims
+- separate human-authority review gate with external-verification requirement
+- model, tool, CI, system, and self-approval blocking
+- deterministic ZIP construction
+- unsigned in-toto Statement v1 export
+- independent archive safety and semantic-binding verification
+- shell-free quality-gate evidence capture
+- `blackfox assurance build`, `verify`, and `gate` commands
+
+### Design rule
+Packaging evidence must never silently convert evidence into authority.
+`review_required` is the expected offline CI state. Only a separately
+authenticated human approval can advance a coherent package to
+`ready_for_external_assessment`, which still does not mean certification,
+compliance, production readiness, or deployment approval.
+
+---
+
 ## Built-In Packs
 
 ## Programming Pack

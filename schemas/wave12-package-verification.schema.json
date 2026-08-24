@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BryceWDesign/IX-BlackFox/schemas/wave12-package-verification.schema.json",
+  "title": "IX-BlackFox Wave 12 Package Verification",
+  "description": "Independent archive-integrity and semantic-binding verification. A passing record is not certification or authorization.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "archive_path",
+    "archive_sha256",
+    "archive_size_bytes",
+    "passed",
+    "issue_count",
+    "issues",
+    "entry_count",
+    "uncompressed_size_bytes",
+    "manifest_digest",
+    "profile_digest",
+    "readiness_status",
+    "bundle_index_digest",
+    "authenticated",
+    "metadata",
+    "scope_note"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "wave12.assurance_package_verification.v1"
+    },
+    "archive_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "archive_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "archive_size_bytes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "issue_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "summary", "path", "metadata"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "entry_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "uncompressed_size_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "manifest_digest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sha256"
+        },
+        {
+          "const": ""
+        }
+      ]
+    },
+    "profile_digest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sha256"
+        },
+        {
+          "const": ""
+        }
+      ]
+    },
+    "readiness_status": {
+      "enum": [
+        "",
+        "blocked",
+        "review_required",
+        "ready_for_external_assessment"
+      ]
+    },
+    "bundle_index_digest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sha256"
+        },
+        {
+          "const": ""
+        }
+      ]
+    },
+    "authenticated": {
+      "const": false
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "scope_note": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}
