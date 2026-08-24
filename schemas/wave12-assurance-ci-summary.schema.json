@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BryceWDesign/IX-BlackFox/schemas/wave12-assurance-ci-summary.schema.json",
+  "title": "IX-BlackFox Wave 12 Assurance CI Summary",
+  "description": "CI result for real evidence regeneration, packaging, and independent verification with an intentionally open human-review gate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "wave",
+    "head_sha",
+    "generated_at",
+    "passed",
+    "expected_status",
+    "readiness_status",
+    "ready_for_external_assessment",
+    "mandatory_evidence_complete",
+    "quality_gates_run",
+    "quality_gate_count",
+    "quality_gates_passed",
+    "prerequisites_run",
+    "prerequisite_results",
+    "evidence_artifact_count",
+    "manifest_digest",
+    "profile_digest",
+    "crosswalk_digest",
+    "readiness_digest",
+    "archive_sha256",
+    "bundle_index_digest",
+    "verification_passed",
+    "verification_issue_count",
+    "outputs",
+    "scope_note"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "wave12.assurance_ci_summary.v1"
+    },
+    "wave": {
+      "const": "12"
+    },
+    "head_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,64}$"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "expected_status": {
+      "enum": [
+        "blocked",
+        "review_required",
+        "ready_for_external_assessment"
+      ]
+    },
+    "readiness_status": {
+      "enum": [
+        "blocked",
+        "review_required",
+        "ready_for_external_assessment"
+      ]
+    },
+    "ready_for_external_assessment": {
+      "type": "boolean"
+    },
+    "mandatory_evidence_complete": {
+      "type": "boolean"
+    },
+    "quality_gates_run": {
+      "type": "boolean"
+    },
+    "quality_gate_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "quality_gates_passed": {
+      "type": "boolean"
+    },
+    "prerequisites_run": {
+      "type": "boolean"
+    },
+    "prerequisite_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "passed",
+          "exit_code",
+          "stdout_sha256",
+          "stderr_sha256"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "exit_code": {
+            "type": "integer"
+          },
+          "stdout_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "stderr_sha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    },
+    "evidence_artifact_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "manifest_digest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "profile_digest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "crosswalk_digest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "readiness_digest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "archive_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "bundle_index_digest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "verification_passed": {
+      "type": "boolean"
+    },
+    "verification_issue_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "package",
+        "verification",
+        "readiness",
+        "crosswalk",
+        "manifest",
+        "evidence_spec",
+        "summary"
+      ],
+      "properties": {
+        "package": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "verification": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "readiness": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "crosswalk": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "manifest": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "evidence_spec": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "scope_note": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

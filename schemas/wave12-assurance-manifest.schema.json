@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BryceWDesign/IX-BlackFox/schemas/wave12-assurance-manifest.schema.json",
+  "title": "IX-BlackFox Wave 12 Assurance Manifest",
+  "description": "Content-addressed evidence inventory for external assessment preparation. Schema validity does not mean certification, compliance, authorization, or deployment approval.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "wave_schema_version",
+    "manifest_id",
+    "subject",
+    "profile",
+    "evidence",
+    "claims",
+    "metadata",
+    "manifest_digest"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "wave12.assurance_manifest.v1"
+    },
+    "wave_schema_version": {
+      "const": "wave12.certification_ready_evidence.v1"
+    },
+    "manifest_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "subject": {
+      "$ref": "#/$defs/subject"
+    },
+    "profile": {
+      "$ref": "#/$defs/profile"
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "claims": {
+      "$ref": "#/$defs/claims"
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "manifest_digest": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9.-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "relativeEvidencePath": {
+      "type": "string",
+      "pattern": "^evidence/(?!.*(?:^|/)\\.\\.(?:/|$))(?!/).+$"
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "revision",
+        "scope",
+        "producer_agent_id",
+        "generated_at",
+        "metadata",
+        "digest"
+      ],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "producer_agent_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "digest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_id",
+        "version",
+        "title",
+        "description",
+        "claim_boundary",
+        "controls",
+        "metadata",
+        "digest"
+      ],
+      "properties": {
+        "profile_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claim_boundary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "controls": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "control_id",
+              "framework",
+              "reference_id",
+              "title",
+              "evidence_kinds",
+              "statement",
+              "reference_uri",
+              "minimum_verification",
+              "requires_human_review",
+              "mandatory",
+              "metadata"
+            ],
+            "properties": {
+              "control_id": {
+                "$ref": "#/$defs/identifier"
+              },
+              "framework": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reference_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence_kinds": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "$ref": "#/$defs/evidenceKind"
+                }
+              },
+              "statement": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reference_uri": {
+                "type": "string",
+                "pattern": "^https://"
+              },
+              "minimum_verification": {
+                "$ref": "#/$defs/verificationState"
+              },
+              "requires_human_review": {
+                "type": "boolean"
+              },
+              "mandatory": {
+                "type": "boolean"
+              },
+              "metadata": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "digest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "source_wave",
+        "evidence_kind",
+        "path",
+        "sha256",
+        "size_bytes",
+        "media_type",
+        "producer",
+        "verification_state",
+        "integrity_verified",
+        "schema_version",
+        "required",
+        "metadata"
+      ],
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "source_wave": {
+          "enum": [
+            "wave5",
+            "wave6",
+            "wave7",
+            "wave8",
+            "wave9",
+            "wave10",
+            "wave11",
+            "wave12",
+            "external"
+          ]
+        },
+        "evidence_kind": {
+          "$ref": "#/$defs/evidenceKind"
+        },
+        "path": {
+          "$ref": "#/$defs/relativeEvidencePath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "media_type": {
+          "type": "string",
+          "pattern": "^[a-z0-9.+-]+/[a-z0-9.+-]+$"
+        },
+        "producer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verification_state": {
+          "$ref": "#/$defs/verificationState"
+        },
+        "integrity_verified": {
+          "type": "boolean"
+        },
+        "schema_version": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "metadata": {
+          "type": "object"
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "asserted_claims",
+        "non_claims",
+        "prohibited_asserted_terms",
+        "prohibited_hits"
+      ],
+      "properties": {
+        "asserted_claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "non_claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "prohibited_asserted_terms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "prohibited_hits": {
+          "type": "array",
+          "maxItems": 0
+        }
+      }
+    },
+    "evidenceKind": {
+      "enum": [
+        "policy_evaluation",
+        "test_result",
+        "static_analysis",
+        "type_check",
+        "sandbox_evidence",
+        "repository_intelligence",
+        "provenance",
+        "agent_identity",
+        "human_review",
+        "supply_chain_attestation",
+        "sbom",
+        "vulnerability_scan",
+        "risk_assessment",
+        "other"
+      ]
+    },
+    "verificationState": {
+      "enum": [
+        "recorded",
+        "integrity_verified",
+        "externally_verified"
+      ]
+    }
+  }
+}

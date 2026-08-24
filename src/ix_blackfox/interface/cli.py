@@ -43,6 +43,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         return audit_main(raw_argv[1:])
 
+    if raw_argv and raw_argv[0] == "assurance":
+        from ix_blackfox.assurance.cli import main as assurance_main
+
+        return assurance_main(raw_argv[1:])
+
     parser = _build_parser()
     args = parser.parse_args(raw_argv)
 
@@ -153,6 +158,10 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "audit",
         help="Run Wave 9 compliance/audit attestation commands.",
+    )
+    subparsers.add_parser(
+        "assurance",
+        help="Run Wave 12 certification-ready evidence packaging commands.",
     )
 
     return parser
