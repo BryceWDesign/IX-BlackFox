@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BryceWDesign/IX-BlackFox/schemas/wave13-review-board-ci-summary.schema.json",
+  "title": "IX-BlackFox Wave 13 Review Board CI Summary",
+  "description": "CI proof that verified Wave 12 evidence enters Wave 13 while machine analysis and serialized human records cannot fabricate trusted human approval.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "wave",
+    "head_sha",
+    "generated_at",
+    "passed",
+    "expected_status",
+    "board_status",
+    "human_review_supplied",
+    "external_verification_supplied",
+    "external_verification_count",
+    "external_verification_context_digest",
+    "qualifying_human_approval_count",
+    "required_roles",
+    "missing_required_roles",
+    "machine_advisory_count",
+    "machine_vote_weight",
+    "upstream_wave12_verification_passed",
+    "upstream_wave12_readiness_status",
+    "upstream_wave12_sha256",
+    "subject_digest",
+    "policy_digest",
+    "evaluation_digest",
+    "archive_sha256",
+    "bundle_index_digest",
+    "verification_passed",
+    "verification_issue_count",
+    "outputs",
+    "scope_note"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "wave13.review_board_ci_summary.v1"
+    },
+    "wave": {
+      "const": "13"
+    },
+    "head_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,64}$"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "expected_status": {
+      "enum": [
+        "blocked",
+        "human_review_required",
+        "approved_for_next_gate"
+      ]
+    },
+    "board_status": {
+      "enum": [
+        "blocked",
+        "human_review_required",
+        "approved_for_next_gate"
+      ]
+    },
+    "human_review_supplied": {
+      "const": false
+    },
+    "external_verification_supplied": {
+      "const": false
+    },
+    "external_verification_count": {
+      "const": 0
+    },
+    "external_verification_context_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "qualifying_human_approval_count": {
+      "const": 0
+    },
+    "required_roles": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "maintainer",
+          "manufacturing",
+          "operations",
+          "qa",
+          "safety",
+          "security",
+          "systems"
+        ]
+      }
+    },
+    "missing_required_roles": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "maintainer",
+          "manufacturing",
+          "operations",
+          "qa",
+          "safety",
+          "security",
+          "systems"
+        ]
+      }
+    },
+    "machine_advisory_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "machine_vote_weight": {
+      "const": 0
+    },
+    "upstream_wave12_verification_passed": {
+      "type": "boolean"
+    },
+    "upstream_wave12_readiness_status": {
+      "type": "string"
+    },
+    "upstream_wave12_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "subject_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "policy_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "evaluation_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "archive_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "bundle_index_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "verification_passed": {
+      "type": "boolean"
+    },
+    "verification_issue_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "scope_note": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

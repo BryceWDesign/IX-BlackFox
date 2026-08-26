@@ -7,121 +7,146 @@
 **AI proposes. Humans decide. Evidence decides trust.**
 
 IX-BlackFox is a source-available AI engineering control plane for governing
-AI-assisted software-change workflows.
+AI-assisted software-change workflows. It treats model output as untrusted input
+and puts proposed actions behind scoped capabilities, policy gates, sandbox
+boundaries, repository-impact analysis, content-addressed evidence, provenance,
+independent verification, and separate human authority.
 
-It treats model output as untrusted input and puts proposed actions behind
-scoped capabilities, policy gates, sandbox boundaries, repository-impact
-analysis, content-addressed evidence, provenance, and separate human authority.
+## Wave 13: Human-Machine Review Board
 
-## Wave 12: Certification-Ready Evidence Packaging
+When an AI coding agent changes a real repository, can you prove what it was
+allowed to touch, what changed, what evidence belongs to that exact revision,
+what independent verification found, which specialists reviewed it, and whether
+a human quorum actually authorized the next gate?
 
-Wave 12 turns real prior-wave and quality evidence into a deterministic archive
-that a separate reviewer can inspect and independently reverify.
+Wave 13 turns that question into an executable review-board contract above the
+Wave 12 certification-ready evidence package. Machine analysis is visible, but
+it has zero voting authority. Human approval is role-specific, revision-bound,
+policy-bound, externally verified out of band, and independently rechecked from
+the serialized package.
 
-Here, **certification-ready** has a narrow meaning: evidence is explicitly
-scoped, revision bound, content addressed, mapped to a versioned profile,
-checked for completeness, packaged deterministically, and reopened by a
-fail-closed verifier.
+The locked default board requires seven distinct human roles:
 
-It does not mean that IX-BlackFox, a repository, a workflow, a model, or an
-organization is certified or formally compliant.
+- security
+- QA
+- systems
+- safety
+- operations
+- manufacturing
+- maintainer
 
-Wave 12 adds:
+Wave 13 adds:
 
-- bounded local evidence collection with traversal, symlink, size, secret-key,
-  duplicate, JSON, and stale-revision rejection
-- real pytest, Ruff, strict mypy, and compileall result capture with
-  `shell=False`
-- regeneration of available Wave 6, 7, 8, 9, and 11 evidence
-- a nine-control assurance profile with mandatory and optional mappings
-- deterministic control-to-evidence crosswalks and readiness findings
-- separate asserted claims and explicit non-claims
-- deterministic ZIP construction with canonical JSON and SHA-256 inventories
-- an unsigned in-toto Statement v1 with an explicitly unauthenticated predicate
-- an independent archive verifier with ZIP safety limits and semantic
-  recomputation
-- a human-authority gate that local CI cannot silently satisfy
-- `blackfox assurance build`, `verify`, and `gate` commands
-- a dedicated offline evidence workflow and artifact surface
+- independent admission of a verified Wave 12 evidence package
+- embedding of the exact Wave 12 ZIP inside the Wave 13 package
+- nested Wave 12 reverification during independent Wave 13 verification
+- non-authoritative machine advisories with `authoritative: false` and
+  `vote_weight: 0`
+- human reviews bound to the exact subject and board-policy digests
+- separate identity and role-authority evidence references
+- trusted out-of-band verification bound to the exact human-review digest
+- distinct-human quorum and complete role-coverage enforcement
+- subject-producer self-approval prevention
+- conflict disclosure and recusal enforcement
+- fail-closed reject and request-changes handling
+- evidence challenges with blocking open state
+- deterministic board evaluation, package construction, and bundle index
+- a package-internal hash-chained review ledger
+- independent semantic recomputation instead of trust in refreshed hashes
+- `blackfox review-board build`, `verify`, and `gate` operator commands
+- a dedicated offline Wave 13 CI evidence workflow
 
-The full contract is documented in
-[`docs/wave12-certification-ready-evidence.md`](docs/wave12-certification-ready-evidence.md).
+The full Wave 13 contract is documented in
+[`docs/wave13-human-machine-review-board.md`](docs/wave13-human-machine-review-board.md).
 
-## Readiness states
+## Wave 13 decision states
 
 | State | Meaning |
 | --- | --- |
-| `blocked` | Mandatory evidence, integrity, claim, binding, or authority checks failed. |
-| `review_required` | Mandatory evidence is coherent, but separate externally verified human authority is still absent. This is the expected offline CI result. |
-| `ready_for_external_assessment` | The package is coherent and a separate human approval is bound through externally verified review evidence. This still is not certification or deployment approval. |
+| `blocked` | A binding, verification, policy, dissent, conflict, challenge, or integrity rule failed. |
+| `human_review_required` | The machine/evidence path is coherent, but the required trusted human authority is incomplete. This is the expected offline CI state. |
+| `approved_for_next_gate` | The configured human quorum, role coverage, and trusted review-verification rules are satisfied for the exact evidence package. This is not deployment, production, certification, or operational authorization. |
 
-The local collector emits `integrity_verified` evidence only. A review JSON file
-cannot promote itself to `ready_for_external_assessment`. External identity or
-signature verification must happen at an integration boundary and supply an
-`externally_verified` human-review artifact. IX-BlackFox does not fabricate that
-verification.
+A serialized review cannot promote itself by claiming `externally_verified`.
+IX-BlackFox is not an identity provider. Trusted verification must arrive through
+an integration boundary and bind the reviewer identity, role, identity-evidence
+digest, role-authority-evidence digest, and exact human-review digest. Changing
+the decision or its bound content after verification invalidates that binding.
 
-## What the verifier proves
+## What the Wave 13 verifier proves
 
-The verifier reopens the serialized archive and checks:
+The verifier reopens the package and checks:
 
 - safe, unique ZIP paths and bounded expansion
-- required documents and valid UTF-8 JSON
-- entry sizes and SHA-256 digests
-- exact manifest-to-evidence inventory
-- subject, profile, crosswalk, readiness, and review bindings
-- canonical manifest and authority-review representations
-- recomputed control coverage and readiness findings
-- recomputed review set, bundle index, and in-toto statement
-- prohibited asserted claims
+- the exact embedded Wave 12 archive digest
+- independent verification of the embedded Wave 12 archive
+- reconstruction of the Wave 13 subject from that verified upstream package
+- canonical review-case, advisory, review, challenge, evaluation, ledger, and
+  bundle-index representations
+- exact content digests for package entries
+- machine zero-authority invariants
+- human review subject and policy bindings
+- external-verification context bindings to exact review digests
+- role coverage, distinct-human quorum, conflict, recusal, and self-approval rules
+- blocking reject, request-changes, and unresolved evidence-challenge states
+- recomputed review-board disposition
+- recomputed hash-chained ledger and package index
+- rejection of unexpected package payloads
 
-It does not trust self-consistent hashes alone. Changing a readiness status and
-refreshing the affected digests still fails semantic recomputation.
+It does not trust self-consistent hashes alone. Corrupting the nested Wave 12
+archive or changing a board disposition and refreshing outer hashes still fails
+independent or semantic verification.
 
-A passing verification proves archive integrity and internal coherence. The
-package remains unsigned, and the verifier does not authenticate a person,
-organization, or platform.
-
-## Main Wave 12 modules
+## Main Wave 13 modules
 
 | Module | Responsibility |
 | --- | --- |
-| `assurance.models` | Subjects, evidence descriptors, controls, profiles, claims, reviews, and manifests |
-| `assurance.profiles` | Default bounded evidence profile and mapping-only framework references |
-| `assurance.evidence` | Contained evidence collection, validation, hashing, and revision binding |
-| `assurance.crosswalk` | Deterministic control-to-evidence evaluation |
-| `assurance.report` | Claim enforcement, external-review qualification, and readiness disposition |
-| `assurance.quality` | Shell-free quality-command execution and evidence capture |
-| `assurance.package` | Deterministic ZIP, bundle index, and unsigned in-toto Statement creation |
-| `assurance.parsing` | Strict reconstruction of serialized manifests and authority reviews |
-| `assurance.verify` | Archive safety, integrity, binding, and semantic recomputation |
-| `assurance.cli` | Build, verify, and gate operator commands |
+| `review_board.models` | Review roles, subjects, policies, advisories, human reviews, external verification records, challenges, findings, and dispositions |
+| `review_board.admission` | Independent Wave 12 verification and exact Wave 13 subject construction |
+| `review_board.policy` | Zero-authority machine analysis and fail-closed human quorum evaluation |
+| `review_board.package` | Deterministic case, ledger, index, embedded upstream archive, and ZIP construction |
+| `review_board.parsing` | Strict reconstruction and canonicalization of serialized Wave 13 documents |
+| `review_board.verify` | ZIP safety, nested Wave 12 verification, trust-context binding, ledger checks, and semantic recomputation |
+| `review_board.cli` | Build, verify, and gate operator commands |
 
-Wave 11 remains the identity and authority foundation beneath this layer. It
-provides agent identities, scoped capability grants, self-approval prevention,
-authorization records, and append-only provenance.
+## Wave 13 package layout
 
-## Package layout
-
-A Wave 12 assurance package contains:
+A Wave 13 review-board package contains the bounded review surface plus the exact
+upstream evidence archive:
 
 ```text
-manifest.json
-crosswalk.json
-readiness-report.json
-authority-reviews.json
-in-toto-statement.json
+review-case.json
+machine-advisories.json
+human-reviews.json
+evidence-challenges.json
+board-evaluation.json
+review-ledger.json
 bundle-index.json
-evidence/...
+upstream/wave12-certification-ready-evidence.zip
 ```
 
-Given identical manifest inputs and evidence bytes, the builder produces a
-byte-identical archive using sorted names, fixed timestamps, fixed file modes,
-canonical JSON, and deterministic compression settings.
+The package builder uses canonical JSON, deterministic entry ordering, fixed ZIP
+metadata, explicit content hashes, and a deterministic ledger.
+
+## Wave 12 foundation
+
+Wave 12 remains the evidence foundation directly beneath Wave 13. It collects
+real prior-wave and quality evidence, maps it to a bounded assurance profile,
+constructs a deterministic certification-ready evidence package, and reopens
+that archive through an independent semantic verifier.
+
+Here, **certification-ready** is deliberately narrow. It means the evidence is
+scoped, revision bound, content addressed, mapped, checked for completeness,
+packaged deterministically, and independently reverified. It does not mean the
+repository, workflow, model, organization, or package is certified.
+
+See
+[`docs/wave12-certification-ready-evidence.md`](docs/wave12-certification-ready-evidence.md)
+for the complete Wave 12 contract.
 
 ## Framework boundaries
 
-The default profile includes bounded conceptual mappings to:
+The Wave 12 evidence profile includes bounded conceptual mappings to:
 
 - NIST SP 800-218 SSDF 1.1
 - NIST AI RMF 1.0
@@ -129,13 +154,13 @@ The default profile includes bounded conceptual mappings to:
 - SLSA 1.2
 - in-toto Statement v1
 
-These are mappings only. Wave 12 does not emit a conformant OSCAL Assessment
-Results document, claim a SLSA level, sign an attestation, or convert evidence
-coverage into certification.
+These are mappings only. IX-BlackFox does not claim certification, a SLSA level,
+conformant OSCAL output, accreditation, an ATO or cATO, or external endorsement.
 
 ## Install and test
 
-IX-BlackFox requires Python 3.11 or newer.
+IX-BlackFox requires Python 3.11 or newer. The primary CI matrix runs Python
+3.11, 3.12, and 3.13.
 
 ```bash
 python -m venv .venv
@@ -145,30 +170,29 @@ python -m venv .venv
 Run the complete local quality suite:
 
 ```bash
-.venv/bin/python -m pytest -q
 .venv/bin/python -m ruff check .
 .venv/bin/python -m mypy src
+.venv/bin/python -m pytest -q
 PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m compileall -q src scripts tests
 ```
 
-Run the focused Wave 12 campaign tests:
+Run the focused Wave 13 campaign:
 
 ```bash
 .venv/bin/python -m pytest \
-  tests/assurance \
-  tests/ci/test_wave12_assurance_runner_contract.py \
-  tests/ci/test_wave12_assurance_workflow_contract.py \
-  tests/docs/test_wave12_assurance_docs.py \
+  tests/review_board \
+  tests/ci/test_wave13_review_board_runner.py \
+  tests/ci/test_wave13_review_board_workflow_contract.py \
+  tests/docs/test_wave13_review_board_docs.py \
   -q
 ```
 
 Trust current local or GitHub Actions output, not a static README claim, as proof
 that checks passed.
 
-## Generate the offline evidence package
+## Generate the offline Wave 13 evidence package
 
-The end-to-end runner always regenerates prerequisite evidence and runs the full
-quality suite. It has no partial-campaign switch.
+Wave 13 consumes a real Wave 12 package. Generate the upstream package first:
 
 ```bash
 PYTHONPATH=src python scripts/run_wave12_assurance_ci.py \
@@ -177,71 +201,65 @@ PYTHONPATH=src python scripts/run_wave12_assurance_ci.py \
   --expected-status review_required
 ```
 
-It writes:
+Then build and independently verify the Wave 13 board package:
 
-```text
-.blackfox-artifacts/wave12/wave12-certification-ready-evidence.zip
-.blackfox-artifacts/wave12/wave12-package-verification.json
-.blackfox-artifacts/wave12/wave12-assurance-readiness-report.json
-.blackfox-artifacts/wave12/wave12-assurance-crosswalk.json
-.blackfox-artifacts/wave12/wave12-assurance-manifest.json
-.blackfox-artifacts/wave12/wave12-evidence-spec.json
-.blackfox-artifacts/wave12/wave12-assurance-ci-summary.json
+```bash
+PYTHONPATH=src python scripts/run_wave13_review_board_ci.py \
+  --root . \
+  --head-sha 0123456789abcdef0123456789abcdef01234567 \
+  --expected-status human_review_required
 ```
 
-The GitHub Actions workflow is
-`.github/workflows/wave12-assurance-evidence.yml`. It runs without model API
-keys, AWS credentials, signing keys, or autonomous approval authority.
+The offline Wave 13 runner intentionally supplies zero human reviews and zero
+trusted external-verification records. Its correct passing state is
+`human_review_required`. CI proves that machine analysis cannot silently become
+human authority; it does not manufacture an approval.
+
+The Wave 13 workflow is
+`.github/workflows/wave13-human-machine-review-board.yml`.
 
 ## Operator CLI
 
-Build from an explicit evidence specification:
+Build a review-board package from an explicit Wave 12 package:
 
 ```bash
-blackfox assurance build \
-  --root . \
-  --revision 0123456789abcdef0123456789abcdef01234567 \
-  --evidence-spec evidence-spec.json
+blackfox review-board build \
+  --wave12-package .blackfox-artifacts/wave12/wave12-certification-ready-evidence.zip \
+  --output .blackfox-artifacts/wave13/wave13-human-machine-review-board.zip
 ```
 
-Independently verify a serialized package:
+Independently verify a serialized Wave 13 package:
 
 ```bash
-blackfox assurance verify \
-  --package .blackfox-artifacts/wave12/wave12-certification-ready-evidence.zip
+blackfox review-board verify \
+  --package .blackfox-artifacts/wave13/wave13-human-machine-review-board.zip
 ```
 
-Require externally approved assessment readiness:
+Require the board to have reached the next human-authorized gate:
 
 ```bash
-blackfox assurance gate \
-  --package .blackfox-artifacts/wave12/wave12-certification-ready-evidence.zip
+blackfox review-board gate \
+  --package .blackfox-artifacts/wave13/wave13-human-machine-review-board.zip
 ```
 
-Offline CI can prove that the human gate remains open without pretending to
-satisfy it:
-
-```bash
-blackfox assurance gate \
-  --package .blackfox-artifacts/wave12/wave12-certification-ready-evidence.zip \
-  --allow-review-required
-```
+The `review` command is an alias for `review-board`.
 
 ## What IX-BlackFox is not
 
 IX-BlackFox is not:
 
 - a replacement for human review or an external assessor
+- a human identity-proofing service
+- a qualified digital-signature service
 - a production authorization or deployment authority
 - a certified compliance product
 - FedRAMP authorized
 - an ATO or cATO issuer
 - DoD approved or endorsed
 - AWS approved or endorsed
-- a qualified signature or reviewer-identity verification service
 - a transparency log
 - a claim of formal verification or guaranteed software correctness
-- an autonomous agent approval system
+- an autonomous human-equivalent approval system
 
 It is a platform-neutral, evidence-bound control plane and research prototype
 for making AI-assisted engineering workflows more inspectable, reviewable,

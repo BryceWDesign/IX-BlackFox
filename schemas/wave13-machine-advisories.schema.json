@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BryceWDesign/IX-BlackFox/schemas/wave13-machine-advisories.schema.json",
+  "title": "IX-BlackFox Wave 13 Machine Advisories",
+  "description": "Non-authoritative machine analysis; every machine vote weight is zero.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "subject_digest",
+    "policy_digest",
+    "advisory_count",
+    "authoritative_vote_count",
+    "advisories",
+    "scope_note",
+    "digest"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "wave13.machine_advisory_set.v1"
+    },
+    "subject_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "policy_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "advisory_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "authoritative_vote_count": {
+      "const": 0
+    },
+    "advisories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "advisory_id",
+          "producer_agent_id",
+          "recommendation",
+          "subject_digest",
+          "policy_digest",
+          "produced_at",
+          "summary",
+          "findings",
+          "evidence_refs",
+          "authoritative",
+          "vote_weight",
+          "metadata",
+          "digest"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": "wave13.machine_advisory.v1"
+          },
+          "advisory_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "producer_agent_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "recommendation": {
+            "enum": [
+              "proceed_to_human_review",
+              "request_changes",
+              "block",
+              "insufficient_evidence"
+            ]
+          },
+          "subject_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "policy_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "produced_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "evidence_refs": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "authoritative": {
+            "const": false
+          },
+          "vote_weight": {
+            "const": 0
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "scope_note": {
+      "type": "string",
+      "minLength": 1
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

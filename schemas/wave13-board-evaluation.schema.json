@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BryceWDesign/IX-BlackFox/schemas/wave13-board-evaluation.schema.json",
+  "title": "IX-BlackFox Wave 13 Board Evaluation",
+  "description": "Recomputable role coverage, quorum, dissent, conflict, trusted external-verification context binding, and board disposition.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "subject_digest",
+    "policy_digest",
+    "status",
+    "approved_for_next_gate",
+    "blocking_finding_count",
+    "findings",
+    "qualifying_review_ids",
+    "qualifying_reviewer_ids",
+    "approved_roles",
+    "missing_required_roles",
+    "machine_advisory_count",
+    "human_review_count",
+    "external_verification_count",
+    "external_verification_context_digest",
+    "open_challenge_count",
+    "metadata",
+    "scope_note",
+    "digest"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "wave13.review_board_evaluation.v1"
+    },
+    "subject_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "policy_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "status": {
+      "enum": [
+        "blocked",
+        "human_review_required",
+        "approved_for_next_gate"
+      ]
+    },
+    "approved_for_next_gate": {
+      "type": "boolean"
+    },
+    "blocking_finding_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "summary",
+          "blocking",
+          "role",
+          "object_id",
+          "metadata"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "blocking": {
+            "type": "boolean"
+          },
+          "role": {
+            "enum": [
+              "",
+              "maintainer",
+              "manufacturing",
+              "operations",
+              "qa",
+              "safety",
+              "security",
+              "systems"
+            ]
+          },
+          "object_id": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "qualifying_review_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "qualifying_reviewer_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "approved_roles": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "maintainer",
+          "manufacturing",
+          "operations",
+          "qa",
+          "safety",
+          "security",
+          "systems"
+        ]
+      }
+    },
+    "missing_required_roles": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "maintainer",
+          "manufacturing",
+          "operations",
+          "qa",
+          "safety",
+          "security",
+          "systems"
+        ]
+      }
+    },
+    "machine_advisory_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "human_review_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "external_verification_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "external_verification_context_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "open_challenge_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "scope_note": {
+      "type": "string",
+      "minLength": 1
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

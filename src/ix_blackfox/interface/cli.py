@@ -48,6 +48,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         return assurance_main(raw_argv[1:])
 
+    if raw_argv and raw_argv[0] in {"review-board", "review"}:
+        from ix_blackfox.review_board.cli import main as review_board_main
+
+        return review_board_main(raw_argv[1:])
+
     parser = _build_parser()
     args = parser.parse_args(raw_argv)
 
@@ -162,6 +167,14 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "assurance",
         help="Run Wave 12 certification-ready evidence packaging commands.",
+    )
+    subparsers.add_parser(
+        "review-board",
+        help="Run Wave 13 human-machine review-board commands.",
+    )
+    subparsers.add_parser(
+        "review",
+        help="Alias for Wave 13 human-machine review-board commands.",
     )
 
     return parser
