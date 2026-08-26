@@ -3,10 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from scripts.run_wave13_review_board_ci import run_wave13_review_board_ci
 
 from ix_blackfox.review_board import ReviewBoardStatus, ReviewRole
 from ix_blackfox.review_board.verify import verify_review_board_package
-from scripts.run_wave13_review_board_ci import run_wave13_review_board_ci
 from tests.review_board.helpers import REVISION, WAVE13_TIME, build_wave12_package
 
 
