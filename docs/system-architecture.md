@@ -569,6 +569,52 @@ compliance, production readiness, or deployment approval.
 
 ---
 
+## 16. Human-Machine Review Board
+
+### Module
+- `review_board/`
+
+### Responsibility
+Wave 13 consumes an independently verified Wave 12 assurance package and binds
+that exact evidence to role-based human review. Machine advisories remain
+visible but carry zero vote weight and cannot satisfy role coverage or quorum.
+
+The default board covers the locked security, QA, systems, safety, operations,
+manufacturing, and maintainer roles. Human reviews bind to both the exact
+subject digest and policy digest. The default policy requires seven distinct
+human reviewers, plus trusted out-of-band verification that binds each reviewer,
+role, identity evidence, role-authority evidence, and exact review digest, before
+the case can reach `approved_for_next_gate`. A serialized `externally_verified`
+claim cannot satisfy that boundary by itself.
+
+### Current capabilities
+- independent Wave 12 package admission and nested reverification
+- all seven locked Wave 13 review roles
+- explicit zero-authority machine advisories
+- serialized identity and role-authority references with content digests
+- out-of-band trusted verification bound to the exact human-review digest
+- external-verification context count and digest bound into board evaluation
+- subject-producer self-approval prevention
+- distinct-human quorum enforcement
+- authenticated reject and request-changes fail-closed handling
+- conflict disclosure and recusal preservation
+- evidence challenges with blocking open state
+- deterministic board-policy recomputation
+- package-internal hash-chained review ledger
+- deterministic ZIP and content index
+- independent archive, nested evidence, ledger, and semantic verification
+- `blackfox review-board build`, `verify`, and `gate` commands
+
+### Design rule
+A machine can analyze a review case but cannot become the human approval path.
+`human_review_required` is the expected offline CI state. The offline runner
+supplies neither human reviews nor trusted external-verification context.
+`approved_for_next_gate` means only that the configured role, quorum, and trusted
+review-verification rules are satisfied for the bound evidence package; it is
+not deployment, production, certification, procurement, or operational authority.
+
+---
+
 ## Built-In Packs
 
 ## Programming Pack
@@ -738,7 +784,7 @@ This repository is now best described as a **governed execution runtime foundati
 - promotion flows across memory tiers
 - stronger forge patch application loops
 - broader benchmark coverage
-- multi-step approval strategies
+- richer multi-stage approval strategies beyond the Wave 13 board quorum
 - richer operator interfaces
 - advanced semantic routing
 - local model integration layers

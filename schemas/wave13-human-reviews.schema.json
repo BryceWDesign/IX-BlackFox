@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BryceWDesign/IX-BlackFox/schemas/wave13-human-reviews.schema.json",
+  "title": "IX-BlackFox Wave 13 Human Reviews",
+  "description": "Role-specific human review records bound to the exact subject and policy; serialized external-verification claims do not themselves confer authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "subject_digest",
+    "policy_digest",
+    "review_count",
+    "reviews",
+    "scope_note",
+    "digest"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "wave13.human_review_set.v1"
+    },
+    "subject_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "policy_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "review_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "review_id",
+          "reviewer_id",
+          "role",
+          "decision",
+          "subject_digest",
+          "policy_digest",
+          "reviewed_at",
+          "authentication_state",
+          "rationale",
+          "identity_verification_ref",
+          "identity_verification_sha256",
+          "authority_verification_ref",
+          "authority_verification_sha256",
+          "conflict_declared",
+          "recused",
+          "evidence_refs",
+          "metadata",
+          "digest"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": "wave13.human_review.v1"
+          },
+          "review_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reviewer_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "enum": [
+              "maintainer",
+              "manufacturing",
+              "operations",
+              "qa",
+              "safety",
+              "security",
+              "systems"
+            ]
+          },
+          "decision": {
+            "enum": [
+              "approve",
+              "request_changes",
+              "reject",
+              "abstain"
+            ]
+          },
+          "subject_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "policy_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "reviewed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "authentication_state": {
+            "enum": [
+              "recorded",
+              "externally_verified"
+            ]
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1
+          },
+          "identity_verification_ref": {
+            "type": "string"
+          },
+          "identity_verification_sha256": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "const": ""
+              }
+            ]
+          },
+          "authority_verification_ref": {
+            "type": "string"
+          },
+          "authority_verification_sha256": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "const": ""
+              }
+            ]
+          },
+          "conflict_declared": {
+            "type": "boolean"
+          },
+          "recused": {
+            "type": "boolean"
+          },
+          "evidence_refs": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "scope_note": {
+      "type": "string",
+      "minLength": 1
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

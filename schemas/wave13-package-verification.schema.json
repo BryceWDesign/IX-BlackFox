@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BryceWDesign/IX-BlackFox/schemas/wave13-package-verification.schema.json",
+  "title": "IX-BlackFox Wave 13 Package Verification",
+  "description": "Independent archive, nested Wave 12, ledger, binding, trusted external-verification context, and policy-semantic verification.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "archive_path",
+    "archive_sha256",
+    "archive_size_bytes",
+    "passed",
+    "issue_count",
+    "issues",
+    "entry_count",
+    "uncompressed_size_bytes",
+    "subject_digest",
+    "policy_digest",
+    "evaluation_digest",
+    "ledger_digest",
+    "bundle_index_digest",
+    "status",
+    "upstream_wave12_sha256",
+    "upstream_wave12_verification_passed",
+    "external_verification_context_digest",
+    "external_verification_count",
+    "metadata",
+    "scope_note"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "wave13.review_board_package_verification.v1"
+    },
+    "archive_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "archive_sha256": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "const": ""
+        }
+      ]
+    },
+    "archive_size_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "issue_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "summary",
+          "path",
+          "metadata"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "entry_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "uncompressed_size_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "subject_digest": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "const": ""
+        }
+      ]
+    },
+    "policy_digest": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "const": ""
+        }
+      ]
+    },
+    "evaluation_digest": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "const": ""
+        }
+      ]
+    },
+    "ledger_digest": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "const": ""
+        }
+      ]
+    },
+    "bundle_index_digest": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "const": ""
+        }
+      ]
+    },
+    "status": {
+      "enum": [
+        "",
+        "blocked",
+        "human_review_required",
+        "approved_for_next_gate"
+      ]
+    },
+    "upstream_wave12_sha256": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "const": ""
+        }
+      ]
+    },
+    "upstream_wave12_verification_passed": {
+      "type": "boolean"
+    },
+    "external_verification_context_digest": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "const": ""
+        }
+      ]
+    },
+    "external_verification_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "scope_note": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

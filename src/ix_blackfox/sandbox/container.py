@@ -150,9 +150,6 @@ class ContainerSandboxBackend:
                 docker_command=tuple(docker_command),
                 workspace=workspace,
             )
-        finally:
-            pass
-
         stdout_text = completed.stdout
         stderr_text = completed.stderr
         output_size = len(stdout_text.encode("utf-8")) + len(stderr_text.encode("utf-8"))

@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BryceWDesign/IX-BlackFox/schemas/wave13-evidence-challenges.schema.json",
+  "title": "IX-BlackFox Wave 13 Evidence Challenges",
+  "description": "Preserved human evidence challenges, including unresolved dissent.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "subject_digest",
+    "challenge_count",
+    "challenges",
+    "scope_note",
+    "digest"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "wave13.evidence_challenge_set.v1"
+    },
+    "subject_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "challenge_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "challenges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "challenge_id",
+          "raised_by",
+          "role",
+          "subject_digest",
+          "raised_at",
+          "status",
+          "summary",
+          "evidence_refs",
+          "resolution_note",
+          "metadata",
+          "digest"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": "wave13.evidence_challenge.v1"
+          },
+          "challenge_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "raised_by": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "enum": [
+              "maintainer",
+              "manufacturing",
+              "operations",
+              "qa",
+              "safety",
+              "security",
+              "systems"
+            ]
+          },
+          "subject_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "raised_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "resolved",
+              "withdrawn"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence_refs": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "resolution_note": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "scope_note": {
+      "type": "string",
+      "minLength": 1
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}
