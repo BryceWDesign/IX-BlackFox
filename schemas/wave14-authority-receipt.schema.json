@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BryceWDesign/IX-BlackFox/schemas/wave14-authority-receipt.schema.json",
+  "title": "IX-BlackFox Wave 14 Authority Receipt",
+  "description": "Durable hash-chained receipt for one Wave 14 authority decision and any resulting upstream request attempt. It records evidence references, single-use evidence reservations, the decision, and BlackFox-observable request state. A received upstream response does not by itself prove arbitrary upstream side effects, and a transport error is recorded as outcome_unknown. It is not an external trusted timestamp, non-repudiation service, or deployment authorization.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "sequence",
+    "previous_receipt_digest",
+    "recorded_at",
+    "protocol",
+    "subject",
+    "authority_decision",
+    "evidence_refs",
+    "single_use_evidence_claims",
+    "upstream_attempted",
+    "upstream_status",
+    "upstream_response_sha256",
+    "upstream_error",
+    "execution_state",
+    "executed",
+    "receipt_id",
+    "receipt_digest"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "wave14.authority_receipt.v1"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "previous_receipt_digest": {
+      "type": "string",
+      "pattern": "^$|^[0-9a-f]{64}$"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "protocol": {
+      "type": "string",
+      "minLength": 1
+    },
+    "subject": {
+      "type": "object"
+    },
+    "authority_decision": {
+      "type": "object"
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "upstream_attempted": {
+      "type": "boolean"
+    },
+    "upstream_status": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 599
+    },
+    "upstream_response_sha256": {
+      "type": "string",
+      "pattern": "^$|^[0-9a-f]{64}$"
+    },
+    "upstream_error": {
+      "type": "string"
+    },
+    "executed": {
+      "type": "boolean"
+    },
+    "receipt_id": {
+      "type": "string",
+      "pattern": "^wave14-receipt-[0-9a-f]{24}$"
+    },
+    "receipt_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "single_use_evidence_claims": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "execution_state": {
+      "type": "string",
+      "enum": [
+        "not_attempted",
+        "response_received",
+        "outcome_unknown"
+      ],
+      "description": "BlackFox-observable upstream request state. outcome_unknown is used when a transport failure occurs after dispatch because arbitrary upstream side effects cannot be proven."
+    }
+  }
+}

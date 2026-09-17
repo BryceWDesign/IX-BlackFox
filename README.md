@@ -12,7 +12,78 @@ and puts proposed actions behind scoped capabilities, policy gates, sandbox
 boundaries, repository-impact analysis, content-addressed evidence, provenance,
 independent verification, and separate human authority.
 
-## Wave 13: Human-Machine Review Board
+## Wave 14: Live Authority Gateway
+
+Wave 14 puts BlackFox in the live request path between an AI agent and an
+external tool. Configured MCP and HTTP API tool calls are intercepted **before**
+the upstream receives them. Agent identity/scope authorization is combined with
+cryptographically verified, repository/revision-bound evidence. Consequential
+requests that require human review remain non-executable until a trusted,
+policy-shaped human approval is present and, when configured, bound to the exact
+action subject.
+
+The Wave 14 rule is intentionally simple:
+
+> **Capability is not authority. No configured consequential tool action reaches
+> its upstream unless identity, scope, evidence, and required human authority
+> agree.**
+
+Wave 14 adds:
+
+- a real network gateway at `/mcp` and `/v1/invoke`
+- current MCP `2026-07-28` protocol/method/name and configured parameter-header
+  body consistency checks, including exact protocol-version metadata binding
+- agent-authenticated MCP pass-through plus fail-closed `Origin` validation when
+  browser-originated MCP requests include an `Origin` header
+- real pre-tool enforcement; denied calls are never forwarded upstream
+- environment-backed per-agent ingress credentials, constant-time verified before
+  an agent id can exercise its registered authority
+- reuse of the Wave 11 registered-agent capability/scope engine
+- per-route repository, path, risk, and evidence policies
+- HMAC-SHA256 authenticated evidence from configured trusted issuers
+- repository/revision evidence binding and freshness checks
+- exact action-subject binding for non-replayable approval evidence
+- a route-level human-approval condition that remains mandatory when configured
+  and can satisfy an existing review gate without giving machines voting authority
+- fixed-upstream HTTP forwarding only after the final authority decision is
+  `allow`
+- fixed-length request framing and bounded evidence-reference input before
+  authority evaluation, reducing ambiguous framing and unbounded reference abuse
+- SQLite-backed, transactionally hash-chained authority receipts
+- live health/readiness plus operator-authenticated detailed status, receipt
+  lookup, and receipt-chain verification endpoints
+- a real local network integration proof that demonstrates unauthenticated,
+  out-of-scope, and evidence-deficient calls produce zero upstream executions,
+  then demonstrates approved MCP and API calls causing real upstream file writes
+
+The complete Wave 14 contract and operator instructions are in
+[`docs/wave14-live-authority-gateway.md`](docs/wave14-live-authority-gateway.md).
+
+Run the end-to-end Wave 14 proof:
+
+```bash
+PYTHONPATH=src python scripts/run_wave14_live_gateway_ci.py --root .
+```
+
+Run a configured gateway:
+
+```bash
+blackfox gateway serve \
+  --config examples/wave14/blackfox.gateway.toml \
+  --print-status
+```
+
+The server entry point fails closed and will not bind a listener unless configured
+credentials/evidence keys are loaded strongly enough and the receipt chain verifies.
+
+Wave 14 includes a bounded static ingress-credential binding so a network caller
+cannot simply self-assert another registered agent id. It deliberately does
+**not** claim enterprise identity federation, OIDC/OAuth/IAM integration, HSM/KMS
+signing, an external transparency log, production HA, compliance certification,
+or deployment authorization. Those are separate boundaries rather than claims
+hidden behind the word "gateway."
+
+## Wave 13 foundation: Human-Machine Review Board
 
 When an AI coding agent changes a real repository, can you prove what it was
 allowed to touch, what changed, what evidence belongs to that exact revision,
@@ -213,7 +284,9 @@ PYTHONPATH=src python scripts/run_wave13_review_board_ci.py \
 The offline Wave 13 runner intentionally supplies zero human reviews and zero
 trusted external-verification records. Its correct passing state is
 `human_review_required`. CI proves that machine analysis cannot silently become
-human authority; it does not manufacture an approval.
+human authority; it does not manufacture an approval. Wave 14 then provides the
+live enforcement layer that can consume separately trusted evidence before a
+configured external action is allowed to execute.
 
 The Wave 13 workflow is
 `.github/workflows/wave13-human-machine-review-board.yml`.
@@ -249,6 +322,8 @@ The `review` command is an alias for `review-board`.
 IX-BlackFox is not:
 
 - a replacement for human review or an external assessor
+- an enterprise identity provider or OIDC/OAuth/IAM federation service
+- a production high-availability MCP reverse proxy for every MCP method/stream
 - a human identity-proofing service
 - a qualified digital-signature service
 - a production authorization or deployment authority
@@ -263,9 +338,10 @@ IX-BlackFox is not:
 
 It is a platform-neutral, evidence-bound control plane and research prototype
 for making AI-assisted engineering workflows more inspectable, reviewable,
-identity bound, and governable. Its evidence packages can be consumed by CI,
-artifact storage, assessment, or cloud integration layers without granting
-those layers implied approval.
+identity bound, and governable. Wave 14 also provides a functioning live
+MCP/HTTP pre-tool enforcement surface. Its evidence packages and authority
+receipts can be consumed by CI, artifact storage, assessment, or cloud
+integration layers without granting those layers implied approval.
 
 ## License and use
 

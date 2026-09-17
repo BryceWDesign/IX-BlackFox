@@ -1,0 +1,78 @@
+name: Wave 14 Live Authority Gateway
+
+on:
+  push:
+    paths:
+      - "src/ix_blackfox/live_gateway/**"
+      - "tests/live_gateway/**"
+      - "tests/ci/test_wave14_live_gateway_*.py"
+      - "tests/docs/test_wave14_live_gateway_docs.py"
+      - "scripts/run_wave14_live_gateway_ci.py"
+      - "schemas/wave14-*.schema.json"
+      - "docs/wave14-live-authority-gateway.md"
+      - ".github/workflows/wave14-live-authority-gateway.yml"
+      - "pyproject.toml"
+  pull_request:
+    paths:
+      - "src/ix_blackfox/live_gateway/**"
+      - "tests/live_gateway/**"
+      - "tests/ci/test_wave14_live_gateway_*.py"
+      - "tests/docs/test_wave14_live_gateway_docs.py"
+      - "scripts/run_wave14_live_gateway_ci.py"
+      - "schemas/wave14-*.schema.json"
+      - "docs/wave14-live-authority-gateway.md"
+      - ".github/workflows/wave14-live-authority-gateway.yml"
+      - "pyproject.toml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wave14-live-authority-gateway:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install project
+        run: python -m pip install -e ".[dev]"
+
+      - name: Lint
+        run: python -m ruff check src tests scripts
+
+      - name: Type check
+        run: python -m mypy src
+
+      - name: Wave 14 focused tests
+        run: >-
+          python -m pytest
+          tests/live_gateway
+          tests/ci/test_wave14_live_gateway_runner.py
+          tests/ci/test_wave14_live_gateway_workflow_contract.py
+          tests/docs/test_wave14_live_gateway_docs.py
+          -q
+
+      - name: Live network proof
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: PYTHONPATH=src python scripts/run_wave14_live_gateway_ci.py --root .
+
+      - name: Upload Wave 14 proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave14-live-authority-gateway-${{ matrix.python-version }}
+          path: .blackfox-artifacts/wave14/wave14-live-authority-gateway-summary.json
+          if-no-files-found: error

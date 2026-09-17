@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ix-blackfox"
-version = "0.1.0"
-description = "Governed AI engineering control plane for bounded patch-test-verify workflows."
+version = "0.2.0"
+description = "Evidence-conditioned authority gateway and governed AI engineering control plane."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
@@ -17,7 +17,9 @@ keywords = [
   "runtime-assurance",
   "patch-test-verify",
   "software-verification",
-  "evidence-bundles"
+  "evidence-bundles",
+  "mcp-gateway",
+  "agent-authorization"
 ]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",

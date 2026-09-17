@@ -47,3 +47,6 @@ logs/
 
 # Notebook noise
 .ipynb_checkpoints/
+
+# Generated BlackFox verification and live-gateway artifacts
+.blackfox-artifacts/
