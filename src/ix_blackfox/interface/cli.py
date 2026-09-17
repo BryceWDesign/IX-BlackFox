@@ -53,6 +53,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         return review_board_main(raw_argv[1:])
 
+    if raw_argv and raw_argv[0] in {"gateway", "live-gateway"}:
+        from ix_blackfox.live_gateway.cli import main as gateway_main
+
+        return gateway_main(raw_argv[1:])
+
     parser = _build_parser()
     args = parser.parse_args(raw_argv)
 
@@ -175,6 +180,14 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "review",
         help="Alias for Wave 13 human-machine review-board commands.",
+    )
+    subparsers.add_parser(
+        "gateway",
+        help="Run Wave 14 live authority gateway commands.",
+    )
+    subparsers.add_parser(
+        "live-gateway",
+        help="Alias for Wave 14 live authority gateway commands.",
     )
 
     return parser

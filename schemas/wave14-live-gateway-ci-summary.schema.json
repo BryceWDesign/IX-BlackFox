@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BryceWDesign/IX-BlackFox/schemas/wave14-live-gateway-ci-summary.schema.json",
+  "title": "IX-BlackFox Wave 14 Live Gateway CI Summary",
+  "description": "Summary of the local Wave 14 network integration proof. It proves bounded pre-tool enforcement, agent authentication, Origin rejection before MCP processing, evidence gating, single-use target-bound human approval with replay rejection, upstream requests only after authorization, operator-authenticated receipt inspection, and receipt-chain verification in the test environment. It does not claim production readiness or external authorization.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "wave",
+    "passed",
+    "proof",
+    "scope_note"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "wave14.live_authority_gateway_ci_summary.v1"
+    },
+    "wave": {
+      "const": "14"
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "proof": {
+      "type": "object",
+      "required": [
+        "auth_block_upstream_count",
+        "auth_block_http_status",
+        "origin_block_upstream_count",
+        "origin_block_http_status",
+        "scope_block_upstream_count",
+        "evidence_block_upstream_count",
+        "mcp_allow_upstream_count",
+        "api_allow_upstream_count",
+        "receipt_chain",
+        "passed",
+        "replay_block_http_status",
+        "replay_block_upstream_count",
+        "unauthenticated_receipt_inspection_status",
+        "operator_receipt_inspection_status"
+      ],
+      "properties": {
+        "scope_block_upstream_count": {
+          "const": 0
+        },
+        "evidence_block_upstream_count": {
+          "const": 0
+        },
+        "mcp_allow_upstream_count": {
+          "const": 1
+        },
+        "api_allow_upstream_count": {
+          "const": 2
+        },
+        "receipt_chain": {
+          "type": "object"
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "auth_block_http_status": {
+          "const": 401
+        },
+        "auth_block_upstream_count": {
+          "const": 0
+        },
+        "replay_block_http_status": {
+          "const": 409
+        },
+        "replay_block_upstream_count": {
+          "const": 1
+        },
+        "unauthenticated_receipt_inspection_status": {
+          "const": 401
+        },
+        "operator_receipt_inspection_status": {
+          "const": 200
+        },
+        "origin_block_http_status": {
+          "const": 403
+        },
+        "origin_block_upstream_count": {
+          "const": 0
+        }
+      }
+    },
+    "scope_note": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

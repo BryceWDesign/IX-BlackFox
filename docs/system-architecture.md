@@ -4,7 +4,7 @@
 
 IX-BlackFox is a programming-first intelligence runtime built as one sovereign codebase.
 
-Its goal is not to act like a loose swarm of endpoints or a generic chatbot.  
+Its goal is not to act like a loose swarm of endpoints or a generic chatbot.
 Its goal is to turn requests into explicit, auditable, tool-capable execution flows under governance.
 
 The governing principles are:
@@ -48,8 +48,8 @@ These are not cosmetic folders. Each exists to enforce a boundary.
 A governed runtime flow is intended to look like this:
 
 1. **Interface intake**
-   - CLI or future API surface receives a request.
-   - Optional governance approval artifacts may be attached.
+   - CLI, Wave 14 MCP gateway, or Wave 14 governed HTTP API receives a request.
+   - Optional governance/evidence artifacts may be attached or referenced.
 
 2. **Kernel normalization**
    - Request becomes a typed task.
@@ -97,6 +97,33 @@ A governed runtime flow is intended to look like this:
 
 ---
 
+
+## Wave 14 Live Authority Boundary
+
+### Module
+- `live_gateway/`
+
+### Responsibility
+Wave 14 places the existing identity/scope/evidence machinery in front of real
+external tool traffic. It is the network boundary where evidence-conditioned
+authority is evaluated before an MCP or configured HTTP API upstream can be
+invoked.
+
+### Current capabilities
+- current MCP `tools/call` request validation and interception
+- generic governed HTTP API invocation
+- per-route capability, repository, path, risk, and evidence conditions
+- signed evidence verification and exact action-subject binding
+- human approval evidence that can satisfy a review-required authority state
+- fixed configured upstream forwarding after `allow` only
+- durable SQLite hash-chained authority receipts
+- health/readiness/status and independent receipt-chain verification
+
+### Design rule
+A live gateway must fail closed. Unknown routes, invalid identity/scope, missing
+required evidence, missing required human authority, protocol mismatches, or
+upstream transport failures must not silently convert into execution authority.
+
 ## Subsystem Responsibilities
 
 ## 1. Configuration
@@ -105,7 +132,7 @@ A governed runtime flow is intended to look like this:
 - `config/`
 
 ### Responsibility
-Configuration is centralized and typed.  
+Configuration is centralized and typed.
 BlackFox does not scatter environment reads throughout the codebase.
 
 ### Current capabilities
@@ -116,7 +143,7 @@ BlackFox does not scatter environment reads throughout the codebase.
 - deterministic runtime directory creation
 
 ### Why it exists
-Configuration drift destroys reproducibility.  
+Configuration drift destroys reproducibility.
 The config layer exists so every subsystem runs from one normalized runtime model.
 
 ---
@@ -127,7 +154,7 @@ The config layer exists so every subsystem runs from one normalized runtime mode
 - `kernel/`
 
 ### Responsibility
-The kernel is the orchestration center of BlackFox.  
+The kernel is the orchestration center of BlackFox.
 It owns lifecycle state, typed task intake, and shared coordination state.
 
 ### Current capabilities
@@ -137,7 +164,7 @@ It owns lifecycle state, typed task intake, and shared coordination state.
 - immutable snapshots
 
 ### Design rule
-The kernel must remain small, explicit, and stable.  
+The kernel must remain small, explicit, and stable.
 It should orchestrate work, not become a dumping ground for domain logic.
 
 ---
@@ -158,7 +185,7 @@ The bus carries typed event envelopes between subsystems.
 - event history
 
 ### Design rule
-Subsystems should communicate through stable message contracts when practical.  
+Subsystems should communicate through stable message contracts when practical.
 This improves observability and reduces hidden cross-module coupling.
 
 ---
@@ -178,8 +205,8 @@ The switchboard decides which internal capability should receive a task.
 - route snapshots
 
 ### Design rule
-Routing must be inspectable.  
-BlackFox does not hide routing behind vague magic.  
+Routing must be inspectable.
+BlackFox does not hide routing behind vague magic.
 Task kind, labels, and declared capability support should explain why a route was selected.
 
 ---
@@ -190,7 +217,7 @@ Task kind, labels, and declared capability support should explain why a route wa
 - `packs/`
 
 ### Responsibility
-Packs are internal specialist units.  
+Packs are internal specialist units.
 They are not separate repositories and they are not fake “agents” talking over fragile local services.
 
 ### Current capabilities
@@ -202,7 +229,7 @@ They are not separate repositories and they are not fake “agents” talking ov
 - built-in architecture pack
 
 ### Design rule
-Specialization belongs inside one controlled runtime.  
+Specialization belongs inside one controlled runtime.
 Packs provide domain behavior without fracturing the system into repo sprawl.
 
 ---
@@ -259,7 +286,7 @@ Used for:
 - failure pattern inspection
 
 ### Design rule
-Different memory classes solve different problems.  
+Different memory classes solve different problems.
 Flattening them together makes retrieval sloppy and behavior hard to reason about.
 
 ---
@@ -280,7 +307,7 @@ Vault protects integrity, provenance, and structured persisted state.
 - logical redaction helper
 
 ### Design rule
-The current vault layer is about integrity and provenance first.  
+The current vault layer is about integrity and provenance first.
 It does **not** overclaim full confidentiality where that has not been implemented.
 
 ---
@@ -322,7 +349,7 @@ Every meaningful governed action should have an answer to the following:
 - what receipt chain proves it
 
 ### Design rule
-BlackFox should not silently jump from planning to execution.  
+BlackFox should not silently jump from planning to execution.
 Governance is the explicit trust boundary between intention and action.
 
 ---
@@ -333,7 +360,7 @@ Governance is the explicit trust boundary between intention and action.
 - `sentinel/`
 
 ### Responsibility
-Sentinel is the runtime conscience.  
+Sentinel is the runtime conscience.
 It inspects behavior for contradictions, loops, policy boundary problems, and governance consistency failures.
 
 ### Current capabilities
@@ -352,7 +379,7 @@ Sentinel now explicitly checks for cases such as:
 - governance observation payload errors
 
 ### Design rule
-Safety signals should be explicit issues, not hidden side effects.  
+Safety signals should be explicit issues, not hidden side effects.
 A failing check should become an observable issue, not silent instability.
 
 ---
@@ -391,7 +418,7 @@ Instead it can:
 - emit governance receipts around command execution
 
 ### Design rule
-All material code work should occur inside controlled workspaces.  
+All material code work should occur inside controlled workspaces.
 Execution needs boundaries, artifacts, and inspectable results.
 
 ---
@@ -427,7 +454,7 @@ Verification now also checks:
 - approval satisfaction when required
 
 ### Design rule
-A result is not trusted just because it exists.  
+A result is not trusted just because it exists.
 BlackFox should grade its own work against explicit rules, evidence, outputs, and governance state.
 
 ---
@@ -447,7 +474,7 @@ Observability provides append-only structured logs.
 - correlation-aware event logging
 
 ### Design rule
-If behavior cannot be inspected, it cannot be trusted or debugged.  
+If behavior cannot be inspected, it cannot be trusted or debugged.
 Observability is not optional glue. It is part of the runtime contract.
 
 ---
@@ -505,7 +532,7 @@ The run hit a blocking condition, such as:
 - verification failure
 
 ### Design rule
-Runtime is where the repo’s thesis becomes real.  
+Runtime is where the repo’s thesis becomes real.
 It must remain explicit, inspectable, and bounded.
 
 ---
@@ -525,7 +552,7 @@ Provides operator-facing entrypoints.
 - richer API and operator surfaces are intentionally deferred
 
 ### Design rule
-Interface layers should stay thin.  
+Interface layers should stay thin.
 The real intelligence runtime belongs underneath them.
 
 ---
@@ -629,7 +656,7 @@ Handles programming-oriented tasks in a deterministic first-pass manner.
 - emits structured output data and metrics
 
 ### Important limitation
-It does not pretend to autonomously repair code yet.  
+It does not pretend to autonomously repair code yet.
 It creates a stable action contract for forge-linked execution and governed runtime handling.
 
 ---
@@ -646,7 +673,7 @@ Handles architecture-oriented tasks in a deterministic first-pass manner.
 - emits structured design decisions and metrics
 
 ### Important limitation
-It does not fabricate full system diagrams or implementation proof automatically.  
+It does not fabricate full system diagrams or implementation proof automatically.
 It creates explicit architecture recommendations for later planning and documentation layers.
 
 ---

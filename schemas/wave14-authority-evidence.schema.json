@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BryceWDesign/IX-BlackFox/schemas/wave14-authority-evidence.schema.json",
+  "title": "IX-BlackFox Wave 14 Authority Evidence",
+  "description": "Canonical HMAC-authenticated evidence consumed by the Wave 14 live authority gateway. It binds evidence to a repository revision and, when required, an exact authority subject. It does not by itself grant production authorization or external certification.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "evidence_id", "kind", "issuer", "key_id", "status", "repository_id", "revision", "produced_at", "target_digest", "payload", "digest", "signature"],
+  "properties": {
+    "schema_version": {"const": "wave14.authority_evidence.v1"},
+    "evidence_id": {"type": "string", "minLength": 3, "maxLength": 128},
+    "kind": {"type": "string", "minLength": 1},
+    "issuer": {"type": "string", "minLength": 1},
+    "key_id": {"type": "string", "minLength": 1},
+    "status": {"type": "string", "minLength": 1},
+    "repository_id": {"type": "string", "minLength": 1},
+    "revision": {"type": "string", "minLength": 1},
+    "produced_at": {"type": "string", "format": "date-time"},
+    "target_digest": {"type": "string", "pattern": "^$|^[0-9a-f]{64}$"},
+    "payload": {"type": "object"},
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "signature": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

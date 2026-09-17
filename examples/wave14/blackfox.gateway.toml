@@ -1,0 +1,89 @@
+registry_id = "wave14-example-registry"
+
+[server]
+host = "127.0.0.1"
+port = 8765
+max_request_bytes = 2097152
+max_response_bytes = 8388608
+upstream_timeout_seconds = 30
+operator_token_env = "BLACKFOX_WAVE14_OPERATOR_TOKEN"
+allowed_origins = []
+
+[mcp]
+upstream_url = "http://127.0.0.1:9001/mcp"
+passthrough_methods = ["initialize", "notifications/initialized", "ping", "server/discover", "tools/list"]
+
+[api]
+base_url = "http://127.0.0.1:9001"
+
+[evidence]
+root = ".blackfox-artifacts/wave14/evidence"
+receipt_database = ".blackfox-artifacts/wave14/authority-receipts.sqlite3"
+
+[[trusted_issuers]]
+issuer = "ci"
+key_id = "ci-hmac-v1"
+secret_env = "BLACKFOX_WAVE14_CI_KEY"
+allowed_kinds = ["test_result"]
+
+[[trusted_issuers]]
+issuer = "human-review"
+key_id = "human-hmac-v1"
+secret_env = "BLACKFOX_WAVE14_HUMAN_KEY"
+allowed_kinds = ["human_approval"]
+
+[[agent_credentials]]
+agent_id = "coding-agent-07"
+secret_env = "BLACKFOX_WAVE14_AGENT_TOKEN"
+
+[[evidence_policies]]
+policy_id = "protected-write"
+required_kinds = ["test_result"]
+human_approval_kind = "human_approval"
+target_bound_kinds = ["human_approval"]
+single_use_kinds = ["human_approval"]
+accepted_statuses = ["passed", "approved"]
+allowed_issuers = ["ci", "human-review"]
+human_approval_issuers = ["human-review"]
+max_age_seconds = 3600
+require_signature = true
+require_repository_match = true
+require_revision_match = true
+
+[[routes]]
+tool_name = "filesystem.write_file"
+capability = "file_write"
+repository_id = "ix-blackfox"
+path_argument = "path"
+revision_argument = "revision"
+risk_tier = "high"
+evidence_policy_id = "protected-write"
+api_method = "POST"
+api_path = "/tools/write"
+operating_domain = "policy_governed"
+
+[[routes.mcp_header_bindings]]
+argument_path = ["revision"]
+header_name = "Revision"
+
+[[agents]]
+agent_id = "coding-agent-07"
+display_name = "Bounded Coding Agent"
+kind = "external_agent"
+trust_tier = "governed_automation"
+lifecycle_state = "active"
+issuer = "example-config"
+subject = "coding-agent-07"
+
+[[agents.grants]]
+grant_id = "write-docs"
+capability = "write_workspace"
+active = true
+rationale = "Example bounded write authority for documentation changes."
+
+[agents.grants.scope]
+repository_ids = ["ix-blackfox"]
+tool_ids = ["filesystem.write_file"]
+path_roots = ["docs"]
+max_risk_tier = "high"
+requires_human_review = true
