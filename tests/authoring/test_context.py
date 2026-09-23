@@ -17,9 +17,9 @@ def test_context_builder_collects_text_files_deterministically(tmp_path) -> None
     source_dir.mkdir()
     tests_dir.mkdir()
 
-    (source_dir / "b.py").write_text("print('b')\n", encoding="utf-8")
-    (source_dir / "a.py").write_text("print('a')\n", encoding="utf-8")
-    (tests_dir / "test_a.py").write_text("def test_a():\n    assert True\n", encoding="utf-8")
+    (source_dir / "b.py").write_text("print('b')\n", encoding="utf-8", newline="\n")
+    (source_dir / "a.py").write_text("print('a')\n", encoding="utf-8", newline="\n")
+    (tests_dir / "test_a.py").write_text("def test_a():\n    assert True\n", encoding="utf-8", newline="\n")
 
     builder = AuthoringContextBuilder(
         workspace_root=workspace,
@@ -46,7 +46,7 @@ def test_context_builder_records_document_hashes(tmp_path) -> None:
     path = workspace / "src"
     path.mkdir()
     file_path = path / "example.py"
-    file_path.write_text("VALUE = 42\n", encoding="utf-8")
+    file_path.write_text("VALUE = 42\n", encoding="utf-8", newline="\n")
 
     builder = AuthoringContextBuilder(
         workspace_root=workspace,
@@ -68,11 +68,11 @@ def test_context_builder_excludes_hidden_secret_and_blocked_paths(tmp_path) -> N
     (workspace / ".hidden").mkdir()
     (workspace / "secrets").mkdir()
 
-    (workspace / "src" / "ok.py").write_text("ok = True\n", encoding="utf-8")
-    (workspace / ".git" / "config").write_text("private\n", encoding="utf-8")
-    (workspace / ".hidden" / "note.py").write_text("hidden\n", encoding="utf-8")
-    (workspace / ".env").write_text("TOKEN=abc\n", encoding="utf-8")
-    (workspace / "secrets" / "api_token.txt").write_text("token\n", encoding="utf-8")
+    (workspace / "src" / "ok.py").write_text("ok = True\n", encoding="utf-8", newline="\n")
+    (workspace / ".git" / "config").write_text("private\n", encoding="utf-8", newline="\n")
+    (workspace / ".hidden" / "note.py").write_text("hidden\n", encoding="utf-8", newline="\n")
+    (workspace / ".env").write_text("TOKEN=abc\n", encoding="utf-8", newline="\n")
+    (workspace / "secrets" / "api_token.txt").write_text("token\n", encoding="utf-8", newline="\n")
 
     builder = AuthoringContextBuilder(
         workspace_root=workspace,
@@ -94,8 +94,8 @@ def test_context_builder_excludes_hidden_secret_and_blocked_paths(tmp_path) -> N
 def test_context_builder_enforces_file_size_limit(tmp_path) -> None:
     workspace = tmp_path
     (workspace / "src").mkdir()
-    (workspace / "src" / "small.py").write_text("x = 1\n", encoding="utf-8")
-    (workspace / "src" / "large.py").write_text("x" * 50, encoding="utf-8")
+    (workspace / "src" / "small.py").write_text("x = 1\n", encoding="utf-8", newline="\n")
+    (workspace / "src" / "large.py").write_text("x" * 50, encoding="utf-8", newline="\n")
 
     builder = AuthoringContextBuilder(
         workspace_root=workspace,
@@ -118,9 +118,9 @@ def test_context_builder_enforces_file_size_limit(tmp_path) -> None:
 def test_context_builder_enforces_total_bytes_limit(tmp_path) -> None:
     workspace = tmp_path
     (workspace / "src").mkdir()
-    (workspace / "src" / "a.py").write_text("aaaa\n", encoding="utf-8")
-    (workspace / "src" / "b.py").write_text("bbbb\n", encoding="utf-8")
-    (workspace / "src" / "c.py").write_text("cccc\n", encoding="utf-8")
+    (workspace / "src" / "a.py").write_text("aaaa\n", encoding="utf-8", newline="\n")
+    (workspace / "src" / "b.py").write_text("bbbb\n", encoding="utf-8", newline="\n")
+    (workspace / "src" / "c.py").write_text("cccc\n", encoding="utf-8", newline="\n")
 
     builder = AuthoringContextBuilder(
         workspace_root=workspace,
@@ -144,8 +144,8 @@ def test_context_builder_respects_tool_path_policy_allowed_roots(tmp_path) -> No
     workspace = tmp_path
     (workspace / "src").mkdir()
     (workspace / "docs").mkdir()
-    (workspace / "src" / "ok.py").write_text("ok = True\n", encoding="utf-8")
-    (workspace / "docs" / "blocked.md").write_text("blocked\n", encoding="utf-8")
+    (workspace / "src" / "ok.py").write_text("ok = True\n", encoding="utf-8", newline="\n")
+    (workspace / "docs" / "blocked.md").write_text("blocked\n", encoding="utf-8", newline="\n")
 
     builder = AuthoringContextBuilder(
         workspace_root=workspace,
@@ -167,7 +167,7 @@ def test_context_builder_rejects_binary_files(tmp_path) -> None:
     workspace = tmp_path
     (workspace / "src").mkdir()
     (workspace / "src" / "binary.bin").write_bytes(b"\x00\x01\x02\x03")
-    (workspace / "src" / "ok.py").write_text("ok = True\n", encoding="utf-8")
+    (workspace / "src" / "ok.py").write_text("ok = True\n", encoding="utf-8", newline="\n")
 
     builder = AuthoringContextBuilder(
         workspace_root=workspace,
@@ -187,7 +187,7 @@ def test_context_builder_rejects_binary_files(tmp_path) -> None:
 def test_context_builder_records_path_policy_violations(tmp_path) -> None:
     workspace = tmp_path
     (workspace / "src").mkdir()
-    (workspace / "src" / "ok.py").write_text("ok = True\n", encoding="utf-8")
+    (workspace / "src" / "ok.py").write_text("ok = True\n", encoding="utf-8", newline="\n")
 
     builder = AuthoringContextBuilder(
         workspace_root=workspace,
@@ -206,9 +206,9 @@ def test_context_builder_records_path_policy_violations(tmp_path) -> None:
 def test_context_snapshot_reports_skip_reason_counts(tmp_path) -> None:
     workspace = tmp_path
     (workspace / "src").mkdir()
-    (workspace / "src" / "ok.py").write_text("ok = True\n", encoding="utf-8")
-    (workspace / "src" / "large.py").write_text("x" * 50, encoding="utf-8")
-    (workspace / ".env").write_text("TOKEN=abc\n", encoding="utf-8")
+    (workspace / "src" / "ok.py").write_text("ok = True\n", encoding="utf-8", newline="\n")
+    (workspace / "src" / "large.py").write_text("x" * 50, encoding="utf-8", newline="\n")
+    (workspace / ".env").write_text("TOKEN=abc\n", encoding="utf-8", newline="\n")
 
     builder = AuthoringContextBuilder(
         workspace_root=workspace,

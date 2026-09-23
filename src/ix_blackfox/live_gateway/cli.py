@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from ix_blackfox.live_gateway.config import load_gateway_config
+from ix_blackfox.live_gateway.enterprise_identity import IdentityRevocationStore
 from ix_blackfox.live_gateway.evidence import EvidenceStore, issue_signed_evidence
 from ix_blackfox.live_gateway.http_server import serve_gateway
 from ix_blackfox.live_gateway.service import LiveAuthorityGateway
@@ -101,6 +102,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "revoke-identity":
+        if args.kind not in {"jti", "delegation"}:
+            raise ValueError("revocation kind must be 'jti' or 'delegation'")
+        value = str(args.value).strip()
+        if not value:
+            raise ValueError("revocation value must not be empty")
+        reason = str(args.reason).strip() or "operator_revoked"
+        revocation_store = IdentityRevocationStore(config.identity_revocation_database)
+        revocation_store.revoke(kind=args.kind, value=value, reason=reason)
+        print(
+            json.dumps(
+                {
+                    "revoked": True,
+                    "kind": args.kind,
+                    "value": value,
+                    "reason": reason,
+                    "database": str(config.identity_revocation_database),
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 0
+
     parser.error(f"unsupported command: {args.command}")
     return 2
 
@@ -108,7 +133,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="blackfox gateway",
-        description="Wave 14 live authority gateway operator commands.",
+        description="Wave 15 enterprise identity and live authority gateway operator commands.",
     )
     sub = parser.add_subparsers(dest="command")
 
@@ -145,6 +170,15 @@ def _build_parser() -> argparse.ArgumentParser:
     evidence.add_argument("--target-digest", default="")
     evidence.add_argument("--payload-json", default="{}")
     evidence.add_argument("--payload-file", default=None)
+
+    revoke = sub.add_parser(
+        "revoke-identity",
+        help="Persistently revoke a federated token jti or delegation id.",
+    )
+    revoke.add_argument("--config", required=True)
+    revoke.add_argument("--kind", choices=("jti", "delegation"), required=True)
+    revoke.add_argument("--value", required=True)
+    revoke.add_argument("--reason", default="operator_revoked")
 
     return parser
 

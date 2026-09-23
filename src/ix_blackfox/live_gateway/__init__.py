@@ -1,4 +1,4 @@
-"""Wave 14 live authority gateway: real pre-tool enforcement over MCP and HTTP APIs."""
+"""Live BlackFox authority gateway with Wave 15 federated identity controls."""
 
 from ix_blackfox.live_gateway.authority import evaluate_live_authority
 from ix_blackfox.live_gateway.config import (
@@ -8,6 +8,13 @@ from ix_blackfox.live_gateway.config import (
     McpParameterHeaderBinding,
     ToolRoute,
     load_gateway_config,
+)
+from ix_blackfox.live_gateway.enterprise_identity import (
+    AuthenticatedPrincipal,
+    FederatedIdentityVerifier,
+    IdentityBinding,
+    IdentityRevocationStore,
+    OidcProvider,
 )
 from ix_blackfox.live_gateway.evidence import (
     EvidencePolicy,
@@ -30,17 +37,22 @@ from ix_blackfox.live_gateway.service import LiveAuthorityGateway
 
 __all__ = [
     "AgentCredential",
+    "AuthenticatedPrincipal",
     "AuthorityReceiptStore",
     "AuthoritySubject",
     "BlackFoxGatewayHttpServer",
     "EvidencePolicy",
     "EvidenceStore",
+    "FederatedIdentityVerifier",
     "GatewayConfig",
     "GatewayServerConfig",
+    "IdentityBinding",
+    "IdentityRevocationStore",
     "LiveAuthorityDecision",
     "LiveAuthorityGateway",
     "LiveAuthorityStatus",
     "McpParameterHeaderBinding",
+    "OidcProvider",
     "SignedEvidenceArtifact",
     "ToolRoute",
     "TrustedEvidenceIssuer",

@@ -432,10 +432,10 @@ class Wave3EvidencePackageWriter:
             )
             + "\n"
         )
-        target.write_text(text, encoding="utf-8")
+        encoded = text.encode("utf-8")
+        target.write_bytes(encoded)
 
         relative_path = target.relative_to(self.root_dir).as_posix()
-        encoded = text.encode("utf-8")
 
         return Wave3EvidenceArtifact(
             kind=kind,

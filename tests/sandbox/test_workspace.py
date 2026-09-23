@@ -22,7 +22,7 @@ def test_wave6_workspace_manager_stages_read_only_source_without_writeback(tmp_p
     source = repo / "src"
     source.mkdir(parents=True)
     original = source / "module.py"
-    original.write_text("print('original')\n", encoding="utf-8")
+    original.write_text("print('original')\n", encoding="utf-8", newline="\n")
     manager = SandboxWorkspaceManager(tmp_path / "workspaces")
 
     workspace = manager.create_workspace(
@@ -33,7 +33,7 @@ def test_wave6_workspace_manager_stages_read_only_source_without_writeback(tmp_p
 
     staged_file = workspace.resolve_sandbox_path("/workspace/src/module.py")
     assert staged_file.read_text(encoding="utf-8") == "print('original')\n"
-    staged_file.write_text("print('changed only in workspace')\n", encoding="utf-8")
+    staged_file.write_text("print('changed only in workspace')\n", encoding="utf-8", newline="\n")
     assert original.read_text(encoding="utf-8") == "print('original')\n"
 
 
@@ -53,7 +53,7 @@ def test_wave6_workspace_manager_creates_optional_writable_mounts(tmp_path: Path
 
     assert out_path.is_dir()
     assert tmp_path_inside.is_dir()
-    assert workspace.to_dict()["target_map"]["/workspace/out"].endswith("workspace/out")
+    assert workspace.to_dict()["target_map"]["/workspace/out"].replace("\\", "/").endswith("workspace/out")
 
 
 def test_wave6_workspace_manager_collects_output_artifact_manifest(tmp_path: Path) -> None:
@@ -67,8 +67,8 @@ def test_wave6_workspace_manager_collects_output_artifact_manifest(tmp_path: Pat
     )
     out_path = workspace.resolve_sandbox_path("/workspace/out")
     (out_path / "nested").mkdir()
-    (out_path / "nested" / "result.txt").write_text("sandbox artifact\n", encoding="utf-8")
-    (out_path / "summary.json").write_text('{"passed":true}\n', encoding="utf-8")
+    (out_path / "nested" / "result.txt").write_text("sandbox artifact\n", encoding="utf-8", newline="\n")
+    (out_path / "summary.json").write_text('{"passed":true}\n', encoding="utf-8", newline="\n")
 
     manifest = manager.collect_artifacts(workspace)
 
@@ -86,7 +86,7 @@ def test_wave6_workspace_manager_rejects_symlinked_mount_source(tmp_path: Path) 
     repo.mkdir()
     outside = tmp_path / "outside"
     outside.mkdir()
-    (repo / "src").symlink_to(outside, target_is_directory=True)
+    _symlink_or_skip(repo / "src", outside, target_is_directory=True)
     manager = SandboxWorkspaceManager(tmp_path / "workspaces")
 
     with pytest.raises(ValueError, match="must not be a symlink"):
@@ -101,7 +101,7 @@ def test_wave6_workspace_manager_rejects_symlinked_outputs(tmp_path: Path) -> No
     repo = tmp_path / "repo"
     (repo / "src").mkdir(parents=True)
     target = tmp_path / "outside.txt"
-    target.write_text("outside\n", encoding="utf-8")
+    target.write_text("outside\n", encoding="utf-8", newline="\n")
     manager = SandboxWorkspaceManager(tmp_path / "workspaces")
     workspace = manager.create_workspace(
         _profile(source_mount="src"),
@@ -109,7 +109,7 @@ def test_wave6_workspace_manager_rejects_symlinked_outputs(tmp_path: Path) -> No
         workspace_id="wave6-workspace-symlink-output",
     )
     out_path = workspace.resolve_sandbox_path("/workspace/out")
-    (out_path / "escape.txt").symlink_to(target)
+    _symlink_or_skip(out_path / "escape.txt", target)
 
     with pytest.raises(ValueError, match="refuses symlinked outputs"):
         manager.collect_artifacts(workspace)
@@ -154,7 +154,7 @@ def test_wave6_workspace_manager_rejects_artifact_manifest_over_limit(tmp_path: 
         workspace_id="wave6-workspace-artifact-limit",
     )
     out_path = workspace.resolve_sandbox_path("/workspace/out")
-    (out_path / "too-large.txt").write_text("12345", encoding="utf-8")
+    (out_path / "too-large.txt").write_text("12345", encoding="utf-8", newline="\n")
 
     with pytest.raises(ValueError, match="max_artifact_bytes"):
         manager.collect_artifacts(workspace)
@@ -211,3 +211,19 @@ def _profile(*, source_mount: str, max_artifact_bytes: int = 1_048_576) -> Sandb
         allowed_commands=("python",),
         metadata={"claim": "workspace-lifecycle-only"},
     )
+
+
+def _symlink_or_skip(
+    link: Path,
+    target: Path,
+    *,
+    target_is_directory: bool = False,
+) -> None:
+    try:
+        link.symlink_to(target, target_is_directory=target_is_directory)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip(
+                "Windows symlink creation requires Developer Mode or symlink privilege."
+            )
+        raise

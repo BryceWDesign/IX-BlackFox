@@ -183,11 +183,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     subparsers.add_parser(
         "gateway",
-        help="Run Wave 14 live authority gateway commands.",
+        help="Run Wave 15 enterprise identity and live authority gateway commands.",
     )
     subparsers.add_parser(
         "live-gateway",
-        help="Alias for Wave 14 live authority gateway commands.",
+        help="Alias for Wave 15 enterprise identity and live authority gateway commands.",
     )
 
     return parser

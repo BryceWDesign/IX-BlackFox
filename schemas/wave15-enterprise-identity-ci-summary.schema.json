@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ix-blackfox.local/schemas/wave15-enterprise-identity-ci-summary.schema.json",
+  "title": "IX-BlackFox Wave 15 Enterprise Identity CI Summary",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "wave",
+    "gateway_ready",
+    "identity_mode",
+    "static_credential_status",
+    "wrong_audience_status",
+    "expired_token_status",
+    "missing_delegation_status",
+    "delegation_scope_status",
+    "upstream_count_after_denials",
+    "allowed_status",
+    "upstream_count_after_allow",
+    "revoked_token_status",
+    "upstream_count_after_revocation",
+    "output_matches",
+    "identity_context_digest",
+    "subject_identity_context_digest",
+    "receipt_chain",
+    "passed",
+    "claim_boundary"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "wave15.enterprise_identity_ci_summary.v1"
+    },
+    "wave": {
+      "const": 15
+    },
+    "gateway_ready": {
+      "const": true
+    },
+    "identity_mode": {
+      "const": "federated_required"
+    },
+    "static_credential_status": {
+      "const": 401
+    },
+    "wrong_audience_status": {
+      "const": 401
+    },
+    "expired_token_status": {
+      "const": 401
+    },
+    "delegation_scope_status": {
+      "const": 403
+    },
+    "upstream_count_after_denials": {
+      "const": 0
+    },
+    "allowed_status": {
+      "const": 200
+    },
+    "upstream_count_after_allow": {
+      "const": 1
+    },
+    "revoked_token_status": {
+      "const": 401
+    },
+    "upstream_count_after_revocation": {
+      "const": 1
+    },
+    "output_matches": {
+      "const": true
+    },
+    "identity_context_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "subject_identity_context_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "receipt_chain": {
+      "type": "object",
+      "required": [
+        "passed",
+        "receipt_count",
+        "head_digest",
+        "issue_count",
+        "issues"
+      ],
+      "properties": {
+        "passed": {
+          "const": true
+        }
+      }
+    },
+    "passed": {
+      "const": true
+    },
+    "claim_boundary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "missing_delegation_status": {
+      "const": 401
+    }
+  },
+  "additionalProperties": true
+}

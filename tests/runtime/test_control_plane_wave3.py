@@ -179,13 +179,14 @@ def _make_workspace_marker(workspace) -> None:
     (workspace / ".blackfox-workspace").write_text(
         "reserved IX-BlackFox test workspace\n",
         encoding="utf-8",
+        newline="\n",
     )
 
 
 def _write(workspace, path: str, text: str) -> None:
     file_path = workspace / path
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(text, encoding="utf-8")
+    file_path.write_text(text, encoding="utf-8", newline="\n")
 
 
 def _authoring_failure_text() -> str:

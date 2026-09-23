@@ -16,6 +16,11 @@ from ix_blackfox.live_gateway.authority import (
     no_evidence_policy,
 )
 from ix_blackfox.live_gateway.config import GatewayConfig, ToolRoute
+from ix_blackfox.live_gateway.enterprise_identity import (
+    AuthenticatedPrincipal,
+    FederatedIdentityVerifier,
+    IdentityRevocationStore,
+)
 from ix_blackfox.live_gateway.evidence import EvidencePolicy, EvidenceStore
 from ix_blackfox.live_gateway.models import (
     AuthoritySubject,
@@ -66,6 +71,7 @@ class LiveAuthorityGateway:
     receipt_store: AuthorityReceiptStore
     agent_tokens: Mapping[str, bytes]
     operator_token: bytes
+    identity_verifier: FederatedIdentityVerifier
 
     @classmethod
     def from_config(cls, config: GatewayConfig) -> LiveAuthorityGateway:
@@ -80,6 +86,11 @@ class LiveAuthorityGateway:
             receipt_store=AuthorityReceiptStore(config.receipt_database),
             agent_tokens=config.agent_token_material(),
             operator_token=config.operator_token_material(),
+            identity_verifier=FederatedIdentityVerifier(
+                providers=config.identity_providers,
+                bindings=config.identity_bindings,
+                revocations=IdentityRevocationStore(config.identity_revocation_database),
+            ),
         )
 
     def status(self) -> dict[str, Any]:
@@ -111,8 +122,12 @@ class LiveAuthorityGateway:
             operator_token=self.operator_token,
         )
         return {
-            "wave": 14,
-            "mode": "live_authority_gateway",
+            "wave": 15 if self.config.identity_mode != "static_only" else 14,
+            "mode": "enterprise_identity_authority_gateway" if self.config.identity_mode != "static_only" else "live_authority_gateway",
+            "identity_mode": self.config.identity_mode,
+            "configured_identity_provider_count": len(self.config.identity_providers),
+            "configured_identity_binding_count": len(self.config.identity_bindings),
+            "identity_require_delegation": self.config.identity_require_delegation,
             "mcp_configured": self.config.mcp is not None,
             "api_configured": self.config.api is not None,
             "configured_route_count": len(self.config.routes),
@@ -134,9 +149,10 @@ class LiveAuthorityGateway:
                 chain.passed
                 and not missing_keys
                 and not weak_keys
-                and not missing_agent_credentials
-                and not weak_agent_credentials
-                and not duplicate_agent_token_bindings
+                and (
+                    self.config.identity_mode == "federated_required"
+                    or (not missing_agent_credentials and not weak_agent_credentials and not duplicate_agent_token_bindings)
+                )
                 and not operator_token_missing
                 and not operator_token_weak
                 and not credential_material_collisions
@@ -150,6 +166,7 @@ class LiveAuthorityGateway:
         tool_name: str,
         arguments: Mapping[str, Any],
         protocol: str,
+        principal: AuthenticatedPrincipal | None = None,
     ) -> AuthoritySubject:
         route = self._require_route(tool_name)
         normalized_agent = normalize_identifier(agent_id, label="agent_id")
@@ -195,6 +212,11 @@ class LiveAuthorityGateway:
                 "route": route.to_dict(),
                 "evidence_policy": effective_policy.to_dict(),
                 "trusted_issuers": trusted_issuers,
+                "authenticated_principal": (
+                    principal.to_dict()
+                    if principal is not None and principal.authentication_type == "oidc_jwt"
+                    else {}
+                ),
             }
         )
         return AuthoritySubject(
@@ -207,7 +229,15 @@ class LiveAuthorityGateway:
             arguments_digest=digest_payload(dict(arguments)),
             authority_context_digest=authority_context_digest,
             protocol=protocol,
-            metadata={"evidence_policy_id": effective_policy.policy_id},
+            metadata=(
+                {
+                    "evidence_policy_id": effective_policy.policy_id,
+                    "authentication_type": "oidc_jwt",
+                    "identity_context_digest": principal.context_digest,
+                }
+                if principal is not None and principal.authentication_type == "oidc_jwt"
+                else {"evidence_policy_id": effective_policy.policy_id}
+            ),
         )
 
     def prepare_authority(
@@ -218,6 +248,7 @@ class LiveAuthorityGateway:
         arguments: Mapping[str, Any],
         evidence_ids: Sequence[str],
         protocol: str,
+        principal: AuthenticatedPrincipal | None = None,
     ) -> PreparedAuthorityRequest:
         route = self._require_route(tool_name)
         subject = self.build_subject(
@@ -225,7 +256,16 @@ class LiveAuthorityGateway:
             tool_name=tool_name,
             arguments=arguments,
             protocol=protocol,
+            principal=principal,
         )
+        if principal is not None:
+            delegation_error = principal.authorize_action(
+                tool_name=route.tool_name,
+                repository_id=subject.repository_id,
+                path=subject.path,
+            )
+            if delegation_error:
+                raise ValueError(delegation_error)
         internal_arguments = dict(arguments)
         if subject.path:
             internal_arguments["path"] = subject.path
@@ -321,10 +361,11 @@ class LiveAuthorityGateway:
         # Authenticate every MCP connection before either governed tool execution or
         # configured passthrough.  A caller cannot use discovery/list/ping as an
         # unauthenticated tunnel to the fixed upstream.
-        agent_id, authentication_error = self.authenticate_agent(
+        principal, authentication_error = self.authenticate_principal(
             headers=headers,
             claimed_agent_id=claimed_agent_id,
         )
+        agent_id = principal.agent_id if principal is not None else ""
         if authentication_error:
             receipt = self._append_preexecution_failure(
                 agent_id=claimed_agent_id,
@@ -390,6 +431,7 @@ class LiveAuthorityGateway:
                 arguments=arguments,
                 evidence_ids=evidence_ids,
                 protocol=f"mcp/{info.protocol_version}",
+                principal=principal,
             )
         except McpProtocolError as exc:
             receipt = self._append_preexecution_failure(
@@ -564,10 +606,11 @@ class LiveAuthorityGateway:
         ):
             return _json_response(400, {"error": "agent identity header/body mismatch"})
         claimed_agent_id = normalized_body_agent or normalized_header_agent
-        agent_id, authentication_error = self.authenticate_agent(
+        principal, authentication_error = self.authenticate_principal(
             headers=headers,
             claimed_agent_id=claimed_agent_id,
         )
+        agent_id = principal.agent_id if principal is not None else ""
         if authentication_error:
             receipt = self._append_preexecution_failure(
                 agent_id=claimed_agent_id,
@@ -600,6 +643,7 @@ class LiveAuthorityGateway:
                 arguments=arguments,
                 evidence_ids=evidence_ids,
                 protocol="blackfox-api/v1",
+                principal=principal,
             )
         except (KeyError, ValueError) as exc:
             receipt = self._append_preexecution_failure(
@@ -805,32 +849,69 @@ class LiveAuthorityGateway:
             }
         )
 
-    def authenticate_agent(
+    def authenticate_principal(
         self,
         *,
         headers: Mapping[str, str],
         claimed_agent_id: str,
-    ) -> tuple[str, str]:
-        token = _header(headers, "X-BlackFox-Agent-Token")
-        if not token:
-            return "", "BlackFox agent credential is required."
-        token_bytes = token.encode("utf-8")
+    ) -> tuple[AuthenticatedPrincipal | None, str]:
+        authorization = _header(headers, "Authorization")
+        bearer = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+        static_token = _header(headers, "X-BlackFox-Agent-Token")
+        mode = self.config.identity_mode
+        if bearer:
+            if mode == "static_only":
+                return None, "Federated identity is disabled by gateway configuration."
+            principal, error = self.identity_verifier.verify(
+                bearer, claimed_agent_id=claimed_agent_id
+            )
+            if (
+                principal is not None
+                and not error
+                and self.config.identity_require_delegation
+                and not principal.delegation_chain
+            ):
+                return None, "Federated identity token is missing required delegated authority."
+            return principal, error
+        if mode == "federated_required":
+            return None, "Federated bearer identity is required; static agent credentials are disabled."
+        if not static_token:
+            return None, "BlackFox agent credential is required."
+        token_bytes = static_token.encode("utf-8")
         matches = [
             agent_id
             for agent_id, expected in self.agent_tokens.items()
             if hmac.compare_digest(token_bytes, expected)
         ]
         if len(matches) != 1:
-            return "", "BlackFox agent credential is invalid or ambiguously configured."
+            return None, "BlackFox agent credential is invalid or ambiguously configured."
         authenticated_agent_id = matches[0]
         if claimed_agent_id:
             try:
                 normalized_claim = normalize_identifier(claimed_agent_id, label="agent_id")
             except ValueError:
-                return "", "Claimed BlackFox agent identity is invalid."
+                return None, "Claimed BlackFox agent identity is invalid."
             if normalized_claim != authenticated_agent_id:
-                return "", "Authenticated BlackFox agent identity does not match the claimed agent id."
-        return authenticated_agent_id, ""
+                return None, "Authenticated BlackFox agent identity does not match the claimed agent id."
+        return (
+            AuthenticatedPrincipal(
+                agent_id=authenticated_agent_id,
+                authentication_type="static_token",
+            ),
+            "",
+        )
+
+    def authenticate_agent(
+        self,
+        *,
+        headers: Mapping[str, str],
+        claimed_agent_id: str,
+    ) -> tuple[str, str]:
+        """Backward-compatible Wave 14 authentication facade."""
+        principal, error = self.authenticate_principal(
+            headers=headers, claimed_agent_id=claimed_agent_id
+        )
+        return (principal.agent_id if principal is not None else ""), error
 
     def operator_authorized(self, headers: Mapping[str, str]) -> bool:
         """Authenticate access to operator-only receipt inspection endpoints."""

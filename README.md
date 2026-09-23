@@ -12,6 +12,31 @@ and puts proposed actions behind scoped capabilities, policy gates, sandbox
 boundaries, repository-impact analysis, content-addressed evidence, provenance,
 independent verification, and separate human authority.
 
+## Wave 15: Enterprise Identity & Delegated Authority
+
+Wave 15 replaces self-asserted network identity with an optional fail-closed
+enterprise identity boundary. In `federated_required` mode, BlackFox accepts only
+cryptographically verified short-lived workload identity tokens from configured
+issuers, maps trusted issuer/subject pairs to registered agents, enforces bounded
+delegation before tool execution, supports durable token/delegation revocation,
+and binds the authenticated identity context into the exact authority subject.
+
+The Wave 15 live proof uses a real RS256 keypair/JWKS, real HTTP sockets, a real
+upstream side effect, and demonstrates that static credentials, wrong-audience
+tokens, expired tokens, out-of-scope delegation, and revoked tokens fail before
+the upstream executes. A valid identity plus scoped delegation and required human
+authority executes once and remains traceable through the receipt chain.
+
+Run the proof:
+
+```bash
+PYTHONPATH=src python scripts/run_wave15_enterprise_identity_ci.py --root .
+```
+
+See
+[`docs/wave15-enterprise-identity-delegated-authority.md`](docs/wave15-enterprise-identity-delegated-authority.md)
+for the exact identity, delegation, revocation, threat, and non-claim boundaries.
+
 ## Wave 14: Live Authority Gateway
 
 Wave 14 puts BlackFox in the live request path between an AI agent and an

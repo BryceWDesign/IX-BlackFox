@@ -1,0 +1,72 @@
+name: Wave 15 Enterprise Identity and Delegated Authority
+
+on:
+  push:
+    paths:
+      - "src/ix_blackfox/live_gateway/**"
+      - "tests/enterprise_identity/**"
+      - "tests/ci/test_wave15_enterprise_identity_*.py"
+      - "tests/docs/test_wave15_enterprise_identity_docs.py"
+      - "scripts/run_wave15_enterprise_identity_ci.py"
+      - "schemas/wave15-*.schema.json"
+      - "docs/wave15-enterprise-identity-delegated-authority.md"
+      - ".github/workflows/wave15-enterprise-identity.yml"
+      - "pyproject.toml"
+  pull_request:
+    paths:
+      - "src/ix_blackfox/live_gateway/**"
+      - "tests/enterprise_identity/**"
+      - "tests/ci/test_wave15_enterprise_identity_*.py"
+      - "tests/docs/test_wave15_enterprise_identity_docs.py"
+      - "scripts/run_wave15_enterprise_identity_ci.py"
+      - "schemas/wave15-*.schema.json"
+      - "docs/wave15-enterprise-identity-delegated-authority.md"
+      - ".github/workflows/wave15-enterprise-identity.yml"
+      - "pyproject.toml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wave15-enterprise-identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install project
+        run: python -m pip install -e ".[dev]"
+
+      - name: Lint
+        run: python -m ruff check src tests scripts
+
+      - name: Type check
+        run: python -m mypy src
+
+      - name: Full test suite
+        run: python -m pytest -q
+
+      - name: Wave 15 live network proof
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: PYTHONPATH=src python scripts/run_wave15_enterprise_identity_ci.py --root .
+
+      - name: Upload Wave 15 proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave15-enterprise-identity-${{ matrix.python-version }}
+          path: .blackfox-artifacts/wave15/wave15-enterprise-identity-summary.json
+          if-no-files-found: error
