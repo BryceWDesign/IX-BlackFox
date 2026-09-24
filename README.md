@@ -1,4 +1,3 @@
-````markdown
 <p align="center">
   <img src="IX-BlackFox-Logo.png" alt="IX-BlackFox Logo">
 </p>
