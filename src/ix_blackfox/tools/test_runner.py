@@ -298,18 +298,56 @@ class TestRunnerTool:
         if not command:
             raise TestRunnerWorkspaceError("Test command must not be empty.")
 
-        executable = Path(command[0]).name.lower()
-        allowed = {item.lower() for item in self.allowed_executables}
+        requested = command[0]
+        requested_path = Path(requested)
 
-        if executable not in allowed:
+        requested_name = requested_path.name.casefold()
+        requested_full = os.path.normcase(os.path.abspath(requested))
+
+        allowed_names: set[str] = set()
+        allowed_paths: set[str] = set()
+
+        for item in self.allowed_executables:
+            allowed_item = str(item)
+            allowed_path = Path(allowed_item)
+
+            has_path_component = (
+                allowed_path.is_absolute()
+                or allowed_path.parent != Path(".")
+            )
+
+            if has_path_component:
+                allowed_paths.add(
+                    os.path.normcase(os.path.abspath(allowed_item))
+                )
+                continue
+
+            normalized_name = allowed_path.name.casefold()
+            allowed_names.add(normalized_name)
+
+            if os.name == "nt" and not normalized_name.endswith(".exe"):
+                allowed_names.add(f"{normalized_name}.exe")
+
+        if (
+            requested_full not in allowed_paths
+            and requested_name not in allowed_names
+        ):
+            display_allowed = sorted(
+                {
+                    *allowed_names,
+                    *allowed_paths,
+                }
+            )
             raise TestRunnerWorkspaceError(
-                f"Test command executable is not allowed: {command[0]!r}. "
-                f"Allowed executables: {', '.join(sorted(allowed))}."
+                f"Test command executable is not allowed: {requested!r}. "
+                f"Allowed executables: {', '.join(display_allowed)}."
             )
 
         for argument in command:
             if "\x00" in argument:
-                raise TestRunnerWorkspaceError("Test command contains a NUL byte.")
+                raise TestRunnerWorkspaceError(
+                    "Test command contains a NUL byte."
+                )
             if any(separator in argument for separator in ("\n", "\r")):
                 raise TestRunnerWorkspaceError(
                     "Test command arguments must not contain line breaks."

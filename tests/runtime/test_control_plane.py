@@ -21,7 +21,7 @@ def test_engineering_control_plane_runs_programming_repair_and_writes_bundle(
 ) -> None:
     workspace = _make_workspace(tmp_path, failing_test=True)
     policy_path = workspace / "blackfox.policy.toml"
-    policy_path.write_text(_policy_text(), encoding="utf-8")
+    policy_path.write_text(_policy_text(), encoding="utf-8", newline="\n")
 
     control_plane = EngineeringControlPlane.from_workspace(
         workspace_root=workspace,
@@ -230,21 +230,24 @@ def test_engineering_control_plane_report_serializes_to_dict(tmp_path: Path) -> 
     assert payload["run_bundle_manifest_artifact"]["relative_path"] == "manifest.json"
     assert payload["tool_receipt_count"] >= 6
     assert payload["repair_receipt_count"] == 5
-    assert payload["bundle_root"].endswith("artifacts/runs/run-control-plane-dict")
+    assert Path(payload["bundle_root"]).as_posix().endswith(
+        "artifacts/runs/run-control-plane-dict"
+    )
 
 
 def _make_workspace(tmp_path: Path, *, failing_test: bool) -> Path:
     workspace = tmp_path / "workspace"
     (workspace / "tests").mkdir(parents=True)
     (workspace / "src").mkdir(parents=True)
-    (workspace / ".blackfox-workspace").write_text("reserved\n", encoding="utf-8")
-    (workspace / "src/__init__.py").write_text("", encoding="utf-8")
+    (workspace / ".blackfox-workspace").write_text("reserved\n", encoding="utf-8", newline="\n")
+    (workspace / "src/__init__.py").write_text("", encoding="utf-8", newline="\n")
 
     assertion = "False" if failing_test else "True"
     (workspace / "tests/test_smoke.py").write_text(
         "def test_smoke() -> None:\n"
         f"    assert {assertion}\n",
         encoding="utf-8",
+        newline="\n",
     )
 
     return workspace

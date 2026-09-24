@@ -78,10 +78,11 @@ def test_wave3_cli_accepts_proposal_file_and_raw_test_output_file(tmp_path) -> N
             after_text="after",
         ),
         encoding="utf-8",
+        newline="\n",
     )
 
     evidence_file = workspace / "pytest-output.txt"
-    evidence_file.write_text(_authoring_failure_text(), encoding="utf-8")
+    evidence_file.write_text(_authoring_failure_text(), encoding="utf-8", newline="\n")
 
     output_path = workspace / "wave3-result.json"
 
@@ -204,19 +205,20 @@ def _make_workspace_marker(workspace) -> None:
     (workspace / ".blackfox-workspace").write_text(
         "reserved IX-BlackFox test workspace\n",
         encoding="utf-8",
+        newline="\n",
     )
 
 
 def _write(workspace, path: str, text: str) -> None:
     file_path = workspace / path
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(text, encoding="utf-8")
+    file_path.write_text(text, encoding="utf-8", newline="\n")
 
 
 def _write_return_path(workspace, path: str, text: str):
     file_path = workspace / path
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(text, encoding="utf-8")
+    file_path.write_text(text, encoding="utf-8", newline="\n")
     return file_path
 
 

@@ -32,6 +32,7 @@ def test_control_plane_cli_runs_repair_from_patch_json_and_writes_report(
     patch_path.write_text(
         json.dumps(patch.to_dict(), indent=2, sort_keys=True),
         encoding="utf-8",
+        newline="\n",
     )
 
     result = run_control_plane_cli(
@@ -103,6 +104,7 @@ def test_control_plane_cli_exports_run_bundle_zip(tmp_path: Path) -> None:
     patch_path.write_text(
         json.dumps(patch.to_dict(), indent=2, sort_keys=True),
         encoding="utf-8",
+        newline="\n",
     )
 
     result = run_control_plane_cli(
@@ -165,6 +167,7 @@ def test_control_plane_cli_reports_failed_verification_for_bad_patch(
     patch_path.write_text(
         json.dumps(patch.to_dict(), indent=2, sort_keys=True),
         encoding="utf-8",
+        newline="\n",
     )
 
     result = run_control_plane_cli(
@@ -204,15 +207,16 @@ def _make_workspace(tmp_path: Path, *, failing_test: bool) -> Path:
     workspace = tmp_path / "workspace"
     (workspace / "tests").mkdir(parents=True)
     (workspace / "src").mkdir(parents=True)
-    (workspace / ".blackfox-workspace").write_text("reserved\n", encoding="utf-8")
-    (workspace / "blackfox.policy.toml").write_text(_policy_text(), encoding="utf-8")
-    (workspace / "src/__init__.py").write_text("", encoding="utf-8")
+    (workspace / ".blackfox-workspace").write_text("reserved\n", encoding="utf-8", newline="\n")
+    (workspace / "blackfox.policy.toml").write_text(_policy_text(), encoding="utf-8", newline="\n")
+    (workspace / "src/__init__.py").write_text("", encoding="utf-8", newline="\n")
 
     assertion = "False" if failing_test else "True"
     (workspace / "tests/test_smoke.py").write_text(
         "def test_smoke() -> None:\n"
         f"    assert {assertion}\n",
         encoding="utf-8",
+        newline="\n",
     )
 
     return workspace

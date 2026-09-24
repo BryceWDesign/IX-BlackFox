@@ -362,7 +362,7 @@ def _make_workspace(tmp_path: Path) -> Path:
     workspace = tmp_path / "workspace"
     (workspace / "src").mkdir(parents=True)
     (workspace / "secrets").mkdir(parents=True)
-    (workspace / ".blackfox-workspace").write_text("reserved\n", encoding="utf-8")
-    (workspace / "src/example.py").write_text("VALUE = 7\n", encoding="utf-8")
-    (workspace / "secrets/token.txt").write_text("secret\n", encoding="utf-8")
+    (workspace / ".blackfox-workspace").write_text("reserved\n", encoding="utf-8", newline="\n")
+    (workspace / "src/example.py").write_text("VALUE = 7\n", encoding="utf-8", newline="\n")
+    (workspace / "secrets/token.txt").write_text("secret\n", encoding="utf-8", newline="\n")
     return workspace

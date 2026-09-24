@@ -106,7 +106,7 @@ def test_collect_evidence_rejects_symlink_file(tmp_path: Path) -> None:
     (root / "artifacts").mkdir()
     target = root / "artifacts/target.json"
     target.write_text(json.dumps({"head_sha": REVISION}), encoding="utf-8")
-    (root / "artifacts/result.json").symlink_to(target)
+    _symlink_or_skip(root / "artifacts/result.json", target)
     with pytest.raises(ValueError, match="symlink"):
         collect_evidence(root, (_spec(),), expected_revision=REVISION)
 
@@ -118,7 +118,7 @@ def test_collect_evidence_rejects_symlink_parent(tmp_path: Path) -> None:
     (real / "result.json").write_text(
         json.dumps({"head_sha": REVISION}), encoding="utf-8"
     )
-    (root / "artifacts").symlink_to(real, target_is_directory=True)
+    _symlink_or_skip(root / "artifacts", real, target_is_directory=True)
     with pytest.raises(ValueError, match="symlink"):
         collect_evidence(root, (_spec(),), expected_revision=REVISION)
 
@@ -253,3 +253,19 @@ def _spec(
         producer="test",
         revision_json_pointer=revision_json_pointer,
     )
+
+
+def _symlink_or_skip(
+    link: Path,
+    target: Path,
+    *,
+    target_is_directory: bool = False,
+) -> None:
+    try:
+        link.symlink_to(target, target_is_directory=target_is_directory)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip(
+                "Windows symlink creation requires Developer Mode or symlink privilege."
+            )
+        raise

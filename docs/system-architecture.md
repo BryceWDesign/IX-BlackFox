@@ -98,6 +98,37 @@ A governed runtime flow is intended to look like this:
 ---
 
 
+## Wave 15 Enterprise Identity Boundary
+
+### Module
+- `live_gateway/enterprise_identity.py`
+
+### Responsibility
+Wave 15 makes federated workload identity and delegated authority part of the
+live pre-tool trust boundary. A verified issuer/subject mapping selects the
+registered BlackFox agent; short-lived token claims, delegation constraints, and
+revocation state are checked before the existing Wave 14 scope/evidence engine can
+authorize an upstream action.
+
+### Current capabilities
+- local trusted-JWKS verification of RS256 workload JWTs
+- strict issuer, audience, subject, `kid`, `jti`, `iat`, `nbf`, and `exp` checks
+- maximum token-age and clock-skew bounds
+- explicit issuer/subject-to-agent bindings
+- optional fail-closed `federated_required` ingress mode
+- required delegation mode for deployments that prohibit undelegated agent use
+- parent-linked delegation chains that may narrow, never expand, authority
+- tool, repository, path-root, and delegation-lifetime restrictions
+- durable `jti` and delegation-id revocation
+- authenticated identity-context digest bound into the action authority subject
+- real-network proof that denied identities/delegations produce zero upstream execution
+
+### Design rule
+Federation is not authority by itself. A valid workload identity still requires a
+registered BlackFox agent, bounded delegation when configured, route scope, policy
+evidence, and required human approval before a consequential upstream action can
+execute.
+
 ## Wave 14 Live Authority Boundary
 
 ### Module

@@ -235,14 +235,15 @@ def _make_workspace(tmp_path: Path, *, failing_test: bool) -> Path:
     workspace = tmp_path / "workspace"
     (workspace / "tests").mkdir(parents=True)
     (workspace / "src").mkdir(parents=True)
-    (workspace / ".blackfox-workspace").write_text("reserved\n", encoding="utf-8")
-    (workspace / "src/__init__.py").write_text("", encoding="utf-8")
+    (workspace / ".blackfox-workspace").write_text("reserved\n", encoding="utf-8", newline="\n")
+    (workspace / "src/__init__.py").write_text("", encoding="utf-8", newline="\n")
 
     assertion = "False" if failing_test else "True"
     (workspace / "tests/test_smoke.py").write_text(
         "def test_smoke() -> None:\n"
         f"    assert {assertion}\n",
         encoding="utf-8",
+        newline="\n",
     )
 
     return workspace

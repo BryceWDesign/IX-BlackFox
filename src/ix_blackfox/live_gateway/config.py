@@ -20,6 +20,7 @@ from ix_blackfox.agents.models import (
     CapabilityRiskTier,
 )
 from ix_blackfox.agents.registry import AgentRegistry
+from ix_blackfox.live_gateway.enterprise_identity import IdentityBinding, OidcProvider
 from ix_blackfox.live_gateway.evidence import EvidencePolicy, TrustedEvidenceIssuer
 from ix_blackfox.operating.models import OperatingDomain
 from ix_blackfox.tools.manifest import ToolCapability
@@ -203,6 +204,11 @@ class GatewayConfig:
     api: ApiUpstreamConfig | None
     evidence_root: Path
     receipt_database: Path
+    identity_mode: str
+    identity_require_delegation: bool
+    identity_revocation_database: Path
+    identity_providers: tuple[OidcProvider, ...]
+    identity_bindings: tuple[IdentityBinding, ...]
     trusted_issuers: tuple[TrustedEvidenceIssuer, ...]
     agent_credentials: tuple[AgentCredential, ...]
     evidence_policies: tuple[EvidencePolicy, ...]
@@ -222,20 +228,37 @@ class GatewayConfig:
         credential_agent_ids = [item.agent_id for item in self.agent_credentials]
         if len(credential_agent_ids) != len(set(credential_agent_ids)):
             raise ValueError("agent credential bindings must have unique agent_id values.")
+        if self.identity_mode not in {"static_only", "static_or_federated", "federated_required"}:
+            raise ValueError("identity.mode must be static_only, static_or_federated, or federated_required.")
+        provider_issuers = [item.issuer for item in self.identity_providers]
+        if len(provider_issuers) != len(set(provider_issuers)):
+            raise ValueError("identity provider issuer values must be unique.")
+        binding_keys = [(item.issuer, item.subject) for item in self.identity_bindings]
+        if len(binding_keys) != len(set(binding_keys)):
+            raise ValueError("identity issuer/subject bindings must be unique.")
+        known_provider_issuers = set(provider_issuers)
+        unknown_binding_issuers = sorted({item.issuer for item in self.identity_bindings} - known_provider_issuers)
+        if unknown_binding_issuers:
+            raise ValueError("Identity bindings reference unknown issuers: " + ", ".join(unknown_binding_issuers) + ".")
         registered_ids = {agent.agent_id for agent in self.agent_registry.agents}
         credential_ids = set(credential_agent_ids)
-        missing_credentials = sorted(registered_ids - credential_ids)
+        federated_ids = {item.agent_id for item in self.identity_bindings}
         unknown_credentials = sorted(credential_ids - registered_ids)
-        if missing_credentials:
-            raise ValueError(
-                "Every registered Wave 14 agent requires an ingress credential binding; "
-                f"missing: {', '.join(missing_credentials)}."
-            )
+        unknown_bindings = sorted(federated_ids - registered_ids)
         if unknown_credentials:
-            raise ValueError(
-                "Agent credentials reference unregistered agents: "
-                f"{', '.join(unknown_credentials)}."
-            )
+            raise ValueError("Agent credentials reference unregistered agents: " + ", ".join(unknown_credentials) + ".")
+        if unknown_bindings:
+            raise ValueError("Identity bindings reference unregistered agents: " + ", ".join(unknown_bindings) + ".")
+        if self.identity_mode == "static_only":
+            missing = sorted(registered_ids - credential_ids)
+        elif self.identity_mode == "federated_required":
+            missing = sorted(registered_ids - federated_ids)
+            if not self.identity_providers:
+                raise ValueError("federated_required identity mode requires at least one identity provider.")
+        else:
+            missing = sorted(registered_ids - (credential_ids | federated_ids))
+        if missing:
+            raise ValueError("Every registered agent requires an allowed ingress identity binding; missing: " + ", ".join(missing) + ".")
         if self.mcp is None and self.api is None:
             raise ValueError("Wave 14 requires at least one live MCP or API upstream.")
         if self.mcp is None:
@@ -394,6 +417,35 @@ def load_gateway_config(path: Path) -> GatewayConfig:
         str(evidence_payload.get("receipt_database", ".blackfox-artifacts/wave14/authority-receipts.sqlite3")),
     )
 
+    identity_payload = _mapping(payload.get("identity", {}), "identity")
+    identity_mode = str(identity_payload.get("mode", "static_only")).strip()
+    identity_require_delegation = _boolean(
+        identity_payload.get("require_delegation", False), "identity.require_delegation"
+    )
+    identity_revocation_database = _resolve_path(
+        base,
+        str(identity_payload.get("revocation_database", ".blackfox-artifacts/wave15/identity-revocations.sqlite3")),
+    )
+    identity_providers = tuple(
+        OidcProvider(
+            issuer=_required_text(item, "issuer"),
+            audience=_required_text(item, "audience"),
+            jwks_path=_resolve_path(base, _required_text(item, "jwks_path")),
+            algorithms=_string_tuple(item.get("algorithms", ("RS256",))),
+            max_token_age_seconds=int(item.get("max_token_age_seconds", 900)),
+            clock_skew_seconds=int(item.get("clock_skew_seconds", 30)),
+        )
+        for item in _mapping_sequence(payload.get("identity_providers", []), "identity_providers")
+    )
+    identity_bindings = tuple(
+        IdentityBinding(
+            issuer=_required_text(item, "issuer"),
+            subject=_required_text(item, "subject"),
+            agent_id=_required_text(item, "agent_id"),
+        )
+        for item in _mapping_sequence(payload.get("identity_bindings", []), "identity_bindings")
+    )
+
     trusted_issuers = tuple(
         TrustedEvidenceIssuer(
             issuer=_required_text(item, "issuer"),
@@ -480,6 +532,11 @@ def load_gateway_config(path: Path) -> GatewayConfig:
         api=api,
         evidence_root=evidence_root,
         receipt_database=receipt_database,
+        identity_mode=identity_mode,
+        identity_require_delegation=identity_require_delegation,
+        identity_revocation_database=identity_revocation_database,
+        identity_providers=identity_providers,
+        identity_bindings=identity_bindings,
         trusted_issuers=trusted_issuers,
         agent_credentials=agent_credentials,
         evidence_policies=evidence_policies,
