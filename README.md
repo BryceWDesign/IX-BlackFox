@@ -1,3 +1,4 @@
+````markdown
 <p align="center">
   <img src="IX-BlackFox-Logo.png" alt="IX-BlackFox Logo">
 </p>
@@ -131,7 +132,7 @@ Static credential in federated-only mode   -> 401 DENIED
 Wrong token audience                       -> 401 DENIED
 Expired workload token                     -> 401 DENIED
 Missing required delegation                -> 401 DENIED
-Delegation scope escape                     -> 403 DENIED
+Delegation scope escape                    -> 403 DENIED
 
 Upstream executions after denied requests  -> 0
 
@@ -172,7 +173,7 @@ python scripts/run_wave15_enterprise_identity_ci.py --root .
 
 For the complete identity, delegation, revocation, threat, and claim boundaries, see:
 
-[`docs/wave15-enterprise-identity-delegated-authority.md`](docs/wave15-enterprise-identity-delegated-authority.md)
+[Wave 15 Enterprise Identity & Delegated Authority](docs/wave15-enterprise-identity-delegated-authority.md)
 
 ---
 
@@ -330,27 +331,27 @@ Self-consistent hashes alone are not treated as sufficient proof when semantic v
                                |
                                v
         +-------------------------------------------+
-        |        Registered Agent Authority          |
+        |        Registered Agent Authority         |
         | capabilities / repositories / path scope  |
         +----------------------+--------------------+
                                |
                                v
         +-------------------------------------------+
-        |          Delegated Least Privilege         |
+        |          Delegated Least Privilege        |
         | parent binding / narrowing / expiration   |
-        |                 revocation                  |
+        |                 revocation                 |
         +----------------------+--------------------+
                                |
                                v
         +-------------------------------------------+
-        |           Evidence + Policy Gates          |
+        |           Evidence + Policy Gates         |
         | provenance / revision / freshness / risk  |
         +----------------------+--------------------+
                                |
                                v
         +-------------------------------------------+
-        |           Human Authority Boundary         |
-        |       when policy requires approval        |
+        |           Human Authority Boundary        |
+        |       when policy requires approval       |
         +----------------------+--------------------+
                                |
                                v
@@ -374,43 +375,51 @@ Self-consistent hashes alone are not treated as sufficient proof when semantic v
 
 ---
 
-## Primary components
+## Current capability layers
 
-### Live Authority Gateway
+The Wave names below are retained as stable repository and documentation contract identifiers.
 
-A live request-path enforcement surface for configured MCP and HTTP API tool calls.
-
-It evaluates authority **before** forwarding to the configured upstream.
-
-See:
-
-[`docs/wave14-live-authority-gateway.md`](docs/wave14-live-authority-gateway.md)
-
-### Enterprise Identity & Delegated Authority
+## Wave 15: Enterprise Identity & Delegated Authority
 
 Adds cryptographically verified workload identity, trusted agent binding, bounded delegation, expiration, narrowing, and revocation.
 
+A valid workload identity does not automatically receive tool authority. Delegated authority may narrow its parent scope but cannot expand beyond it.
+
 See:
 
-[`docs/wave15-enterprise-identity-delegated-authority.md`](docs/wave15-enterprise-identity-delegated-authority.md)
+[Wave 15 Enterprise Identity & Delegated Authority](docs/wave15-enterprise-identity-delegated-authority.md)
 
-### Human-Machine Review Board
+## Wave 14: Live Authority Gateway
+
+Provides a live request-path enforcement surface for configured MCP and HTTP API tool calls.
+
+It evaluates authority **before** forwarding to the configured upstream. Configured requests that fail the authority boundary are denied before upstream execution.
+
+See:
+
+[Wave 14 Live Authority Gateway](docs/wave14-live-authority-gateway.md)
+
+## Wave 13 foundation: Human-Machine Review Board
 
 Keeps machine analysis visible while reserving binding approval authority for configured human review roles.
 
+Machine advisories remain non-authoritative and carry zero voting authority. Human decisions can be bound to the exact evidence subject, policy, reviewer authority, and review content.
+
 See:
 
-[`docs/wave13-human-machine-review-board.md`](docs/wave13-human-machine-review-board.md)
+[Wave 13 Human-Machine Review Board](docs/wave13-human-machine-review-board.md)
 
-### Certification-Ready Evidence Packaging
+## Wave 12 foundation
 
-Produces bounded, revision-bound, content-addressed, deterministic evidence packages with independent verification.
+Provides the revision-bound, content-addressed evidence foundation used by later BlackFox authority layers.
+
+It produces deterministic evidence packages and supports independent verification rather than relying only on producer-generated claims.
 
 Here, **certification-ready** describes the structure and verification posture of the evidence package. It does not mean BlackFox or a consuming organization is certified.
 
 See:
 
-[`docs/wave12-certification-ready-evidence.md`](docs/wave12-certification-ready-evidence.md)
+[Wave 12 Certification-Ready Evidence](docs/wave12-certification-ready-evidence.md)
 
 ---
 
@@ -428,7 +437,7 @@ The primary CI matrix covers:
 
 Wave 15 also has dedicated enterprise-identity and delegated-authority CI proofing across the supported Python matrix.
 
-**Treat current GitHub Actions results and [`VALIDATION_REPORT.md`](VALIDATION_REPORT.md) as the source of truth for current validation status rather than relying on a static test-count claim in this README.**
+**Treat current GitHub Actions results and [VALIDATION_REPORT.md](VALIDATION_REPORT.md) as the source of truth for current validation status rather than relying on a static test-count claim in this README.**
 
 ---
 
@@ -466,12 +475,12 @@ BlackFox was built incrementally, but the README describes the **current system*
 
 Major recent milestones:
 
-| Generation | Capability                                |
-| ---------- | ----------------------------------------- |
-| Wave 15    | Enterprise Identity & Delegated Authority |
-| Wave 14    | Live Authority Gateway                    |
-| Wave 13    | Human-Machine Review Board                |
-| Wave 12    | Certification-Ready Evidence Packaging    |
+| Generation | Capability |
+| --- | --- |
+| Wave 15 | Enterprise Identity & Delegated Authority |
+| Wave 14 | Live Authority Gateway |
+| Wave 13 | Human-Machine Review Board |
+| Wave 12 | Certification-Ready Evidence Packaging |
 
 The individual architecture and validation documents retain the detailed contracts and boundaries for each layer.
 
@@ -527,9 +536,9 @@ IX-BlackFox is source-available for technical evaluation under the repository li
 
 Unless a separate written commercial license says otherwise, public visibility does not grant permission for commercial use, production use, hosted-service use, contractor use, funded operational use, derivative operational use, procurement use, or resale.
 
-See [`LICENSE`](LICENSE) for the controlling terms.
+See [LICENSE](LICENSE) for the controlling terms.
 
-See [`COMMERCIAL.md`](COMMERCIAL.md) for commercial-use information.
+See [COMMERCIAL.md](COMMERCIAL.md) for commercial-use information.
 
 ---
 
@@ -537,13 +546,13 @@ See [`COMMERCIAL.md`](COMMERCIAL.md) for commercial-use information.
 
 Key documents:
 
-* [`docs/wave15-enterprise-identity-delegated-authority.md`](docs/wave15-enterprise-identity-delegated-authority.md)
-* [`docs/wave14-live-authority-gateway.md`](docs/wave14-live-authority-gateway.md)
-* [`docs/wave13-human-machine-review-board.md`](docs/wave13-human-machine-review-board.md)
-* [`docs/wave12-certification-ready-evidence.md`](docs/wave12-certification-ready-evidence.md)
-* [`docs/system-architecture.md`](docs/system-architecture.md)
-* [`VALIDATION_REPORT.md`](VALIDATION_REPORT.md)
-* [`HANDOFF_MANIFEST.md`](HANDOFF_MANIFEST.md)
+* [Wave 15 Enterprise Identity & Delegated Authority](docs/wave15-enterprise-identity-delegated-authority.md)
+* [Wave 14 Live Authority Gateway](docs/wave14-live-authority-gateway.md)
+* [Wave 13 Human-Machine Review Board](docs/wave13-human-machine-review-board.md)
+* [Wave 12 Certification-Ready Evidence](docs/wave12-certification-ready-evidence.md)
+* [System Architecture](docs/system-architecture.md)
+* [Validation Report](VALIDATION_REPORT.md)
+* [Handoff Manifest](HANDOFF_MANIFEST.md)
 
 ---
 
@@ -552,3 +561,4 @@ Key documents:
 IX-BlackFox was originated and created by Bryce Lovell.
 
 **AI proposes. Humans decide. Evidence decides trust.**
+````
