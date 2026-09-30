@@ -1,0 +1,61 @@
+{
+  "checks": {
+    "compileall": "PASS",
+    "full_pytest": {
+      "duration_seconds": 34.9,
+      "failed": 0,
+      "passed": 1734,
+      "skipped": 0,
+      "status": "PASS"
+    },
+    "isolated_wheel_install": "PASS",
+    "isolated_wheel_live_proof": "PASS",
+    "isolated_wheel_public_verifier": "PASS",
+    "license_integrity": "PASS",
+    "real_local_socket_proof": {
+      "checks": 17,
+      "receipt_count": 9,
+      "status": "PASS",
+      "upstream_file_writes": 2
+    },
+    "ruff": "PASS",
+    "strict_mypy": {
+      "source_files": 271,
+      "status": "PASS"
+    }
+  },
+  "environment": {
+    "packages": {
+      "PyJWT": "2.15.1",
+      "boto3": "1.43.105",
+      "build": "1.6.1",
+      "cryptography": "46.0.0",
+      "ix-blackfox": "0.4.0",
+      "jsonschema": "4.26.0",
+      "mypy": "1.20.2",
+      "pytest": "9.1.1",
+      "python-pkcs11": "0.10.0",
+      "ruff": "0.5.7"
+    },
+    "platform": "Linux-6.18.44-x86_64-with-glibc2.39",
+    "python": "3.12.14"
+  },
+  "generated_at": "2026-09-30T20:30:37.915609+00:00",
+  "live_external_services": {
+    "aws_kms": "NOT_RUN",
+    "physical_hsm": "NOT_RUN",
+    "sigstore_issuance": "NOT_RUN"
+  },
+  "provenance": {
+    "input_archive_git_comment": "3fadeb57b016078ec813ecbf9b467978dfaf0043",
+    "input_archive_sha256": "2c5e893bb90d58b33df102c80da9c0e2c2d5723caac9d160c731b94f59281fbc",
+    "license_sha256_unchanged": {
+      "COMMERCIAL.md": "7d4a941d8986b13b04d8a02e0576118184c6501c7c5aefc34641de769eb0a7db",
+      "LICENSE": "c7e63d7629ff194e81f43e3dba679a85cebb67448dee280eedd8dca8cca87768",
+      "NOTICE.md": "1eec0ba06fd06a5197d1d565a1e3bb5c209f0874313216001eb03b025d0ac15c"
+    }
+  },
+  "remote_ci": "CONFIGURED_NOT_RUN",
+  "schema_version": "wave16.release_validation.v1",
+  "version": "0.4.0"
+}

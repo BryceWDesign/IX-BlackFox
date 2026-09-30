@@ -1,48 +1,27 @@
-# IX-BlackFox Wave 15 Handoff Manifest
+# IX-BlackFox Wave 16 full handoff
 
-## Release
+Release **0.4.0**, Cryptographic Authority Receipts and Externally Anchored Trust.
 
-- Version: `0.3.0`
-- Wave: `15 — Enterprise Identity & Delegated Authority`
-- Prior wave preserved: Wave 14 Live Authority Gateway
+## Delivered behavior
 
-## Added implementation
+Configured live gateways commit signed authorization before governed API/MCP dispatch, reevaluate current identity/evidence/trust, and append a linked signed outcome observation. Failure before dispatch refuses execution; failure to record an outcome after dispatch reports uncertainty and prevents an unsafe retry. Historical configurations remain in their original unsigned mode.
 
-- `src/ix_blackfox/live_gateway/enterprise_identity.py`
-  - trusted local JWKS verification
-  - RS256 JWT authentication
-  - issuer/audience/subject/`kid`/`jti`/time validation
-  - issuer/subject-to-agent binding
-  - bounded delegation chains
-  - monotonic scope narrowing
-  - durable token/delegation revocation
-- `src/ix_blackfox/live_gateway/wave15_demo.py`
-  - real-network federated identity and delegation proof
-- Wave 15 configuration integrated into the existing live gateway
-- identity context bound into exact authority subjects for federated calls
-- `revoke-identity` operator command
-- `federated_required` and required-delegation enforcement modes
+## Contents
 
-## Added verification surface
+- Complete original project source, tests, documentation, schemas, workflows and assets, plus the Wave 16 extension.
+- `src/ix_blackfox/authority_crypto`: canonical encoding, DSSE and pinned public trust, encrypted local/KMS/PKCS11 signers, public stream verifier, CLI and optional Cosign adapter.
+- Integrated live gateway, real socket/file-write proof and external-service validator.
+- Adversarial security, provider-contract, CLI, schema and live runner tests.
+- Six Wave 16 public schemas; Ubuntu/Windows Python 3.11–3.13 CI configuration.
+- Operator contract, claims ledger, changelog and roadmap.
+- Public proof artifacts and validation logs under `validation/wave16`.
+- `dist/ix_blackfox-0.4.0-py3-none-any.whl`, verified in an isolated environment.
+- `FILE_MANIFEST.json`, per-file hashes excluding the manifest itself; the ZIP SHA-256 is supplied alongside the ZIP.
 
-- Wave 15 enterprise-identity tests
-- Wave 15 CI runner
-- Wave 15 GitHub Actions workflow across Python 3.11/3.12/3.13
-- machine-readable Wave 15 CI schema
-- retained machine-readable validation proof
-- architecture, operator, security-boundary, and DoD/AWS control-mapping documentation
+## Acceptance evidence
 
-## Validation snapshot
+1,734 tests pass; Ruff and strict mypy pass; source and installed-wheel live proofs pass. Consult `VALIDATION_REPORT.md` and the machine-readable release validation. Live AWS/HSM/Sigstore and remote CI remain unrun. No real credentials, signing private keys, runtime SQLite databases, virtual environments or caches are included.
 
-- 1,615 repository tests executed: all passed
-- Wave 15 real-network proof: passed
-- receipt chain: passed, zero issues
-- Python compilation: passed
-- editable install and standard wheel build: passed with local build isolation disabled
-- Ruff/mypy: configured in CI but not executable in this sandbox because those binaries are absent and outbound package installation is blocked; see `VALIDATION_REPORT.md`
+## First steps
 
-## Important boundary
-
-This release provides engineering controls and evidence. It does not claim an
-ATO/cATO, FedRAMP authorization, DoD approval, AWS certification, or production
-enterprise identity-provider integration.
+Extract the ZIP, open the contained repository directory and use the README PowerShell commands to create a virtual environment and reproduce the proof. Preserve the evaluation-only LICENSE/NOTICE/COMMERCIAL terms. Provision your own IdP, signing keys, trusted public policy, evidence issuers, protected upstream access and independent checkpoint retention before evaluating a deployment. The supplied public proof keys are demo fixtures.

@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-09-30T20:21:44.193692+00:00",
+  "passed": false,
+  "schema_version": "wave16.external_services_validation.v1",
+  "scope": "Operator-run external validation; physical custody, production authorization, benchmarks and certification require independent evidence.",
+  "services": {
+    "aws_kms": {
+      "status": "NOT_RUN"
+    },
+    "pkcs11": {
+      "status": "NOT_RUN"
+    },
+    "sigstore": {
+      "status": "NOT_RUN"
+    }
+  }
+}

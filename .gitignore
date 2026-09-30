@@ -50,3 +50,8 @@ logs/
 
 # Generated BlackFox verification and live-gateway artifacts
 .blackfox-artifacts/
+
+# Wave 16 operator key custody and optional external attestations
+receipt-keys/
+*signing-key*.pem
+*.sigstore.json

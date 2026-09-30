@@ -867,3 +867,8 @@ For BlackFox, that now means:
 - explicit audit trails
 
 That is the footing this repository is built on.
+
+
+## Wave 16 extension
+
+Configured cryptographic mode adds a mandatory signed and committed authorization before governed API/MCP dispatch, revalidates current identity/evidence/trust, then links signed outcome observations to that authorization. Signing and SQLite failures refuse dispatch or report an unknown post-dispatch outcome. Public export verifies DSSE signatures using independently pinned keys and compares a snapshot to an independently retained expected checkpoint when supplied. See [Wave 16 contract](wave16-cryptographic-authority.md) for formats, provider bindings, migration and deployment limits. Historical Wave 14/15 configurations remain explicitly unsigned.

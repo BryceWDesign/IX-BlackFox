@@ -1,0 +1,41 @@
+name: Wave 16 Cryptographic Authority
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-authority:
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install project and contract-test dependencies
+        run: python -m pip install -e ".[dev,aws-kms]"
+      - name: Lint
+        run: python -m ruff check src tests scripts
+      - name: Strict typing
+        run: python -m mypy src
+      - name: Full suite
+        run: python -m pytest -q
+      - name: Real local signed authority proof
+        run: python scripts/run_wave16_crypto_authority_ci.py --root .
+      - name: Public proof artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave16-${{ matrix.os }}-python-${{ matrix.python-version }}
+          path: .blackfox-artifacts/wave16/*.json
+          if-no-files-found: error

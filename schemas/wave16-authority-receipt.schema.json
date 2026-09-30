@@ -1,0 +1,270 @@
+{
+  "$id": "https://ix-blackfox.local/schemas/wave16-authority-receipt.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "else": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "authorization_receipt_id"
+              ]
+            },
+            {
+              "required": [
+                "authorization_receipt_digest"
+              ]
+            }
+          ]
+        },
+        "properties": {
+          "executed": {
+            "const": false
+          },
+          "upstream_attempted": {
+            "const": false
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "record_type": {
+            "const": "outcome"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution_state": {
+            "enum": [
+              "response_received",
+              "outcome_unknown"
+            ]
+          },
+          "upstream_attempted": {
+            "const": true
+          }
+        },
+        "required": [
+          "authorization_receipt_id",
+          "authorization_receipt_digest"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "record_type": {
+            "const": "authorization"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution_state": {
+            "const": "authorized_not_dispatched"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "record_type": {
+            "const": "denial"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution_state": {
+            "const": "not_attempted"
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "attestation": {
+      "additionalProperties": false,
+      "properties": {
+        "payload": {
+          "contentEncoding": "base64",
+          "type": "string"
+        },
+        "payloadType": {
+          "enum": [
+            "application/vnd.ix-blackfox.authority-receipt.v16+json",
+            "application/vnd.ix-blackfox.authority-checkpoint.v16+json"
+          ]
+        },
+        "signatures": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "keyid": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "sig": {
+                "contentEncoding": "base64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "keyid",
+              "sig"
+            ],
+            "type": "object"
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "payloadType",
+        "payload",
+        "signatures"
+      ],
+      "type": "object"
+    },
+    "authenticated_principal": {
+      "type": "object"
+    },
+    "authority_decision": {
+      "type": "object"
+    },
+    "authorization_receipt_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "authorization_receipt_id": {
+      "pattern": "^wave16-receipt-[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "deployment_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "evaluated_evidence_digests": {
+      "additionalProperties": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "evidence_refs": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "executed": {
+      "type": "boolean"
+    },
+    "execution_state": {
+      "enum": [
+        "not_attempted",
+        "authorized_not_dispatched",
+        "response_received",
+        "outcome_unknown"
+      ]
+    },
+    "previous_receipt_digest": {
+      "pattern": "^([0-9a-f]{64})?$",
+      "type": "string"
+    },
+    "protocol": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "receipt_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "receipt_id": {
+      "pattern": "^wave16-receipt-[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "record_type": {
+      "enum": [
+        "authorization",
+        "outcome",
+        "denial"
+      ]
+    },
+    "recorded_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "wave16.authority_receipt.v1"
+    },
+    "sequence": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "single_use_evidence_claims": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "stream_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "subject": {
+      "type": "object"
+    },
+    "upstream_attempted": {
+      "type": "boolean"
+    },
+    "upstream_error": {
+      "type": "string"
+    },
+    "upstream_response_sha256": {
+      "pattern": "^([0-9a-f]{64})?$",
+      "type": "string"
+    },
+    "upstream_status": {
+      "maximum": 599,
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema_version",
+    "deployment_id",
+    "stream_id",
+    "sequence",
+    "previous_receipt_digest",
+    "receipt_id",
+    "receipt_digest",
+    "recorded_at",
+    "protocol",
+    "record_type",
+    "subject",
+    "authority_decision",
+    "authenticated_principal",
+    "evidence_refs",
+    "evaluated_evidence_digests",
+    "single_use_evidence_claims",
+    "upstream_attempted",
+    "upstream_status",
+    "upstream_response_sha256",
+    "upstream_error",
+    "execution_state",
+    "executed",
+    "attestation"
+  ],
+  "title": "Wave 16 authority-receipt",
+  "type": "object"
+}

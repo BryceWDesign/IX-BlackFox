@@ -1,0 +1,71 @@
+{
+  "schema_version": "wave16.claims_ledger.v1",
+  "version": "0.4.0",
+  "claims": [
+    {
+      "capability": "Pre-dispatch signed API/MCP authorization",
+      "status": "IMPLEMENTED_AND_LOCALLY_VALIDATED",
+      "evidence_or_boundary": "Real loopback proof plus gateway order/failure tests."
+    },
+    {
+      "capability": "Pinned public-key verification and DSSE domain separation",
+      "status": "IMPLEMENTED_AND_LOCALLY_VALIDATED",
+      "evidence_or_boundary": "Public verifier runs after temporary private state is removed."
+    },
+    {
+      "capability": "Independent expected-checkpoint comparison",
+      "status": "IMPLEMENTED_AND_LOCALLY_VALIDATED",
+      "evidence_or_boundary": "Rejects an older valid snapshot against newer retained head; independent retention remains an operator responsibility."
+    },
+    {
+      "capability": "Encrypted local PKCS8 key storage",
+      "status": "IMPLEMENTED_AND_LOCALLY_VALIDATED",
+      "evidence_or_boundary": "POSIX owner-only mode checked; Windows ACL security is operator provisioned."
+    },
+    {
+      "capability": "KMS asymmetric signing adapter",
+      "status": "IMPLEMENTED_AND_CONTRACT_TESTED",
+      "evidence_or_boundary": "Cryptographic digest fixtures and real botocore Stubber API contract; live service NOT_RUN."
+    },
+    {
+      "capability": "PKCS11 signing adapter",
+      "status": "IMPLEMENTED_AND_CONTRACT_TESTED",
+      "evidence_or_boundary": "Cryptographic token/session fixtures; physical token NOT_RUN."
+    },
+    {
+      "capability": "Cosign Sigstore adapter",
+      "status": "IMPLEMENTED_AND_CONTRACT_TESTED",
+      "evidence_or_boundary": "Exact identity/root/offline command fixtures; Cosign binary and issuance NOT_RUN."
+    },
+    {
+      "capability": "Linux/Windows Python 3.11-3.13 GitHub CI",
+      "status": "CONFIGURED_NOT_RUN",
+      "evidence_or_boundary": "Local Python 3.12 checks executed; no remote green claim."
+    },
+    {
+      "capability": "Human personal public-key approval signatures",
+      "status": "NOT_IMPLEMENTED",
+      "evidence_or_boundary": "Existing HMAC evidence remains; demo reviewer is synthetic."
+    },
+    {
+      "capability": "Independently retained production checkpoint service",
+      "status": "NOT_PROVISIONED",
+      "evidence_or_boundary": "Export and verification implemented; operator must supply independent retention."
+    },
+    {
+      "capability": "Trusted timestamps, FIPS, FedRAMP, ATO/cATO",
+      "status": "NOT_CLAIMED",
+      "evidence_or_boundary": "No certification or trusted deployment authorization asserted."
+    },
+    {
+      "capability": "Production performance and high availability",
+      "status": "NOT_VALIDATED",
+      "evidence_or_boundary": "Full stream validation occurs inside each append transaction; no production throughput or failover evidence."
+    }
+  ],
+  "external_services": {
+    "aws_kms": "NOT_RUN",
+    "physical_hsm": "NOT_RUN",
+    "sigstore_issuance": "NOT_RUN"
+  }
+}

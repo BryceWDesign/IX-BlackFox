@@ -23,6 +23,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     """
     raw_argv = list(argv) if argv is not None else sys.argv[1:]
 
+    if raw_argv and raw_argv[0] == "authority":
+        from ix_blackfox.authority_crypto.cli import main as authority_main
+
+        return authority_main(raw_argv[1:])
+
     if raw_argv and raw_argv[0] == "reliability":
         from ix_blackfox.reliability.cli import main as reliability_main
 

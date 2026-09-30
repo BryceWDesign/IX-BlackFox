@@ -1,0 +1,47 @@
+{
+  "$id": "https://ix-blackfox.local/schemas/wave16-dsse-envelope.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "payload": {
+      "contentEncoding": "base64",
+      "type": "string"
+    },
+    "payloadType": {
+      "enum": [
+        "application/vnd.ix-blackfox.authority-receipt.v16+json",
+        "application/vnd.ix-blackfox.authority-checkpoint.v16+json"
+      ]
+    },
+    "signatures": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "keyid": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "sig": {
+            "contentEncoding": "base64",
+            "type": "string"
+          }
+        },
+        "required": [
+          "keyid",
+          "sig"
+        ],
+        "type": "object"
+      },
+      "maxItems": 1,
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "payloadType",
+    "payload",
+    "signatures"
+  ],
+  "title": "Wave 16 dsse-envelope",
+  "type": "object"
+}

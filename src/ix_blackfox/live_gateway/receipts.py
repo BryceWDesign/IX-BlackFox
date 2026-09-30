@@ -6,6 +6,21 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ix_blackfox.authority_crypto.encoding import (
+    CHECKPOINT_TYPE,
+    RECEIPT_TYPE,
+    AuthorityProofError,
+    canonical_bytes,
+    digest,
+    strict_json,
+)
+from ix_blackfox.authority_crypto.signing import SigningController
+from ix_blackfox.authority_crypto.verification import (
+    BUNDLE_SCHEMA,
+    RECEIPT_SCHEMA,
+    checkpoint_body,
+    verify_records,
+)
 from ix_blackfox.live_gateway.models import WAVE14_RECEIPT_SCHEMA_VERSION
 from ix_blackfox.operating.models import digest_payload
 
@@ -34,6 +49,7 @@ class AuthorityReceiptStore:
     """SQLite-backed, transactionally hash-chained Wave 14 authority receipts."""
 
     path: Path
+    signing: SigningController | None = None
 
     def __post_init__(self) -> None:
         self.path = self.path.resolve()
@@ -43,6 +59,9 @@ class AuthorityReceiptStore:
     def append(self, payload: dict[str, Any]) -> dict[str, Any]:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            if self.signing is not None:
+                records = self._signed_records(connection)
+                verify_records(records, self.signing.current_policy())
             row = connection.execute(
                 "SELECT sequence, receipt_digest FROM receipts ORDER BY sequence DESC LIMIT 1"
             ).fetchone()
@@ -54,13 +73,43 @@ class AuthorityReceiptStore:
                 "previous_receipt_digest": previous_digest,
                 **payload,
             }
-            digest = digest_payload(receipt)
-            receipt_id = f"wave14-receipt-{digest[:24]}"
+            if self.signing is not None:
+                reserved = {
+                    "schema_version",
+                    "sequence",
+                    "previous_receipt_digest",
+                    "receipt_id",
+                    "receipt_digest",
+                    "attestation",
+                    "deployment_id",
+                    "stream_id",
+                }
+                if reserved.intersection(payload):
+                    raise AuthorityProofError(
+                        "Payload overrides reserved receipt fields."
+                    )
+                policy = self.signing.current_policy()
+                receipt.update(
+                    schema_version=RECEIPT_SCHEMA,
+                    deployment_id=policy.deployment_id,
+                    stream_id=policy.stream_id,
+                )
+                receipt_id = "wave16-receipt-" + digest(receipt)
+            else:
+                legacy_digest = digest_payload(receipt)
+                receipt_id = f"wave14-receipt-{legacy_digest[:24]}"
             receipt["receipt_id"] = receipt_id
-            receipt["receipt_digest"] = digest_payload(
-                {key: value for key, value in receipt.items() if key != "receipt_digest"}
+            receipt["receipt_digest"] = (
+                digest if self.signing is not None else digest_payload
+            )({key: value for key, value in receipt.items() if key != "receipt_digest"})
+            if self.signing is not None:
+                receipt["attestation"] = self.signing.envelope(
+                    RECEIPT_TYPE, dict(receipt)
+                )
+                verify_records([*records, receipt], self.signing.current_policy())
+            body = json.dumps(
+                receipt, sort_keys=True, separators=(",", ":"), ensure_ascii=False
             )
-            body = json.dumps(receipt, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
             connection.execute(
                 "INSERT INTO receipts(sequence, receipt_id, receipt_digest, previous_digest, payload_json) VALUES (?, ?, ?, ?, ?)",
                 (
@@ -152,6 +201,14 @@ class AuthorityReceiptStore:
             ).fetchall()
 
         issues: list[str] = []
+        if self.signing is not None:
+            try:
+                verify_records(
+                    [strict_json(str(row[4]).encode("utf-8")) for row in rows],
+                    self.signing.current_policy(),
+                )
+            except (AuthorityProofError, KeyError, TypeError, OSError) as exc:
+                return ReceiptChainVerification(False, len(rows), "", (str(exc),))
         previous = ""
         expected_sequence = 1
         receipt_claims: dict[str, str] = {}
@@ -170,31 +227,58 @@ class AuthorityReceiptStore:
                 continue
             if sequence != expected_sequence:
                 issues.append(f"receipt {receipt_id}: sequence gap or reordering")
-            if stored_previous != previous or payload.get("previous_receipt_digest") != previous:
+            if (
+                stored_previous != previous
+                or payload.get("previous_receipt_digest") != previous
+            ):
                 issues.append(f"receipt {receipt_id}: previous digest mismatch")
             if payload.get("receipt_id") != receipt_id:
                 issues.append(f"receipt {receipt_id}: id mismatch")
+            if payload.get("sequence") != sequence:
+                issues.append(f"receipt {receipt_id}: payload sequence mismatch")
             claimed = str(payload.get("receipt_digest", ""))
-            recomputed = digest_payload(
-                {key: value for key, value in payload.items() if key != "receipt_digest"}
+            recomputed = (digest if self.signing is not None else digest_payload)(
+                {
+                    key: value
+                    for key, value in payload.items()
+                    if key
+                    not in (
+                        {"receipt_digest", "attestation"}
+                        if self.signing is not None
+                        else {"receipt_digest"}
+                    )
+                }
             )
             if stored_digest != claimed or claimed != recomputed:
                 issues.append(f"receipt {receipt_id}: digest mismatch")
             raw_claims = payload.get("single_use_evidence_claims", [])
-            if not isinstance(raw_claims, list) or any(not isinstance(item, str) for item in raw_claims):
-                issues.append(f"receipt {receipt_id}: single-use evidence claims are malformed")
+            if not isinstance(raw_claims, list) or any(
+                not isinstance(item, str) for item in raw_claims
+            ):
+                issues.append(
+                    f"receipt {receipt_id}: single-use evidence claims are malformed"
+                )
             else:
                 subject = payload.get("subject", {})
-                subject_digest = subject.get("digest", "") if isinstance(subject, dict) else ""
+                subject_digest = (
+                    subject.get("digest", "") if isinstance(subject, dict) else ""
+                )
                 for evidence_id in raw_claims:
                     prior = receipt_claims.setdefault(evidence_id, str(subject_digest))
                     if prior != str(subject_digest):
-                        issues.append(f"receipt {receipt_id}: evidence claim appears under multiple subjects")
+                        issues.append(
+                            f"receipt {receipt_id}: evidence claim appears under multiple subjects"
+                        )
             previous = stored_digest
             expected_sequence += 1
 
         database_claims: dict[str, str] = {}
-        for evidence_id_raw, subject_digest_raw, claimed_at_raw, claim_digest_raw in claim_rows:
+        for (
+            evidence_id_raw,
+            subject_digest_raw,
+            claimed_at_raw,
+            claim_digest_raw,
+        ) in claim_rows:
             evidence_id = str(evidence_id_raw)
             subject_digest = str(subject_digest_raw)
             claimed_at = str(claimed_at_raw)
@@ -212,13 +296,59 @@ class AuthorityReceiptStore:
 
         for evidence_id, subject_digest in receipt_claims.items():
             if database_claims.get(evidence_id) != subject_digest:
-                issues.append(f"evidence claim {evidence_id}: receipt/database claim mismatch")
+                issues.append(
+                    f"evidence claim {evidence_id}: receipt/database claim mismatch"
+                )
         return ReceiptChainVerification(
             passed=not issues,
             receipt_count=len(rows),
             head_digest=previous,
             issues=tuple(issues),
         )
+
+    def _signed_records(self, connection: sqlite3.Connection) -> list[dict[str, Any]]:
+        rows = connection.execute(
+            "SELECT sequence, receipt_id, receipt_digest, previous_digest, payload_json FROM receipts ORDER BY sequence"
+        ).fetchall()
+        records = []
+        for sequence, receipt_id, receipt_digest, previous, raw in rows:
+            record = strict_json(str(raw).encode("utf-8"))
+            if canonical_bytes(
+                [sequence, receipt_id, receipt_digest, previous]
+            ) != canonical_bytes(
+                [
+                    record.get("sequence"),
+                    record.get("receipt_id"),
+                    record.get("receipt_digest"),
+                    record.get("previous_receipt_digest"),
+                ]
+            ):
+                raise AuthorityProofError(
+                    "Receipt database index differs from signed payload."
+                )
+            records.append(record)
+        return records
+
+    def export_bundle(self) -> dict[str, Any]:
+        if self.signing is None:
+            raise AuthorityProofError(
+                "Unsigned historical receipts cannot be exported as Wave 16."
+            )
+        with self._connect() as connection:
+            connection.execute("BEGIN")
+            records = self._signed_records(connection)
+            policy = self.signing.current_policy()
+            verify_records(records, policy)
+            checkpoint = self.signing.envelope(
+                CHECKPOINT_TYPE, checkpoint_body(records, policy)
+            )
+            return {
+                "schema_version": BUNDLE_SCHEMA,
+                "deployment_id": policy.deployment_id,
+                "stream_id": policy.stream_id,
+                "receipts": records,
+                "checkpoint": checkpoint,
+            }
 
     def _initialize(self) -> None:
         with self._connect() as connection:
@@ -250,4 +380,5 @@ class AuthorityReceiptStore:
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path, timeout=10.0)
         connection.execute("PRAGMA foreign_keys=ON")
+        connection.execute("PRAGMA synchronous=FULL")
         return connection

@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, cast
 from urllib.parse import unquote
 
+from ix_blackfox.authority_crypto.encoding import AuthorityProofError, strict_json
 from ix_blackfox.live_gateway.service import GatewayHttpResponse, LiveAuthorityGateway
 
 
@@ -13,7 +14,9 @@ class BlackFoxGatewayHttpServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, server_address: tuple[str, int], gateway: LiveAuthorityGateway) -> None:
+    def __init__(
+        self, server_address: tuple[str, int], gateway: LiveAuthorityGateway
+    ) -> None:
         self.gateway = gateway
         super().__init__(server_address, BlackFoxGatewayRequestHandler)
 
@@ -21,7 +24,7 @@ class BlackFoxGatewayHttpServer(ThreadingHTTPServer):
 class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
     """Minimal standard-library HTTP surface for the Wave 14 live gateway."""
 
-    server_version = "IX-BlackFox-Wave14/0.2"
+    server_version = "IX-BlackFox/0.4.0"
     protocol_version = "HTTP/1.1"
 
     @property
@@ -31,10 +34,22 @@ class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         duplicates = _duplicate_sensitive_headers(tuple(self.headers.items()))
         if duplicates:
-            self._send_json(400, {"error": "duplicate security-sensitive headers are not accepted", "headers": list(duplicates)})
+            self._send_json(
+                400,
+                {
+                    "error": "duplicate security-sensitive headers are not accepted",
+                    "headers": list(duplicates),
+                },
+            )
             return
         if self.path == "/healthz":
-            self._send_json(200, {"status": "ok", "wave": 14})
+            self._send_json(
+                200,
+                {
+                    "status": "ok",
+                    "wave": 16 if self.gateway.receipt_store.signing else 14,
+                },
+            )
             return
         if self.path == "/readyz":
             payload = self.gateway.status()
@@ -44,7 +59,7 @@ class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
                 {
                     "status": "ready" if payload["ready"] else "not_ready",
                     "ready": bool(payload["ready"]),
-                    "wave": 14,
+                    "wave": 16 if self.gateway.receipt_store.signing else 14,
                 },
             )
             return
@@ -79,7 +94,13 @@ class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         duplicates = _duplicate_sensitive_headers(tuple(self.headers.items()))
         if duplicates:
-            self._send_json(400, {"error": "duplicate security-sensitive headers are not accepted", "headers": list(duplicates)})
+            self._send_json(
+                400,
+                {
+                    "error": "duplicate security-sensitive headers are not accepted",
+                    "headers": list(duplicates),
+                },
+            )
             return
         if self.path == "/mcp":
             origin = self.headers.get("Origin")
@@ -92,8 +113,8 @@ class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
             self._send_json(exc.status, {"error": str(exc)})
             return
         try:
-            payload = json.loads(raw.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
+            payload = strict_json(raw)
+        except (UnicodeDecodeError, json.JSONDecodeError, AuthorityProofError):
             self._send_json(400, {"error": "request body must be valid UTF-8 JSON"})
             return
         if not isinstance(payload, Mapping):
@@ -139,19 +160,20 @@ class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
         if not isinstance(protocol, str) or not protocol.strip():
             self._send_json(400, {"error": "protocol must be a string"})
             return
-        authenticated_agent, authentication_error = self.gateway.authenticate_agent(
+        principal, authentication_error = self.gateway.authenticate_principal(
             headers=self._request_headers(),
             claimed_agent_id=agent_id,
         )
-        if authentication_error:
+        if authentication_error or principal is None:
             self._send_json(401, {"error": authentication_error})
             return
         try:
             subject = self.gateway.build_subject(
-                agent_id=authenticated_agent,
+                agent_id=principal.agent_id,
                 tool_name=tool_name,
                 arguments=arguments,
                 protocol=protocol,
+                principal=principal,
             )
         except (KeyError, ValueError) as exc:
             self._send_json(400, {"error": str(exc)})
@@ -171,7 +193,9 @@ class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
         )
         body = self.rfile.read(length)
         if len(body) != length:
-            raise RequestBodyError(400, "request body ended before Content-Length bytes were received")
+            raise RequestBodyError(
+                400, "request body ended before Content-Length bytes were received"
+            )
         return body
 
     def _send_gateway_response(self, response: GatewayHttpResponse) -> None:
@@ -193,7 +217,9 @@ class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(response.body)
 
     def _send_json(self, status: int, payload: Mapping[str, Any]) -> None:
-        body = (json.dumps(dict(payload), sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
+        body = (
+            json.dumps(dict(payload), sort_keys=True, ensure_ascii=False) + "\n"
+        ).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
@@ -229,7 +255,14 @@ def _duplicate_sensitive_headers(
         if not name:
             continue
         sensitive = (
-            name in {"authorization", "origin", "host", "content-length", "transfer-encoding"}
+            name
+            in {
+                "authorization",
+                "origin",
+                "host",
+                "content-length",
+                "transfer-encoding",
+            }
             or name.startswith("x-blackfox-")
             or name.startswith("mcp-")
         )
@@ -252,14 +285,18 @@ def _validated_content_length(
     """
 
     if transfer_encoding.strip():
-        raise RequestBodyError(400, "Transfer-Encoding is not accepted by the Wave 14 gateway")
+        raise RequestBodyError(
+            400, "Transfer-Encoding is not accepted by the Wave 14 gateway"
+        )
     if not content_length_values:
         raise RequestBodyError(411, "Content-Length is required")
     if len(content_length_values) != 1:
         raise RequestBodyError(400, "exactly one Content-Length header is required")
     value = content_length_values[0].strip()
     if not value or not value.isascii() or not value.isdecimal():
-        raise RequestBodyError(400, "Content-Length must be a non-negative decimal integer")
+        raise RequestBodyError(
+            400, "Content-Length must be a non-negative decimal integer"
+        )
     length = int(value, 10)
     if length > max_request_bytes:
         raise RequestBodyError(413, "request body exceeds configured size limit")

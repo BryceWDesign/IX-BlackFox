@@ -1,0 +1,73 @@
+{
+  "$id": "https://ix-blackfox.local/schemas/wave16-crypto-authority-ci-summary.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "check_count": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "checks": {
+      "additionalProperties": {
+        "type": "boolean"
+      },
+      "minProperties": 1,
+      "type": "object"
+    },
+    "external_services": {
+      "additionalProperties": false,
+      "properties": {
+        "aws_kms": {
+          "const": "NOT_RUN"
+        },
+        "physical_hsm": {
+          "const": "NOT_RUN"
+        },
+        "sigstore_issuance": {
+          "const": "NOT_RUN"
+        }
+      },
+      "required": [
+        "aws_kms",
+        "physical_hsm",
+        "sigstore_issuance"
+      ],
+      "type": "object"
+    },
+    "fixture_scope": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "receipt_count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "wave16.crypto_authority_ci_summary.v1"
+    },
+    "upstream_invocation_count": {
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema_version",
+    "generated_at",
+    "passed",
+    "checks",
+    "check_count",
+    "receipt_count",
+    "upstream_invocation_count",
+    "fixture_scope",
+    "external_services"
+  ],
+  "title": "Wave 16 crypto-authority-ci-summary",
+  "type": "object"
+}

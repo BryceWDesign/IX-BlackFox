@@ -1,104 +1,42 @@
-# IX-BlackFox Wave 15 Validation Report
+# IX-BlackFox Wave 16 validation report
 
-**Version:** 0.3.0  
-**Wave:** 15 — Enterprise Identity & Delegated Authority  
-**Validation date:** 2026-09-23
+Version **0.4.0**, validated 2026-09-30. This report describes the reconstructed and delivered source tree. The earlier interrupted workspace's results are not used as validation of this release.
 
-## Result
+| Executed check | Result |
+|---|---|
+| Full pytest suite, Linux Python 3.12.14 | **1,734 passed, 0 failed, 0 skipped**, 34.90 seconds |
+| Ruff, source/tests/scripts | PASS |
+| Strict mypy | PASS, 271 source files |
+| Python compileall | PASS |
+| Real local API/MCP socket proof | PASS, 17 checks, 9 signed receipts, 2 actual file writes |
+| Installed-wheel public verification from `/tmp`, without source on import path | PASS |
+| Installed-wheel live socket/file-write proof | PASS |
+| Wheel build and clean-environment installation | PASS |
+| Original LICENSE, NOTICE.md, COMMERCIAL.md bytes | Unchanged |
 
-Wave 15 is implemented as a real extension of the live Wave 14 authority gateway.
-The release adds federated workload identity, bounded delegated authority,
-revocation, identity-bound action subjects, live-network proof, operator controls,
-CI coverage, schemas, and documentation while preserving Wave 14 behavior for
-static-token deployments.
+The existing 1,615 tests passed after reconstruction; the final suite includes 119 additional security, CLI, schema and proof cases. Logs and machine-readable results are under `validation/wave16`. The main development environment used cryptography 46.0.0; the clean wheel environment used cryptography 50.0.2. Complete tool versions and input/archive licensing hashes are recorded in `release-validation.json`.
 
-## Executed validation
+## Evidence interpretation
 
-### Python compilation
+The proof provisions a local synthetic IdP and HMAC CI/reviewer fixtures, then performs two real loopback HTTP file writes. A separate database connection and public-key verifier check each committed authorization before the write. Temporary private keys, receipt database and evidence are removed before a separate process verifies the public bundle.
 
-`python -m compileall -q src tests scripts`
+The shipped public policy is a demo trust fixture. The shipped checkpoint is co-packaged for reproducibility and does not itself prove independent retention. Production trust provisioning and an independently controlled expected-checkpoint channel are deployment responsibilities. Signature verification establishes the gateway's endorsed statement; it does not establish the truth of arbitrary remote side effects or a personal public-key human signature.
 
-**Result:** PASS
+## Not executed
 
-### Repository test suite
+Live AWS KMS, physical HSM signing, Cosign binary/Sigstore issuance, production IdP interoperability, production checkpoint retention, performance/load/HA, power-loss/crash campaigns and Windows/Python 3.11/3.13 execution were not performed here. The GitHub Actions matrix is configured, but remote CI was not run. No remote green badge, government authorization, certification or physical key-custody claim is made.
 
-The complete suite was executed in partitions because the execution sandbox kills
-one monolithic pytest process before completion. Every collected test was still
-executed.
+KMS digest signatures are checked using real cryptographic fixtures and a real botocore Stubber API contract. PKCS11 session/key attributes and RSA signatures use contract fixtures. Sigstore subprocess options and failure propagation use fixtures. These tests do not substitute for live external validation. `external-services-NOT_RUN.json` records the expected nonzero result when no external service was requested.
 
-- Partition A: **797 passed**
-- Partition B: **347 passed**
-- Partition C: **471 passed**
-- **Total: 1,615 passed, 0 failed**
+## Reproduce
 
-### Wave 15 focused suite
+```powershell
+py -3.13 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,aws-kms]"
+.\.venv\Scripts\python.exe -m ruff check src tests scripts
+.\.venv\Scripts\python.exe -m mypy src
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe scripts/run_wave16_crypto_authority_ci.py --root .
+```
 
-Wave 15 enterprise-identity tests, CI contracts, docs contracts, and the existing
-live-gateway suite were executed together.
-
-**Result:** PASS
-
-### Real-network Wave 15 proof
-
-`PYTHONPATH=src python scripts/run_wave15_enterprise_identity_ci.py --root <validation-root>`
-
-**Result:** PASS
-
-The proof demonstrated:
-
-- static agent credentials rejected in `federated_required` mode: HTTP 401
-- wrong-audience signed token rejected: HTTP 401
-- expired signed token rejected: HTTP 401
-- signed token missing required delegation rejected: HTTP 401
-- out-of-scope delegated request blocked: HTTP 403
-- upstream invocations after all denied cases: **0**
-- authorized federated request executed: HTTP 200
-- upstream invocations after allowed request: **1**
-- token revoked by `jti` then rejected: HTTP 401
-- upstream invocations after revocation attempt: **1**
-- real upstream file side effect matched expected content
-- authenticated identity-context digest matched the digest bound into the exact authority subject
-- durable authority receipt chain verified with zero issues
-
-The machine-readable proof is retained at:
-
-`validation/wave15-enterprise-identity-summary.json`
-
-### Packaging
-
-Editable installation and wheel construction were tested using the locally
-available build toolchain with build isolation disabled because the sandbox cannot
-resolve PyPI.
-
-**Result:** PASS
-
-A standard wheel for `ix-blackfox 0.3.0` was produced successfully during
-validation.
-
-## Lint/type-check tooling limitation
-
-The repository CI definition still requires:
-
-- `python -m ruff check src tests scripts`
-- `python -m mypy src`
-
-Those two exact commands could not be executed in this sandbox because Ruff and
-mypy are not installed here and outbound package installation is blocked by DNS.
-An attempted installation failed before downloading any package. This report does
-**not** label unexecuted tooling as passed.
-
-The Wave 15 GitHub Actions workflow installs `.[dev]` and runs both gates on
-Python 3.11, 3.12, and 3.13 before the full pytest suite and the live-network
-proof. The handoff should therefore be considered locally test-green and
-build-green, with Ruff/mypy requiring the normal connected CI environment for
-final confirmation.
-
-## Claim boundary
-
-Wave 15 provides implementation evidence for federated workload identity,
-short-lived signed credentials, least-privilege delegation, revocation,
-pre-upstream enforcement, human-review composition, and durable traceability.
-
-It does **not** claim DoD authorization, ATO/cATO, FedRAMP authorization, AWS
-certification, production IdP integration, HSM/KMS custody, globally distributed
-revocation, or an external transparency log.
+See `docs/wave16-cryptographic-authority.md` for trust provisioning, provider configuration, external validation, rotation/revocation and independent public verification. Controlling evaluation-only license terms are preserved. Historical Wave 15 handoff reports remain under `validation/history`, clearly identified as historical.

@@ -4,6 +4,7 @@ import base64
 import hashlib
 import hmac
 import json
+import sqlite3
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -11,6 +12,12 @@ from typing import Any
 from urllib.parse import urljoin
 
 from ix_blackfox.agents.authorization import AgentAuthorizationEvaluator
+from ix_blackfox.authority_crypto.encoding import (
+    RECEIPT_TYPE,
+    AuthorityProofError,
+    canonical_bytes,
+    strict_json,
+)
 from ix_blackfox.live_gateway.authority import (
     evaluate_live_authority,
     no_evidence_policy,
@@ -59,6 +66,14 @@ class PreparedAuthorityRequest:
     evidence_ids: tuple[str, ...]
     evidence_policy: EvidencePolicy
     decision: LiveAuthorityDecision
+    authenticated_principal: dict[str, Any]
+
+
+class ReceiptWriteError(AuthorityProofError):
+    def __init__(self, attempted: bool, authorization_id: str = "") -> None:
+        super().__init__("Required authority proof could not be persisted.")
+        self.attempted = attempted
+        self.authorization_id = authorization_id
 
 
 @dataclass(slots=True)
@@ -83,18 +98,33 @@ class LiveAuthorityGateway:
                 trusted_keys=config.trusted_key_material(),
                 trusted_issuer_kinds=config.trusted_issuer_kind_map(),
             ),
-            receipt_store=AuthorityReceiptStore(config.receipt_database),
+            receipt_store=AuthorityReceiptStore(
+                config.receipt_database,
+                signing=config.receipt_signing.build()
+                if config.receipt_signing
+                else None,
+            ),
             agent_tokens=config.agent_token_material(),
             operator_token=config.operator_token_material(),
             identity_verifier=FederatedIdentityVerifier(
                 providers=config.identity_providers,
                 bindings=config.identity_bindings,
-                revocations=IdentityRevocationStore(config.identity_revocation_database),
+                revocations=IdentityRevocationStore(
+                    config.identity_revocation_database
+                ),
             ),
         )
 
     def status(self) -> dict[str, Any]:
         chain = self.receipt_store.verify_chain()
+        signer_ready = True
+        signer_issue = ""
+        if self.receipt_store.signing is not None:
+            try:
+                self.receipt_store.signing.health()
+            except (AuthorityProofError, OSError):
+                signer_ready = False
+                signer_issue = "Required signing or trust policy is unavailable."
         missing_keys = [
             f"{issuer.issuer}:{issuer.key_id}"
             for issuer in self.config.trusted_issuers
@@ -103,7 +133,13 @@ class LiveAuthorityGateway:
         weak_keys = [
             f"{issuer.issuer}:{issuer.key_id}"
             for issuer in self.config.trusted_issuers
-            if 0 < len(self.evidence_store.trusted_keys.get((issuer.issuer, issuer.key_id), b"")) < 32
+            if 0
+            < len(
+                self.evidence_store.trusted_keys.get(
+                    (issuer.issuer, issuer.key_id), b""
+                )
+            )
+            < 32
         ]
         missing_agent_credentials = [
             credential.agent_id
@@ -115,15 +151,28 @@ class LiveAuthorityGateway:
         )
         duplicate_agent_token_bindings = _duplicate_token_bindings(self.agent_tokens)
         operator_token_missing = not self.operator_token
-        operator_token_weak = bool(self.operator_token) and len(self.operator_token) < 32
+        operator_token_weak = (
+            bool(self.operator_token) and len(self.operator_token) < 32
+        )
         credential_material_collisions = _credential_material_collisions(
             evidence_keys=self.evidence_store.trusted_keys,
             agent_tokens=self.agent_tokens,
             operator_token=self.operator_token,
         )
         return {
-            "wave": 15 if self.config.identity_mode != "static_only" else 14,
-            "mode": "enterprise_identity_authority_gateway" if self.config.identity_mode != "static_only" else "live_authority_gateway",
+            "wave": 16
+            if self.receipt_store.signing
+            else (15 if self.config.identity_mode != "static_only" else 14),
+            "signing_required": self.receipt_store.signing is not None,
+            "signer_ready": signer_ready,
+            "signer_issue": signer_issue,
+            "mode": "cryptographic_authority_gateway"
+            if self.receipt_store.signing
+            else (
+                "enterprise_identity_authority_gateway"
+                if self.config.identity_mode != "static_only"
+                else "live_authority_gateway"
+            ),
             "identity_mode": self.config.identity_mode,
             "configured_identity_provider_count": len(self.config.identity_providers),
             "configured_identity_binding_count": len(self.config.identity_bindings),
@@ -147,11 +196,16 @@ class LiveAuthorityGateway:
             "receipt_chain": chain.to_dict(),
             "ready": (
                 chain.passed
+                and signer_ready
                 and not missing_keys
                 and not weak_keys
                 and (
                     self.config.identity_mode == "federated_required"
-                    or (not missing_agent_credentials and not weak_agent_credentials and not duplicate_agent_token_bindings)
+                    or (
+                        not missing_agent_credentials
+                        and not weak_agent_credentials
+                        and not duplicate_agent_token_bindings
+                    )
                 )
                 and not operator_token_missing
                 and not operator_token_weak
@@ -180,7 +234,11 @@ class LiveAuthorityGateway:
             if route.revision_argument
             else ""
         )
-        path = _argument_text(arguments, route.path_argument) if route.path_argument else ""
+        path = (
+            _argument_text(arguments, route.path_argument)
+            if route.path_argument
+            else ""
+        )
         if route.path_argument and not path:
             raise ValueError(
                 f"Configured route {route.tool_name!r} requires a non-empty "
@@ -195,7 +253,9 @@ class LiveAuthorityGateway:
             )
         agent = self.config.agent_registry.lookup(normalized_agent)
         if agent is None:
-            raise ValueError(f"Unregistered Wave 14 agent identity: {normalized_agent}.")
+            raise ValueError(
+                f"Unregistered Wave 14 agent identity: {normalized_agent}."
+            )
         trusted_issuers = [
             {
                 "issuer": issuer.issuer,
@@ -214,7 +274,8 @@ class LiveAuthorityGateway:
                 "trusted_issuers": trusted_issuers,
                 "authenticated_principal": (
                     principal.to_dict()
-                    if principal is not None and principal.authentication_type == "oidc_jwt"
+                    if principal is not None
+                    and principal.authentication_type == "oidc_jwt"
                     else {}
                 ),
             }
@@ -300,9 +361,123 @@ class LiveAuthorityGateway:
             evidence_ids=tuple(evidence_ids),
             evidence_policy=policy,
             decision=decision,
+            authenticated_principal=principal.to_dict() if principal else {},
         )
 
+    def handle_api(
+        self, *, payload: Mapping[str, Any], headers: Mapping[str, str]
+    ) -> GatewayHttpResponse:
+        try:
+            canonical_bytes(dict(payload))
+            return self._handle_api(payload=payload, headers=headers)
+        except (AuthorityProofError, sqlite3.Error, OSError) as exc:
+            return self._proof_unavailable(exc)
+
     def handle_mcp(
+        self, *, payload: Mapping[str, Any], headers: Mapping[str, str], raw_body: bytes
+    ) -> GatewayHttpResponse:
+        try:
+            canonical_bytes(dict(payload))
+            if self.receipt_store.signing is not None and canonical_bytes(
+                strict_json(raw_body)
+            ) != canonical_bytes(dict(payload)):
+                raise AuthorityProofError("MCP transport body differs from evaluated request.")
+            return self._handle_mcp(payload=payload, headers=headers, raw_body=raw_body)
+        except (AuthorityProofError, sqlite3.Error, OSError) as exc:
+            return self._proof_unavailable(exc, request_id=payload.get("id"))
+
+    def _proof_unavailable(
+        self, exc: Exception, request_id: Any = None
+    ) -> GatewayHttpResponse:
+        attempted = isinstance(exc, ReceiptWriteError) and exc.attempted
+        data = {
+            "error": "required authority proof unavailable",
+            "execution_state": "outcome_unknown" if attempted else "not_attempted",
+            "retry_safe": False,
+            "authorization_receipt_id": exc.authorization_id
+            if isinstance(exc, ReceiptWriteError)
+            else "",
+        }
+        return _json_response(
+            503,
+            jsonrpc_error(
+                request_id,
+                code=-32056,
+                message="Required authority proof unavailable.",
+                data=data,
+            )
+            if request_id is not None
+            else data,
+        )
+
+    def _commit_authorization(
+        self, prepared: PreparedAuthorityRequest, claims: tuple[str, ...]
+    ) -> dict[str, Any] | None:
+        if self.receipt_store.signing is None:
+            return None
+        return self._append_receipt(
+            prepared=prepared,
+            upstream_attempted=False,
+            upstream_status=0,
+            upstream_body=b"",
+            upstream_error="",
+            single_use_evidence_claims=claims,
+            record_type="authorization",
+        )
+
+    def _revalidate_before_dispatch(
+        self,
+        prepared: PreparedAuthorityRequest,
+        headers: Mapping[str, str],
+        arguments: Mapping[str, Any],
+        authorization: dict[str, Any] | None,
+    ) -> None:
+        if self.receipt_store.signing is None:
+            return
+        principal, error = self.authenticate_principal(
+            headers=headers, claimed_agent_id=prepared.subject.agent_id
+        )
+        if (
+            error
+            or principal is None
+            or canonical_bytes(principal.to_dict())
+            != canonical_bytes(prepared.authenticated_principal)
+        ):
+            raise AuthorityProofError("Principal changed or expired during signing.")
+        try:
+            current = self.prepare_authority(
+                agent_id=principal.agent_id,
+                tool_name=prepared.route.tool_name,
+                arguments=arguments,
+                evidence_ids=prepared.evidence_ids,
+                protocol=prepared.subject.protocol,
+                principal=principal,
+            )
+        except (KeyError, ValueError) as exc:
+            raise AuthorityProofError("Authority changed during signing.") from exc
+        old_evidence = {
+            v.evidence_id: v.digest
+            for v in prepared.decision.evidence.verifications
+            if v.passed
+        }
+        new_evidence = {
+            v.evidence_id: v.digest
+            for v in current.decision.evidence.verifications
+            if v.passed
+        }
+        if (
+            not current.decision.allowed
+            or current.subject.digest != prepared.subject.digest
+            or old_evidence != new_evidence
+        ):
+            raise AuthorityProofError("Authority evidence changed during signing.")
+        if authorization is None:
+            raise AuthorityProofError("Required authorization is absent.")
+        self.receipt_store.signing.current_policy().verify(
+            authorization["attestation"], RECEIPT_TYPE
+        )
+
+    def _handle_mcp(
         self,
         *,
         payload: Mapping[str, Any],
@@ -518,7 +693,13 @@ class LiveAuthorityGateway:
                 extra_headers={"X-BlackFox-Receipt-Id": str(receipt["receipt_id"])},
             )
 
+        authorization = self._commit_authorization(prepared, claimed_evidence)
+        self._revalidate_before_dispatch(prepared, headers, arguments, authorization)
         forwarded_headers = _forward_request_headers(headers)
+        if authorization is not None:
+            forwarded_headers["X-BlackFox-Authorization-Receipt"] = str(
+                authorization["receipt_id"]
+            )
         forwarded_headers["X-BlackFox-Authority"] = "allow"
         forwarded_headers["X-BlackFox-Subject-Digest"] = prepared.subject.digest
         try:
@@ -538,6 +719,7 @@ class LiveAuthorityGateway:
                 upstream_body=b"",
                 upstream_error=str(exc),
                 single_use_evidence_claims=claimed_evidence,
+                authorization=authorization,
             )
             return _json_response(
                 502,
@@ -561,6 +743,7 @@ class LiveAuthorityGateway:
             upstream_body=upstream.body,
             upstream_error="",
             single_use_evidence_claims=claimed_evidence,
+            authorization=authorization,
         )
         response_headers = _forward_response_headers(upstream)
         response_headers["X-BlackFox-Receipt-Id"] = str(receipt["receipt_id"])
@@ -571,7 +754,7 @@ class LiveAuthorityGateway:
             body=upstream.body,
         )
 
-    def handle_api(
+    def _handle_api(
         self,
         *,
         payload: Mapping[str, Any],
@@ -592,13 +775,17 @@ class LiveAuthorityGateway:
         header_agent = _header(headers, "X-BlackFox-Agent-Id")
         try:
             normalized_header_agent = (
-                normalize_identifier(header_agent, label="agent_id") if header_agent else ""
+                normalize_identifier(header_agent, label="agent_id")
+                if header_agent
+                else ""
             )
             normalized_body_agent = (
                 normalize_identifier(body_agent, label="agent_id") if body_agent else ""
             )
         except ValueError as exc:
-            return _json_response(400, {"error": "invalid agent identity", "detail": str(exc)})
+            return _json_response(
+                400, {"error": "invalid agent identity", "detail": str(exc)}
+            )
         if (
             normalized_header_agent
             and normalized_body_agent
@@ -652,7 +839,14 @@ class LiveAuthorityGateway:
                 protocol="blackfox-api/v1",
                 reason=str(exc),
             )
-            return _json_response(403, {"error": "authority preparation failed", "detail": str(exc), "receipt_id": receipt["receipt_id"]})
+            return _json_response(
+                403,
+                {
+                    "error": "authority preparation failed",
+                    "detail": str(exc),
+                    "receipt_id": receipt["receipt_id"],
+                },
+            )
 
         if not prepared.decision.allowed:
             receipt = self._append_receipt(
@@ -683,9 +877,17 @@ class LiveAuthorityGateway:
                 upstream_body=b"",
                 upstream_error="API upstream route is not configured",
             )
-            return _json_response(503, {"error": "API upstream route is not configured", "receipt_id": receipt["receipt_id"]})
+            return _json_response(
+                503,
+                {
+                    "error": "API upstream route is not configured",
+                    "receipt_id": receipt["receipt_id"],
+                },
+            )
 
-        prepared, claimed_evidence, replayed_evidence = self._claim_single_use_evidence(prepared)
+        prepared, claimed_evidence, replayed_evidence = self._claim_single_use_evidence(
+            prepared
+        )
         if replayed_evidence:
             receipt = self._append_receipt(
                 prepared=prepared,
@@ -707,14 +909,24 @@ class LiveAuthorityGateway:
                 extra_headers={"X-BlackFox-Receipt-Id": str(receipt["receipt_id"])},
             )
 
-        upstream_url = urljoin(f"{self.config.api.base_url}/", prepared.route.api_path.lstrip("/"))
+        authorization = self._commit_authorization(prepared, claimed_evidence)
+        self._revalidate_before_dispatch(prepared, headers, arguments, authorization)
+        upstream_url = urljoin(
+            f"{self.config.api.base_url}/", prepared.route.api_path.lstrip("/")
+        )
         forwarded = {
             "Content-Type": "application/json",
             "Accept": "application/json",
             "X-BlackFox-Authority": "allow",
             "X-BlackFox-Subject-Digest": prepared.subject.digest,
         }
-        raw_body = json.dumps(dict(arguments), sort_keys=True, separators=(",", ":")).encode("utf-8")
+        if authorization is not None:
+            forwarded["X-BlackFox-Authorization-Receipt"] = str(
+                authorization["receipt_id"]
+            )
+        raw_body = json.dumps(
+            dict(arguments), sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
         try:
             upstream = request_upstream(
                 url=upstream_url,
@@ -732,6 +944,7 @@ class LiveAuthorityGateway:
                 upstream_body=b"",
                 upstream_error=str(exc),
                 single_use_evidence_claims=claimed_evidence,
+                authorization=authorization,
             )
             return _json_response(
                 502,
@@ -750,6 +963,7 @@ class LiveAuthorityGateway:
             upstream_body=upstream.body,
             upstream_error="",
             single_use_evidence_claims=claimed_evidence,
+            authorization=authorization,
         )
         result = _decode_upstream_body(upstream)
         return _json_response(
@@ -783,7 +997,9 @@ class LiveAuthorityGateway:
                 max_response_bytes=self.config.server.max_response_bytes,
             )
         except UpstreamTransportError as exc:
-            return _json_response(502, {"error": "configured MCP upstream failed", "detail": str(exc)})
+            return _json_response(
+                502, {"error": "configured MCP upstream failed", "detail": str(exc)}
+            )
         return GatewayHttpResponse(
             status=upstream.status,
             headers=tuple(_forward_response_headers(upstream).items()),
@@ -799,29 +1015,58 @@ class LiveAuthorityGateway:
         upstream_body: bytes,
         upstream_error: str,
         single_use_evidence_claims: tuple[str, ...] = (),
+        record_type: str = "",
+        authorization: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        return self.receipt_store.append(
-            {
-                "recorded_at": datetime.now(tz=UTC).isoformat(),
-                "protocol": prepared.subject.protocol,
-                "subject": prepared.subject.to_dict(),
-                "authority_decision": prepared.decision.to_dict(),
-                "evidence_refs": list(prepared.evidence_ids),
-                "single_use_evidence_claims": list(single_use_evidence_claims),
-                "upstream_attempted": upstream_attempted,
-                "upstream_status": upstream_status,
-                "upstream_response_sha256": hashlib.sha256(upstream_body).hexdigest() if upstream_body else "",
-                "upstream_error": upstream_error,
-                "execution_state": _execution_state(
-                    upstream_attempted=upstream_attempted,
-                    upstream_error=upstream_error,
-                ),
-                # "executed" is retained for receipt-schema compatibility.  It means
-                # BlackFox received a response after an allowed upstream request; it
-                # does not claim proof of arbitrary upstream side effects.
-                "executed": upstream_attempted and not upstream_error and prepared.decision.allowed,
-            }
-        )
+        payload: dict[str, Any] = {
+            "recorded_at": datetime.now(tz=UTC).isoformat(),
+            "protocol": prepared.subject.protocol,
+            "subject": prepared.subject.to_dict(),
+            "authority_decision": prepared.decision.to_dict(),
+            "evidence_refs": list(prepared.evidence_ids),
+            "single_use_evidence_claims": list(single_use_evidence_claims),
+            "upstream_attempted": upstream_attempted,
+            "upstream_status": upstream_status,
+            "upstream_response_sha256": hashlib.sha256(upstream_body).hexdigest()
+            if upstream_body
+            else "",
+            "upstream_error": upstream_error,
+            "execution_state": _execution_state(
+                upstream_attempted=upstream_attempted,
+                upstream_error=upstream_error,
+            ),
+            # "executed" is retained for receipt-schema compatibility.  It means
+            # BlackFox received a response after an allowed upstream request; it
+            # does not claim proof of arbitrary upstream side effects.
+            "executed": upstream_attempted
+            and not upstream_error
+            and prepared.decision.allowed,
+        }
+        if self.receipt_store.signing is not None:
+            kind = record_type or ("outcome" if upstream_attempted else "denial")
+            payload.update(
+                record_type=kind,
+                authenticated_principal=prepared.authenticated_principal,
+                evaluated_evidence_digests={
+                    v.evidence_id: v.digest
+                    for v in prepared.decision.evidence.verifications
+                    if v.passed
+                },
+            )
+            if kind == "authorization":
+                payload["execution_state"] = "authorized_not_dispatched"
+            if authorization is not None:
+                payload.update(
+                    authorization_receipt_id=authorization["receipt_id"],
+                    authorization_receipt_digest=authorization["receipt_digest"],
+                )
+        try:
+            return self.receipt_store.append(payload)
+        except (AuthorityProofError, sqlite3.Error, OSError) as exc:
+            raise ReceiptWriteError(
+                upstream_attempted,
+                str(authorization["receipt_id"]) if authorization else "",
+            ) from exc
 
     def _append_preexecution_failure(
         self,
@@ -836,8 +1081,20 @@ class LiveAuthorityGateway:
             {
                 "recorded_at": datetime.now(tz=UTC).isoformat(),
                 "protocol": protocol,
+                **(
+                    {
+                        "record_type": "denial",
+                        "authenticated_principal": {},
+                        "evaluated_evidence_digests": {},
+                    }
+                    if self.receipt_store.signing is not None
+                    else {}
+                ),
                 "subject": {"agent_id": agent_id, "tool_name": tool_name},
-                "authority_decision": {"status": "block", "reason_codes": [reason_code]},
+                "authority_decision": {
+                    "status": "block",
+                    "reason_codes": [reason_code],
+                },
                 "evidence_refs": [],
                 "single_use_evidence_claims": [],
                 "upstream_attempted": False,
@@ -856,7 +1113,11 @@ class LiveAuthorityGateway:
         claimed_agent_id: str,
     ) -> tuple[AuthenticatedPrincipal | None, str]:
         authorization = _header(headers, "Authorization")
-        bearer = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+        bearer = (
+            authorization[7:].strip()
+            if authorization.lower().startswith("bearer ")
+            else ""
+        )
         static_token = _header(headers, "X-BlackFox-Agent-Token")
         mode = self.config.identity_mode
         if bearer:
@@ -871,10 +1132,16 @@ class LiveAuthorityGateway:
                 and self.config.identity_require_delegation
                 and not principal.delegation_chain
             ):
-                return None, "Federated identity token is missing required delegated authority."
+                return (
+                    None,
+                    "Federated identity token is missing required delegated authority.",
+                )
             return principal, error
         if mode == "federated_required":
-            return None, "Federated bearer identity is required; static agent credentials are disabled."
+            return (
+                None,
+                "Federated bearer identity is required; static agent credentials are disabled.",
+            )
         if not static_token:
             return None, "BlackFox agent credential is required."
         token_bytes = static_token.encode("utf-8")
@@ -884,15 +1151,23 @@ class LiveAuthorityGateway:
             if hmac.compare_digest(token_bytes, expected)
         ]
         if len(matches) != 1:
-            return None, "BlackFox agent credential is invalid or ambiguously configured."
+            return (
+                None,
+                "BlackFox agent credential is invalid or ambiguously configured.",
+            )
         authenticated_agent_id = matches[0]
         if claimed_agent_id:
             try:
-                normalized_claim = normalize_identifier(claimed_agent_id, label="agent_id")
+                normalized_claim = normalize_identifier(
+                    claimed_agent_id, label="agent_id"
+                )
             except ValueError:
                 return None, "Claimed BlackFox agent identity is invalid."
             if normalized_claim != authenticated_agent_id:
-                return None, "Authenticated BlackFox agent identity does not match the claimed agent id."
+                return (
+                    None,
+                    "Authenticated BlackFox agent identity does not match the claimed agent id.",
+                )
         return (
             AuthenticatedPrincipal(
                 agent_id=authenticated_agent_id,
@@ -923,10 +1198,18 @@ class LiveAuthorityGateway:
         bearer = ""
         if authorization.lower().startswith("bearer "):
             bearer = authorization[7:].strip()
-        if explicit and bearer and not hmac.compare_digest(explicit.encode("utf-8"), bearer.encode("utf-8")):
+        if (
+            explicit
+            and bearer
+            and not hmac.compare_digest(
+                explicit.encode("utf-8"), bearer.encode("utf-8")
+            )
+        ):
             return False
         candidate = explicit or bearer
-        return bool(candidate) and hmac.compare_digest(candidate.encode("utf-8"), self.operator_token)
+        return bool(candidate) and hmac.compare_digest(
+            candidate.encode("utf-8"), self.operator_token
+        )
 
     def _claim_single_use_evidence(
         self,
@@ -1006,7 +1289,9 @@ def _duplicate_token_bindings(agent_tokens: Mapping[str, bytes]) -> list[list[st
     return [sorted(agent_ids) for agent_ids in groups.values() if len(agent_ids) > 1]
 
 
-def _resolve_agent_id(headers: Mapping[str, str], params: Mapping[str, Any]) -> tuple[str, str]:
+def _resolve_agent_id(
+    headers: Mapping[str, str], params: Mapping[str, Any]
+) -> tuple[str, str]:
     header_value = _header(headers, "X-BlackFox-Agent-Id")
     metadata = params.get("_meta", {})
     meta_value = ""
@@ -1024,11 +1309,16 @@ def _resolve_agent_id(headers: Mapping[str, str], params: Mapping[str, Any]) -> 
     except ValueError:
         return header_value or meta_value, "BlackFox agent identity claim is invalid."
     if normalized_header and normalized_meta and normalized_header != normalized_meta:
-        return normalized_header, "BlackFox agent identity header and MCP metadata disagree."
+        return (
+            normalized_header,
+            "BlackFox agent identity header and MCP metadata disagree.",
+        )
     return normalized_header or normalized_meta, ""
 
 
-def _resolve_evidence_ids(headers: Mapping[str, str], params: Mapping[str, Any]) -> tuple[str, ...]:
+def _resolve_evidence_ids(
+    headers: Mapping[str, str], params: Mapping[str, Any]
+) -> tuple[str, ...]:
     result: list[str] = []
     header_value = _header(headers, "X-BlackFox-Evidence")
     if header_value:
@@ -1062,7 +1352,9 @@ def _string_sequence(value: Any) -> tuple[str, ...]:
         return (value,) if value.strip() else ()
     if not isinstance(value, Sequence) or isinstance(value, bytes | bytearray):
         return ()
-    return tuple(item.strip() for item in value if isinstance(item, str) and item.strip())
+    return tuple(
+        item.strip() for item in value if isinstance(item, str) and item.strip()
+    )
 
 
 def _argument_text(arguments: Mapping[str, Any], key: str) -> str:
@@ -1072,7 +1364,11 @@ def _argument_text(arguments: Mapping[str, Any], key: str) -> str:
 
 def _denial_response(status: LiveAuthorityStatus) -> tuple[int, str, int]:
     if status is LiveAuthorityStatus.REVIEW_REQUIRED:
-        return -32051, "Verified human authority is required before tool execution.", 428
+        return (
+            -32051,
+            "Verified human authority is required before tool execution.",
+            428,
+        )
     if status is LiveAuthorityStatus.EVIDENCE_REQUIRED:
         return -32052, "Required evidence conditions are not satisfied.", 428
     return -32050, "BlackFox denied authority before tool execution.", 403
@@ -1116,7 +1412,9 @@ def _validate_mcp_parameter_headers(
                 -32020,
                 f"{binding.full_header_name} is required by the configured MCP route binding.",
             )
-        expected = _canonical_mcp_primitive(value, label=".".join(binding.argument_path))
+        expected = _canonical_mcp_primitive(
+            value, label=".".join(binding.argument_path)
+        )
         actual = decode_mcp_header_value(raw_header, label=binding.full_header_name)
         if not hmac.compare_digest(actual.encode("utf-8"), expected.encode("utf-8")):
             raise McpProtocolError(
@@ -1209,7 +1507,9 @@ def _json_response(
     return GatewayHttpResponse(
         status=status,
         headers=tuple(headers.items()),
-        body=(json.dumps(dict(payload), sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8"),
+        body=(
+            json.dumps(dict(payload), sort_keys=True, ensure_ascii=False) + "\n"
+        ).encode("utf-8"),
     )
 
 

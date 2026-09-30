@@ -1,0 +1,59 @@
+{
+  "$id": "https://ix-blackfox.local/schemas/wave16-verification.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "checkpoint_matched": {
+      "type": "boolean"
+    },
+    "completeness": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "head_digest": {
+      "pattern": "^([0-9a-f]{64})?$",
+      "type": "string"
+    },
+    "issues": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "receipt_count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "wave16.verification.v1"
+    },
+    "scope": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "unresolved_authorizations": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "schema_version",
+    "passed",
+    "receipt_count",
+    "head_digest",
+    "checkpoint_matched",
+    "unresolved_authorizations",
+    "issues",
+    "scope",
+    "completeness"
+  ],
+  "title": "Wave 16 verification",
+  "type": "object"
+}

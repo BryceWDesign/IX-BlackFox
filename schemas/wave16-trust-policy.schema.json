@@ -1,0 +1,87 @@
+{
+  "$id": "https://ix-blackfox.local/schemas/wave16-trust-policy.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "clock_skew_seconds": {
+      "maximum": 300,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "deployment_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "keys": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "algorithm": {
+            "enum": [
+              "Ed25519",
+              "RSA-PSS-SHA256",
+              "RSA-PKCS1-SHA256",
+              "ECDSA-P256-SHA256"
+            ]
+          },
+          "key_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "not_after": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "not_before": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "public_key_pem": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "revoked": {
+            "type": "boolean"
+          },
+          "spki_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key_id",
+          "algorithm",
+          "public_key_pem",
+          "spki_sha256",
+          "not_before",
+          "not_after",
+          "revoked"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "wave16.trust_policy.v1"
+    },
+    "stream_id": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "deployment_id",
+    "stream_id",
+    "expires_at",
+    "clock_skew_seconds",
+    "keys"
+  ],
+  "title": "Wave 16 trust-policy",
+  "type": "object"
+}

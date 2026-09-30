@@ -57,12 +57,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "issue-evidence":
         issuer = config.issuer_for(args.issuer, args.key_id)
         if issuer is None:
-            raise ValueError("issuer/key_id is not configured as a trusted evidence issuer")
+            raise ValueError(
+                "issuer/key_id is not configured as a trusted evidence issuer"
+            )
         secret_text = os.environ.get(issuer.secret_env, "")
         if not secret_text:
-            raise ValueError(f"required signing secret environment variable is unset: {issuer.secret_env}")
+            raise ValueError(
+                f"required signing secret environment variable is unset: {issuer.secret_env}"
+            )
         if len(secret_text.encode("utf-8")) < 32:
-            raise ValueError("configured evidence signing secret must be at least 32 bytes")
+            raise ValueError(
+                "configured evidence signing secret must be at least 32 bytes"
+            )
         if issuer.allowed_kinds and args.kind not in issuer.allowed_kinds:
             raise ValueError(
                 f"issuer/key_id is not authorized to issue evidence kind {args.kind!r}"
@@ -133,7 +139,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="blackfox gateway",
-        description="Wave 15 enterprise identity and live authority gateway operator commands.",
+        description="Wave 16 cryptographic authority and enterprise identity gateway operator commands.",
     )
     sub = parser.add_subparsers(dest="command")
 
@@ -141,7 +147,9 @@ def _build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--config", required=True)
     serve.add_argument("--print-status", action="store_true")
 
-    check = sub.add_parser("check", help="Validate gateway configuration and receipt chain.")
+    check = sub.add_parser(
+        "check", help="Validate gateway configuration and receipt chain."
+    )
     check.add_argument("--config", required=True)
 
     subject = sub.add_parser(

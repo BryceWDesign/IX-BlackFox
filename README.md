@@ -16,7 +16,7 @@ BlackFox is designed around a simple rule:
 
 > **Capability is not authority. An AI agent being able to perform an action does not mean it is authorized to perform it.**
 
-Today, BlackFox provides a live MCP/API enforcement boundary with federated workload identity, delegated least privilege, revocation, evidence-conditioned authorization, human-gated execution, revision-bound verification, and cryptographically chained authority receipts.
+Today, BlackFox provides a live MCP/API enforcement boundary with federated workload identity, delegated least privilege, revocation, evidence-conditioned authorization, human-gated execution, revision-bound verification, and public-key signed authority receipts committed before dispatch in configured Wave 16 mode.
 
 ---
 
@@ -43,6 +43,9 @@ Its current control surface includes:
 * deterministic evidence packaging
 * independent verification
 * machine advisories with no human voting authority
+* required signed authorization committed before governed upstream dispatch
+* linked signed outcome observations and unresolved-authorization reporting
+* independent pinned-key and expected-checkpoint verification
 * transactionally hash-chained authority receipts
 * receipt lookup and independent chain verification
 * fail-closed behavior when required trust material is missing or invalid
@@ -55,40 +58,21 @@ The goal is to make increasingly capable agents **bounded, attributable, inspect
 
 ## The enforcement path
 
-```text
-AI Agent
-   |
-   v
-MCP / HTTP API request
-   |
-   v
-Federated Workload Identity
-   |
-   v
-Registered Agent Binding
-   |
-   v
-Delegated Authority + Scope
-   |
-   v
-Repository / Revision / Evidence Checks
-   |
-   v
-Policy Evaluation
-   |
-   v
-Human Authority When Required
-   |
-   v
-ALLOW or DENY
-   |
-   +---- DENY ----> upstream is not executed
-   |
-   +---- ALLOW ---> configured upstream tool executes
-                         |
-                         v
-                Hash-Chained Authority Receipt
+```mermaid
+flowchart TD
+    Request["AI action request"] --> Gates["Identity, delegation, scope, evidence and human approval"]
+    Gates --> Verdict{"Authorized?"}
+    Verdict -->|No| Deny["Deny before dispatch"]
+    Verdict -->|Yes| Sign["Reserve approval; sign and commit authorization"]
+    Sign --> Fresh{"Current authority and signing trust valid?"}
+    Fresh -->|No| Stop["Refuse dispatch; report unresolved authorization"]
+    Fresh -->|Yes| Upstream["Dispatch configured upstream"]
+    Upstream --> Outcome["Commit linked signed outcome observation"]
+    Outcome --> Audit["Export; verify with pinned keys and retained checkpoint"]
 ```
+
+This path describes configured Wave 16 cryptographic mode. Historical configurations without `[receipt_signing]` retain their original unsigned receipt format.
+
 
 BlackFox is intended to make the answer to these questions inspectable:
 
@@ -111,68 +95,42 @@ BlackFox is intended to make the answer to these questions inspectable:
 
 ## Show me it works
 
-Wave 15 includes a live proof using:
+The Wave 16 local proof uses real HTTP sockets, a fresh RS256 workload identity, an encrypted Ed25519 authority key and two real file writes. Before each API/MCP write, a separate database connection and public-key verifier confirm that its authorization was committed and covers the exact arguments. All temporary private state is removed before a separate process verifies the public export.
 
-* a real RS256 keypair
-* a real JWKS trust document
-* short-lived signed workload tokens
-* real HTTP sockets
-* bounded delegation
-* a real upstream side effect
-* persistent revocation
-* hash-chained authority receipts
+| Exercised behavior | Local proof result |
+|---|---|
+| Unauthenticated request | HTTP 401; zero upstream calls |
+| Missing evidence | HTTP 428; zero upstream calls |
+| Delegated scope escape | HTTP 403; zero upstream calls |
+| Authorized API and MCP actions | Two independently witnessed file writes |
+| Reused single-use approval | HTTP 409; no additional dispatch |
+| Signing unavailable | Readiness false; HTTP 503 before dispatch |
+| Revoked workload identity | HTTP 401; no additional dispatch |
+| Modified receipt or truncated snapshot | Rejected by public verifier |
+| Public verification after private state removal | Passed |
 
-The proof exercises both allowed and denied paths.
+The current proof emits nine signed receipts and seventeen checks. The IdP, CI evidence and human reviewer are local synthetic fixtures. AWS KMS, physical HSM and Sigstore service use are explicitly `NOT_RUN` in this local proof.
 
-Representative validated behavior:
+## Run the Wave 16 proof
 
-```text
-Static credential in federated-only mode   -> 401 DENIED
-Wrong token audience                       -> 401 DENIED
-Expired workload token                     -> 401 DENIED
-Missing required delegation                -> 401 DENIED
-Delegation scope escape                    -> 403 DENIED
+From the extracted repository root in PowerShell:
 
-Upstream executions after denied requests  -> 0
-
-Valid identity + bounded delegation
-+ required authority                       -> 200 ALLOWED
-
-Upstream executions after allowed request  -> 1
-
-Revoked workload token reuse               -> 401 DENIED
-
-Upstream executions after revocation       -> still 1
-
-Receipt-chain verification                 -> PASSED
-Receipt-chain issues                       -> 0
+```powershell
+py -3.13 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,aws-kms]"
+.\.venv\Scripts\python.exe scripts/run_wave16_crypto_authority_ci.py --root .
+.\.venv\Scripts\python.exe -m ix_blackfox.authority_crypto.cli verify --bundle .blackfox-artifacts/wave16/authority-bundle.json --trust-policy .blackfox-artifacts/wave16/trust-policy.json --checkpoint .blackfox-artifacts/wave16/external-checkpoint.json
 ```
 
-The important property is not the HTTP status code itself.
+For Bash, use `python3 -m venv .venv` and `.venv/bin/python` in place of the PowerShell interpreter path. Four public JSON artifacts are written under `.blackfox-artifacts/wave16`.
 
-It is that requests which fail the authority boundary **do not reach the configured upstream action**.
+The co-packaged demo checkpoint is a verification fixture. Actual rollback protection requires an expected checkpoint retained independently of the gateway and bundle. The trust policy also needs authenticated independent provisioning. See [Wave 16 deployment and claim boundaries](docs/wave16-cryptographic-authority.md).
 
----
+Historical Wave 15 identity proof remains available:
 
-## Run the Wave 15 proof
-
-IX-BlackFox requires Python 3.11 or newer.
-
-Install the project and development dependencies:
-
-```bash
-python -m pip install -e ".[dev]"
+```powershell
+.\.venv\Scripts\python.exe scripts/run_wave15_enterprise_identity_ci.py --root .
 ```
-
-Run the current enterprise-identity and delegated-authority proof:
-
-```bash
-python scripts/run_wave15_enterprise_identity_ci.py --root .
-```
-
-For the complete identity, delegation, revocation, threat, and claim boundaries, see:
-
-[Wave 15 Enterprise Identity & Delegated Authority](docs/wave15-enterprise-identity-delegated-authority.md)
 
 ---
 
@@ -182,31 +140,16 @@ Authenticating an AI agent answers only part of the problem.
 
 BlackFox separates:
 
-```text
-IDENTITY
-Who is making the request?
-
-AUTHORITY
-What is that identity allowed to do?
-
-DELEGATION
-Where did that authority come from?
-
-SCOPE
-Which tools, repositories, and paths are permitted?
-
-EVIDENCE
-What verified information supports the action?
-
-HUMAN AUTHORITY
-Does this action require an accountable human decision?
-
-REVOCATION
-Can previously granted authority be invalidated?
-
-RECEIPTS
-Can the resulting decision and execution history be checked later?
-```
+| Control | Question |
+|---|---|
+| Identity | Who is making the request? |
+| Authority | What may that identity do? |
+| Delegation | Who granted the bounded authority? |
+| Scope | Which tools, repositories and paths are permitted? |
+| Evidence | What verified information supports this action? |
+| Human approval | Does the policy require an accountable human decision? |
+| Revocation | Is previously granted trust still valid? |
+| Receipts | Can the endorsed decision and observed outcome be independently verified? |
 
 A valid identity does not automatically receive tool authority.
 
@@ -320,63 +263,21 @@ Self-consistent hashes alone are not treated as sufficient proof when semantic v
 
 ## Current architecture
 
-```text
-                         IX-BlackFox
-
-        +-------------------------------------------+
-        |        Federated Workload Identity        |
-        |  issuer / audience / subject / token      |
-        +----------------------+--------------------+
-                               |
-                               v
-        +-------------------------------------------+
-        |        Registered Agent Authority         |
-        | capabilities / repositories / path scope  |
-        +----------------------+--------------------+
-                               |
-                               v
-        +-------------------------------------------+
-        |          Delegated Least Privilege        |
-        | parent binding / narrowing / expiration   |
-        |                 revocation                 |
-        +----------------------+--------------------+
-                               |
-                               v
-        +-------------------------------------------+
-        |           Evidence + Policy Gates         |
-        | provenance / revision / freshness / risk  |
-        +----------------------+--------------------+
-                               |
-                               v
-        +-------------------------------------------+
-        |           Human Authority Boundary        |
-        |       when policy requires approval       |
-        +----------------------+--------------------+
-                               |
-                               v
-                    +---------------------+
-                    |    ALLOW / DENY     |
-                    +----------+----------+
-                               |
-                +--------------+--------------+
-                |                             |
-              DENY                          ALLOW
-                |                             |
-        no upstream action             upstream executes
-                                              |
-                                              v
-                                  +-----------------------+
-                                  | Authority Receipt     |
-                                  | hash-chained +        |
-                                  | independently checked |
-                                  +-----------------------+
-```
+The gateway applies the enforcement path above to configured consequential tools. Wave 16 adds the signing providers, separately pinned public trust, signed authorization/outcome stream and public export verifier to the existing identity, evidence and human-authority controls. The [system architecture](docs/system-architecture.md) and [Wave 16 contract](docs/wave16-cryptographic-authority.md) describe the implementation and deployment boundaries.
 
 ---
 
 ## Current capability layers
 
 The Wave names below are retained as stable repository and documentation contract identifiers.
+
+## Wave 16: Cryptographic Authority Receipts & Externally Anchored Trust
+
+Configured gateways commit a public-key signed authorization before dispatch and link a signed outcome afterward. Independent verification uses pinned keys and can compare the export with an independently retained expected checkpoint. Encrypted local keys, KMS, PKCS#11 and explicit Cosign adapters are implemented with fail-closed behavior. External service use, physical custody, independent production retention and remote CI remain separately validated deployment responsibilities.
+
+* [Operator and verification contract](docs/wave16-cryptographic-authority.md)
+* [Machine-readable claims ledger](docs/wave16-claims-ledger.json)
+* [Current validation](VALIDATION_REPORT.md)
 
 ## Wave 15: Enterprise Identity & Delegated Authority
 
@@ -434,7 +335,7 @@ The primary CI matrix covers:
 * pytest
 * dedicated evidence and authority workflows for major BlackFox control layers
 
-Wave 15 also has dedicated enterprise-identity and delegated-authority CI proofing across the supported Python matrix.
+Wave 16 adds a dedicated Ubuntu/Windows matrix across Python 3.11–3.13, with lint, strict typing, the complete suite and real local signed-authority proof. The workflow is configured; remote GitHub execution was not performed in this handoff. Wave 15 proofing remains available.
 
 **Treat current GitHub Actions results and [VALIDATION_REPORT.md](VALIDATION_REPORT.md) as the source of truth for current validation status rather than relying on a static test-count claim in this README.**
 
@@ -445,7 +346,7 @@ Wave 15 also has dedicated enterprise-identity and delegated-authority CI proofi
 Install development dependencies:
 
 ```bash
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev,aws-kms]"
 ```
 
 Run Ruff:
@@ -476,6 +377,7 @@ Major recent milestones:
 
 | Generation | Capability |
 | --- | --- |
+| Wave 16 | Cryptographic Authority Receipts & Externally Anchored Trust |
 | Wave 15 | Enterprise Identity & Delegated Authority |
 | Wave 14 | Live Authority Gateway |
 | Wave 13 | Human-Machine Review Board |
@@ -544,6 +446,10 @@ See [COMMERCIAL.md](COMMERCIAL.md) for commercial-use information.
 ## Documentation
 
 Key documents:
+
+* [Wave 16 Cryptographic Authority](docs/wave16-cryptographic-authority.md)
+* [Wave 16 Claims Ledger](docs/wave16-claims-ledger.json)
+* [Roadmap](docs/ROADMAP.md)
 
 * [Wave 15 Enterprise Identity & Delegated Authority](docs/wave15-enterprise-identity-delegated-authority.md)
 * [Wave 14 Live Authority Gateway](docs/wave14-live-authority-gateway.md)

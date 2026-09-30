@@ -1,0 +1,697 @@
+* Getting build dependencies for wheel...
+running egg_info
+writing src/ix_blackfox.egg-info/PKG-INFO
+writing dependency_links to src/ix_blackfox.egg-info/dependency_links.txt
+writing entry points to src/ix_blackfox.egg-info/entry_points.txt
+writing requirements to src/ix_blackfox.egg-info/requires.txt
+writing top-level names to src/ix_blackfox.egg-info/top_level.txt
+reading manifest file 'src/ix_blackfox.egg-info/SOURCES.txt'
+adding license file 'LICENSE'
+adding license file 'NOTICE.md'
+writing manifest file 'src/ix_blackfox.egg-info/SOURCES.txt'
+WARNING `project.license` as a TOML table is deprecated
+!!
+
+        ********************************************************************************
+        Please use a simple string containing a SPDX expression for `project.license`. You can also use `project.license-files`. (Both options available on setuptools>=77.0.0).
+
+        By 2027-Feb-18, you need to update your project and remove deprecated calls
+        or your builds will no longer be supported.
+
+        See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.
+        ********************************************************************************
+
+!!
+WARNING License classifiers are deprecated.
+!!
+
+        ********************************************************************************
+        Please consider removing the following classifiers in favor of a SPDX license expression:
+
+        License :: Other/Proprietary License
+
+        See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.
+        ********************************************************************************
+
+!!
+WARNING License classifiers are deprecated.
+!!
+
+        ********************************************************************************
+        Please consider removing the following classifiers in favor of a SPDX license expression:
+
+        License :: Other/Proprietary License
+
+        See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.
+        ********************************************************************************
+
+!!
+* Building wheel...
+running bdist_wheel
+running build
+running build_py
+copying src/ix_blackfox/authority_crypto/cli.py -> build/lib/ix_blackfox/authority_crypto
+copying src/ix_blackfox/authority_crypto/verification.py -> build/lib/ix_blackfox/authority_crypto
+running egg_info
+writing src/ix_blackfox.egg-info/PKG-INFO
+writing dependency_links to src/ix_blackfox.egg-info/dependency_links.txt
+writing entry points to src/ix_blackfox.egg-info/entry_points.txt
+writing requirements to src/ix_blackfox.egg-info/requires.txt
+writing top-level names to src/ix_blackfox.egg-info/top_level.txt
+reading manifest file 'src/ix_blackfox.egg-info/SOURCES.txt'
+adding license file 'LICENSE'
+adding license file 'NOTICE.md'
+writing manifest file 'src/ix_blackfox.egg-info/SOURCES.txt'
+installing to build/bdist.linux-x86_64/wheel
+running install
+running install_lib
+creating build/bdist.linux-x86_64/wheel
+creating build/bdist.linux-x86_64/wheel/ix_blackfox
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/live_gateway
+copying build/lib/ix_blackfox/live_gateway/service.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/live_gateway
+copying build/lib/ix_blackfox/live_gateway/cli.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/live_gateway
+copying build/lib/ix_blackfox/live_gateway/evidence.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/live_gateway
+copying build/lib/ix_blackfox/live_gateway/enterprise_identity.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/live_gateway
+copying build/lib/ix_blackfox/live_gateway/protocol.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/live_gateway
+copying build/lib/ix_blackfox/live_gateway/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/live_gateway
+copying build/lib/ix_blackfox/live_gateway/receipts.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/live_gateway
+copying build/lib/ix_blackfox/live_gateway/http_server.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/live_gateway
+copying build/lib/ix_blackfox/live_gateway/wave16_demo.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/live_gateway
+copying build/lib/ix_blackfox/live_gateway/upstream.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/live_gateway
+copying build/lib/ix_blackfox/live_gateway/demo.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/live_gateway
+copying build/lib/ix_blackfox/live_gateway/wave15_demo.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/live_gateway
+copying build/lib/ix_blackfox/live_gateway/models.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/live_gateway
+copying build/lib/ix_blackfox/live_gateway/authority.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/live_gateway
+copying build/lib/ix_blackfox/live_gateway/config.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/live_gateway
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/authoring
+copying build/lib/ix_blackfox/authoring/patch_compiler.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authoring
+copying build/lib/ix_blackfox/authoring/decomposition.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authoring
+copying build/lib/ix_blackfox/authoring/context.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authoring
+copying build/lib/ix_blackfox/authoring/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authoring
+copying build/lib/ix_blackfox/authoring/failure_evidence.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authoring
+copying build/lib/ix_blackfox/authoring/errors.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authoring
+copying build/lib/ix_blackfox/authoring/receipts.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authoring
+copying build/lib/ix_blackfox/authoring/hypotheses.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authoring
+copying build/lib/ix_blackfox/authoring/prompt_contract.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authoring
+copying build/lib/ix_blackfox/authoring/response_parser.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authoring
+copying build/lib/ix_blackfox/authoring/models.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authoring
+copying build/lib/ix_blackfox/authoring/policy.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authoring
+copying build/lib/ix_blackfox/authoring/candidates.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authoring
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/falsification.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/scorecard.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/evidence.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/cloud.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/review_bundle.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/report.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/replay.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/sustainment.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/standards.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/registry.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/trust.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/models.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/authority.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/work_packages.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/campaign.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/export.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/traceability.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/policy.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+copying build/lib/ix_blackfox/operating/assembly.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/operating
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/audit
+copying build/lib/ix_blackfox/audit/cli.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/audit
+copying build/lib/ix_blackfox/audit/evidence_bridges.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/audit
+copying build/lib/ix_blackfox/audit/policy_packs.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/audit
+copying build/lib/ix_blackfox/audit/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/audit
+copying build/lib/ix_blackfox/audit/controls.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/audit
+copying build/lib/ix_blackfox/audit/evidence_standard.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/audit
+copying build/lib/ix_blackfox/audit/report.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/audit
+copying build/lib/ix_blackfox/audit/models.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/audit
+copying build/lib/ix_blackfox/audit/signoff.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/audit
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/tools
+copying build/lib/ix_blackfox/tools/risk.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/tools
+copying build/lib/ix_blackfox/tools/workspace.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/tools
+copying build/lib/ix_blackfox/tools/patch_apply.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/tools
+copying build/lib/ix_blackfox/tools/test_runner.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/tools
+copying build/lib/ix_blackfox/tools/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/tools
+copying build/lib/ix_blackfox/tools/patch.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/tools
+copying build/lib/ix_blackfox/tools/receipts.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/tools
+copying build/lib/ix_blackfox/tools/policy_file.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/tools
+copying build/lib/ix_blackfox/tools/contracts.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/tools
+copying build/lib/ix_blackfox/tools/artifacts.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/tools
+copying build/lib/ix_blackfox/tools/manifest.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/tools
+copying build/lib/ix_blackfox/tools/test_results.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/tools
+copying build/lib/ix_blackfox/tools/policy.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/tools
+copying build/lib/ix_blackfox/tools/gateway.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/tools
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/sandbox
+copying build/lib/ix_blackfox/sandbox/workspace.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sandbox
+copying build/lib/ix_blackfox/sandbox/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sandbox
+copying build/lib/ix_blackfox/sandbox/local_audit.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sandbox
+copying build/lib/ix_blackfox/sandbox/contracts.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sandbox
+copying build/lib/ix_blackfox/sandbox/signing.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sandbox
+copying build/lib/ix_blackfox/sandbox/egress.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sandbox
+copying build/lib/ix_blackfox/sandbox/container.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sandbox
+copying build/lib/ix_blackfox/sandbox/adversarial.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sandbox
+copying build/lib/ix_blackfox/sandbox/receipt.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sandbox
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/switchboard
+copying build/lib/ix_blackfox/switchboard/runtime.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/switchboard
+copying build/lib/ix_blackfox/switchboard/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/switchboard
+copying build/lib/ix_blackfox/switchboard/models.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/switchboard
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/operator_summary.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/wave3_cli.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/brain_proposal.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/wave3_bundle.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/reasoning.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/run_bundle_export.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/safeguard.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/verification_summary.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/vision.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/repair_receipts.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/inference.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/control_plane_cli.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/receipts.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/acceptance.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/replay.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/authoring_repair.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/programming_repair.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/doctor.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/policy_reasoning.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/wave7_report.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/orchestrator.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/repair_loop.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/brain_repair.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/brain_repair_evidence.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/control_plane.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/readiness.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/governance.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/wave3_acceptance.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/approval.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+copying build/lib/ix_blackfox/runtime/run_bundle.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/runtime
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/eval
+copying build/lib/ix_blackfox/eval/evidence.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/eval
+copying build/lib/ix_blackfox/eval/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/eval
+copying build/lib/ix_blackfox/eval/benchmark.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/eval
+copying build/lib/ix_blackfox/eval/core.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/eval
+copying build/lib/ix_blackfox/eval/verification.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/eval
+copying build/lib/ix_blackfox/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/sentinel
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/sentinel/checks
+copying build/lib/ix_blackfox/sentinel/checks/governance_consistency.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sentinel/checks
+copying build/lib/ix_blackfox/sentinel/checks/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sentinel/checks
+copying build/lib/ix_blackfox/sentinel/checks/contradiction.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sentinel/checks
+copying build/lib/ix_blackfox/sentinel/checks/failure_loop.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sentinel/checks
+copying build/lib/ix_blackfox/sentinel/checks/policy.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sentinel/checks
+copying build/lib/ix_blackfox/sentinel/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sentinel
+copying build/lib/ix_blackfox/sentinel/core.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sentinel
+copying build/lib/ix_blackfox/sentinel/checks.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/sentinel
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/workflow
+copying build/lib/ix_blackfox/workflow/cli.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/workflow
+copying build/lib/ix_blackfox/workflow/pr_evidence_pack.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/workflow
+copying build/lib/ix_blackfox/workflow/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/workflow
+copying build/lib/ix_blackfox/workflow/sandbox_adversarial_evidence.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/workflow
+copying build/lib/ix_blackfox/workflow/pr_evidence_io.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/workflow
+copying build/lib/ix_blackfox/workflow/pr_gate.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/workflow
+copying build/lib/ix_blackfox/workflow/approval_policy.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/workflow
+copying build/lib/ix_blackfox/workflow/ci_evidence.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/workflow
+copying build/lib/ix_blackfox/workflow/sandbox_receipt_evidence.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/workflow
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/memory
+copying build/lib/ix_blackfox/memory/trace.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/memory
+copying build/lib/ix_blackfox/memory/working.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/memory
+copying build/lib/ix_blackfox/memory/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/memory
+copying build/lib/ix_blackfox/memory/semantic.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/memory
+copying build/lib/ix_blackfox/memory/artifact.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/memory
+copying build/lib/ix_blackfox/memory/episodic.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/memory
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/forge
+copying build/lib/ix_blackfox/forge/execution_ticket.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/forge
+copying build/lib/ix_blackfox/forge/patch_plan.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/forge
+copying build/lib/ix_blackfox/forge/workspace.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/forge
+copying build/lib/ix_blackfox/forge/code_analysis.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/forge
+copying build/lib/ix_blackfox/forge/test_runner.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/forge
+copying build/lib/ix_blackfox/forge/governed_command_runner.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/forge
+copying build/lib/ix_blackfox/forge/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/forge
+copying build/lib/ix_blackfox/forge/regression.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/forge
+copying build/lib/ix_blackfox/forge/command_runner.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/forge
+copying build/lib/ix_blackfox/forge/governed_patch_intents.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/forge
+copying build/lib/ix_blackfox/forge/file_graph.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/forge
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/packs
+copying build/lib/ix_blackfox/packs/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/packs
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/packs/programming
+copying build/lib/ix_blackfox/packs/programming/runtime.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/packs/programming
+copying build/lib/ix_blackfox/packs/programming/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/packs/programming
+copying build/lib/ix_blackfox/packs/registry.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/packs
+copying build/lib/ix_blackfox/packs/manifest.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/packs
+copying build/lib/ix_blackfox/packs/loader.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/packs
+copying build/lib/ix_blackfox/packs/base.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/packs
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/packs/architecture
+copying build/lib/ix_blackfox/packs/architecture/runtime.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/packs/architecture
+copying build/lib/ix_blackfox/packs/architecture/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/packs/architecture
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/assurance
+copying build/lib/ix_blackfox/assurance/cli.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/assurance
+copying build/lib/ix_blackfox/assurance/crosswalk.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/assurance
+copying build/lib/ix_blackfox/assurance/evidence.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/assurance
+copying build/lib/ix_blackfox/assurance/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/assurance
+copying build/lib/ix_blackfox/assurance/profiles.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/assurance
+copying build/lib/ix_blackfox/assurance/verify.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/assurance
+copying build/lib/ix_blackfox/assurance/quality.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/assurance
+copying build/lib/ix_blackfox/assurance/report.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/assurance
+copying build/lib/ix_blackfox/assurance/parsing.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/assurance
+copying build/lib/ix_blackfox/assurance/package.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/assurance
+copying build/lib/ix_blackfox/assurance/models.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/assurance
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/reliability
+copying build/lib/ix_blackfox/reliability/cli.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/reliability
+copying build/lib/ix_blackfox/reliability/scenarios.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/reliability
+copying build/lib/ix_blackfox/reliability/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/reliability
+copying build/lib/ix_blackfox/reliability/integrity.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/reliability
+copying build/lib/ix_blackfox/reliability/runner.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/reliability
+copying build/lib/ix_blackfox/reliability/artifacts.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/reliability
+copying build/lib/ix_blackfox/reliability/metrics.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/reliability
+copying build/lib/ix_blackfox/reliability/models.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/reliability
+copying build/lib/ix_blackfox/reliability/adversarial.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/reliability
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/bus
+copying build/lib/ix_blackfox/bus/runtime.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/bus
+copying build/lib/ix_blackfox/bus/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/bus
+copying build/lib/ix_blackfox/bus/messages.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/bus
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/agents
+copying build/lib/ix_blackfox/agents/capabilities.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/agents
+copying build/lib/ix_blackfox/agents/authorization.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/agents
+copying build/lib/ix_blackfox/agents/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/agents
+copying build/lib/ix_blackfox/agents/tool_gateway.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/agents
+copying build/lib/ix_blackfox/agents/report.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/agents
+copying build/lib/ix_blackfox/agents/registry.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/agents
+copying build/lib/ix_blackfox/agents/adapters.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/agents
+copying build/lib/ix_blackfox/agents/operating_bridge.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/agents
+copying build/lib/ix_blackfox/agents/provenance.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/agents
+copying build/lib/ix_blackfox/agents/models.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/agents
+copying build/lib/ix_blackfox/agents/authority.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/agents
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/observability
+copying build/lib/ix_blackfox/observability/runtime.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/observability
+copying build/lib/ix_blackfox/observability/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/observability
+copying build/lib/ix_blackfox/exceptions.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/governance
+copying build/lib/ix_blackfox/governance/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/governance
+copying build/lib/ix_blackfox/governance/advisory.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/governance
+copying build/lib/ix_blackfox/governance/models.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/governance
+copying build/lib/ix_blackfox/governance/approval.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/governance
+copying build/lib/ix_blackfox/governance/policy.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/governance
+copying build/lib/ix_blackfox/governance/receipt.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/governance
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/interface
+copying build/lib/ix_blackfox/interface/cli.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/interface
+copying build/lib/ix_blackfox/interface/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/interface
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/brains
+copying build/lib/ix_blackfox/brains/safety.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains
+copying build/lib/ix_blackfox/brains/catalog.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains
+copying build/lib/ix_blackfox/brains/comparison.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/brains/renderers
+copying build/lib/ix_blackfox/brains/renderers/harmony.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains/renderers
+copying build/lib/ix_blackfox/brains/renderers/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains/renderers
+copying build/lib/ix_blackfox/brains/renderers/message_normalizer.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains/renderers
+copying build/lib/ix_blackfox/brains/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains
+copying build/lib/ix_blackfox/brains/profiles.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains
+copying build/lib/ix_blackfox/brains/router.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains
+copying build/lib/ix_blackfox/brains/escalation.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains
+copying build/lib/ix_blackfox/brains/receipts.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains
+copying build/lib/ix_blackfox/brains/contracts.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains
+copying build/lib/ix_blackfox/brains/registry.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains
+copying build/lib/ix_blackfox/brains/manifest.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains
+copying build/lib/ix_blackfox/brains/models.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains
+copying build/lib/ix_blackfox/brains/health.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains
+copying build/lib/ix_blackfox/brains/tribunal.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/brains/providers
+copying build/lib/ix_blackfox/brains/providers/http_transport.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains/providers
+copying build/lib/ix_blackfox/brains/providers/openai_compatible.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains/providers
+copying build/lib/ix_blackfox/brains/providers/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains/providers
+copying build/lib/ix_blackfox/brains/providers/ollama.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains/providers
+copying build/lib/ix_blackfox/brains/providers/errors.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains/providers
+copying build/lib/ix_blackfox/brains/providers/factory.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains/providers
+copying build/lib/ix_blackfox/brains/providers/base.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains/providers
+copying build/lib/ix_blackfox/brains/providers/vllm.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains/providers
+copying build/lib/ix_blackfox/brains/budgets.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains
+copying build/lib/ix_blackfox/brains/policy.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/brains
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/authority_crypto
+copying build/lib/ix_blackfox/authority_crypto/cli.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authority_crypto
+copying build/lib/ix_blackfox/authority_crypto/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authority_crypto
+copying build/lib/ix_blackfox/authority_crypto/sigstore.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authority_crypto
+copying build/lib/ix_blackfox/authority_crypto/signing.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authority_crypto
+copying build/lib/ix_blackfox/authority_crypto/trust.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authority_crypto
+copying build/lib/ix_blackfox/authority_crypto/verification.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authority_crypto
+copying build/lib/ix_blackfox/authority_crypto/encoding.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/authority_crypto
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/config
+copying build/lib/ix_blackfox/config/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/config
+copying build/lib/ix_blackfox/config/loader.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/config
+copying build/lib/ix_blackfox/config/models.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/config
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/review_board
+copying build/lib/ix_blackfox/review_board/cli.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/review_board
+copying build/lib/ix_blackfox/review_board/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/review_board
+copying build/lib/ix_blackfox/review_board/verify.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/review_board
+copying build/lib/ix_blackfox/review_board/parsing.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/review_board
+copying build/lib/ix_blackfox/review_board/package.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/review_board
+copying build/lib/ix_blackfox/review_board/admission.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/review_board
+copying build/lib/ix_blackfox/review_board/models.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/review_board
+copying build/lib/ix_blackfox/review_board/policy.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/review_board
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/repository
+copying build/lib/ix_blackfox/repository/cli.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/repository
+copying build/lib/ix_blackfox/repository/evidence.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/repository
+copying build/lib/ix_blackfox/repository/python_graph.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/repository
+copying build/lib/ix_blackfox/repository/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/repository
+copying build/lib/ix_blackfox/repository/coverage_map.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/repository
+copying build/lib/ix_blackfox/repository/report.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/repository
+copying build/lib/ix_blackfox/repository/impact.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/repository
+copying build/lib/ix_blackfox/repository/dependencies.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/repository
+copying build/lib/ix_blackfox/repository/inventory.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/repository
+copying build/lib/ix_blackfox/repository/models.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/repository
+copying build/lib/ix_blackfox/repository/architecture_memory.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/repository
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/vault
+copying build/lib/ix_blackfox/vault/state_store.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/vault
+copying build/lib/ix_blackfox/vault/seal.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/vault
+copying build/lib/ix_blackfox/vault/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/vault
+copying build/lib/ix_blackfox/vault/provenance.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/vault
+creating build/bdist.linux-x86_64/wheel/ix_blackfox/kernel
+copying build/lib/ix_blackfox/kernel/runtime.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/kernel
+copying build/lib/ix_blackfox/kernel/__init__.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/kernel
+copying build/lib/ix_blackfox/kernel/state.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/kernel
+copying build/lib/ix_blackfox/kernel/tasks.py -> build/bdist.linux-x86_64/wheel/./ix_blackfox/kernel
+running install_egg_info
+Copying src/ix_blackfox.egg-info to build/bdist.linux-x86_64/wheel/./ix_blackfox-0.4.0-py3.12.egg-info
+running install_scripts
+creating build/bdist.linux-x86_64/wheel/ix_blackfox-0.4.0.dist-info/WHEEL
+creating '/workspace/scratch/dfe413129c62/work/IX-BlackFox-main/dist/.tmp-_ejwidth/ix_blackfox-0.4.0-py3-none-any.whl' and adding 'build/bdist.linux-x86_64/wheel' to it
+adding 'ix_blackfox/__init__.py'
+adding 'ix_blackfox/exceptions.py'
+adding 'ix_blackfox/agents/__init__.py'
+adding 'ix_blackfox/agents/adapters.py'
+adding 'ix_blackfox/agents/authority.py'
+adding 'ix_blackfox/agents/authorization.py'
+adding 'ix_blackfox/agents/capabilities.py'
+adding 'ix_blackfox/agents/models.py'
+adding 'ix_blackfox/agents/operating_bridge.py'
+adding 'ix_blackfox/agents/provenance.py'
+adding 'ix_blackfox/agents/registry.py'
+adding 'ix_blackfox/agents/report.py'
+adding 'ix_blackfox/agents/tool_gateway.py'
+adding 'ix_blackfox/assurance/__init__.py'
+adding 'ix_blackfox/assurance/cli.py'
+adding 'ix_blackfox/assurance/crosswalk.py'
+adding 'ix_blackfox/assurance/evidence.py'
+adding 'ix_blackfox/assurance/models.py'
+adding 'ix_blackfox/assurance/package.py'
+adding 'ix_blackfox/assurance/parsing.py'
+adding 'ix_blackfox/assurance/profiles.py'
+adding 'ix_blackfox/assurance/quality.py'
+adding 'ix_blackfox/assurance/report.py'
+adding 'ix_blackfox/assurance/verify.py'
+adding 'ix_blackfox/audit/__init__.py'
+adding 'ix_blackfox/audit/cli.py'
+adding 'ix_blackfox/audit/controls.py'
+adding 'ix_blackfox/audit/evidence_bridges.py'
+adding 'ix_blackfox/audit/evidence_standard.py'
+adding 'ix_blackfox/audit/models.py'
+adding 'ix_blackfox/audit/policy_packs.py'
+adding 'ix_blackfox/audit/report.py'
+adding 'ix_blackfox/audit/signoff.py'
+adding 'ix_blackfox/authoring/__init__.py'
+adding 'ix_blackfox/authoring/candidates.py'
+adding 'ix_blackfox/authoring/context.py'
+adding 'ix_blackfox/authoring/decomposition.py'
+adding 'ix_blackfox/authoring/errors.py'
+adding 'ix_blackfox/authoring/failure_evidence.py'
+adding 'ix_blackfox/authoring/hypotheses.py'
+adding 'ix_blackfox/authoring/models.py'
+adding 'ix_blackfox/authoring/patch_compiler.py'
+adding 'ix_blackfox/authoring/policy.py'
+adding 'ix_blackfox/authoring/prompt_contract.py'
+adding 'ix_blackfox/authoring/receipts.py'
+adding 'ix_blackfox/authoring/response_parser.py'
+adding 'ix_blackfox/authority_crypto/__init__.py'
+adding 'ix_blackfox/authority_crypto/cli.py'
+adding 'ix_blackfox/authority_crypto/encoding.py'
+adding 'ix_blackfox/authority_crypto/signing.py'
+adding 'ix_blackfox/authority_crypto/sigstore.py'
+adding 'ix_blackfox/authority_crypto/trust.py'
+adding 'ix_blackfox/authority_crypto/verification.py'
+adding 'ix_blackfox/brains/__init__.py'
+adding 'ix_blackfox/brains/budgets.py'
+adding 'ix_blackfox/brains/catalog.py'
+adding 'ix_blackfox/brains/comparison.py'
+adding 'ix_blackfox/brains/contracts.py'
+adding 'ix_blackfox/brains/escalation.py'
+adding 'ix_blackfox/brains/health.py'
+adding 'ix_blackfox/brains/manifest.py'
+adding 'ix_blackfox/brains/models.py'
+adding 'ix_blackfox/brains/policy.py'
+adding 'ix_blackfox/brains/profiles.py'
+adding 'ix_blackfox/brains/receipts.py'
+adding 'ix_blackfox/brains/registry.py'
+adding 'ix_blackfox/brains/router.py'
+adding 'ix_blackfox/brains/safety.py'
+adding 'ix_blackfox/brains/tribunal.py'
+adding 'ix_blackfox/brains/providers/__init__.py'
+adding 'ix_blackfox/brains/providers/base.py'
+adding 'ix_blackfox/brains/providers/errors.py'
+adding 'ix_blackfox/brains/providers/factory.py'
+adding 'ix_blackfox/brains/providers/http_transport.py'
+adding 'ix_blackfox/brains/providers/ollama.py'
+adding 'ix_blackfox/brains/providers/openai_compatible.py'
+adding 'ix_blackfox/brains/providers/vllm.py'
+adding 'ix_blackfox/brains/renderers/__init__.py'
+adding 'ix_blackfox/brains/renderers/harmony.py'
+adding 'ix_blackfox/brains/renderers/message_normalizer.py'
+adding 'ix_blackfox/bus/__init__.py'
+adding 'ix_blackfox/bus/messages.py'
+adding 'ix_blackfox/bus/runtime.py'
+adding 'ix_blackfox/config/__init__.py'
+adding 'ix_blackfox/config/loader.py'
+adding 'ix_blackfox/config/models.py'
+adding 'ix_blackfox/eval/__init__.py'
+adding 'ix_blackfox/eval/benchmark.py'
+adding 'ix_blackfox/eval/core.py'
+adding 'ix_blackfox/eval/evidence.py'
+adding 'ix_blackfox/eval/verification.py'
+adding 'ix_blackfox/forge/__init__.py'
+adding 'ix_blackfox/forge/code_analysis.py'
+adding 'ix_blackfox/forge/command_runner.py'
+adding 'ix_blackfox/forge/execution_ticket.py'
+adding 'ix_blackfox/forge/file_graph.py'
+adding 'ix_blackfox/forge/governed_command_runner.py'
+adding 'ix_blackfox/forge/governed_patch_intents.py'
+adding 'ix_blackfox/forge/patch_plan.py'
+adding 'ix_blackfox/forge/regression.py'
+adding 'ix_blackfox/forge/test_runner.py'
+adding 'ix_blackfox/forge/workspace.py'
+adding 'ix_blackfox/governance/__init__.py'
+adding 'ix_blackfox/governance/advisory.py'
+adding 'ix_blackfox/governance/approval.py'
+adding 'ix_blackfox/governance/models.py'
+adding 'ix_blackfox/governance/policy.py'
+adding 'ix_blackfox/governance/receipt.py'
+adding 'ix_blackfox/interface/__init__.py'
+adding 'ix_blackfox/interface/cli.py'
+adding 'ix_blackfox/kernel/__init__.py'
+adding 'ix_blackfox/kernel/runtime.py'
+adding 'ix_blackfox/kernel/state.py'
+adding 'ix_blackfox/kernel/tasks.py'
+adding 'ix_blackfox/live_gateway/__init__.py'
+adding 'ix_blackfox/live_gateway/authority.py'
+adding 'ix_blackfox/live_gateway/cli.py'
+adding 'ix_blackfox/live_gateway/config.py'
+adding 'ix_blackfox/live_gateway/demo.py'
+adding 'ix_blackfox/live_gateway/enterprise_identity.py'
+adding 'ix_blackfox/live_gateway/evidence.py'
+adding 'ix_blackfox/live_gateway/http_server.py'
+adding 'ix_blackfox/live_gateway/models.py'
+adding 'ix_blackfox/live_gateway/protocol.py'
+adding 'ix_blackfox/live_gateway/receipts.py'
+adding 'ix_blackfox/live_gateway/service.py'
+adding 'ix_blackfox/live_gateway/upstream.py'
+adding 'ix_blackfox/live_gateway/wave15_demo.py'
+adding 'ix_blackfox/live_gateway/wave16_demo.py'
+adding 'ix_blackfox/memory/__init__.py'
+adding 'ix_blackfox/memory/artifact.py'
+adding 'ix_blackfox/memory/episodic.py'
+adding 'ix_blackfox/memory/semantic.py'
+adding 'ix_blackfox/memory/trace.py'
+adding 'ix_blackfox/memory/working.py'
+adding 'ix_blackfox/observability/__init__.py'
+adding 'ix_blackfox/observability/runtime.py'
+adding 'ix_blackfox/operating/__init__.py'
+adding 'ix_blackfox/operating/assembly.py'
+adding 'ix_blackfox/operating/authority.py'
+adding 'ix_blackfox/operating/campaign.py'
+adding 'ix_blackfox/operating/cloud.py'
+adding 'ix_blackfox/operating/evidence.py'
+adding 'ix_blackfox/operating/export.py'
+adding 'ix_blackfox/operating/falsification.py'
+adding 'ix_blackfox/operating/models.py'
+adding 'ix_blackfox/operating/policy.py'
+adding 'ix_blackfox/operating/registry.py'
+adding 'ix_blackfox/operating/replay.py'
+adding 'ix_blackfox/operating/report.py'
+adding 'ix_blackfox/operating/review_bundle.py'
+adding 'ix_blackfox/operating/scorecard.py'
+adding 'ix_blackfox/operating/standards.py'
+adding 'ix_blackfox/operating/sustainment.py'
+adding 'ix_blackfox/operating/traceability.py'
+adding 'ix_blackfox/operating/trust.py'
+adding 'ix_blackfox/operating/work_packages.py'
+adding 'ix_blackfox/packs/__init__.py'
+adding 'ix_blackfox/packs/base.py'
+adding 'ix_blackfox/packs/loader.py'
+adding 'ix_blackfox/packs/manifest.py'
+adding 'ix_blackfox/packs/registry.py'
+adding 'ix_blackfox/packs/architecture/__init__.py'
+adding 'ix_blackfox/packs/architecture/runtime.py'
+adding 'ix_blackfox/packs/programming/__init__.py'
+adding 'ix_blackfox/packs/programming/runtime.py'
+adding 'ix_blackfox/reliability/__init__.py'
+adding 'ix_blackfox/reliability/adversarial.py'
+adding 'ix_blackfox/reliability/artifacts.py'
+adding 'ix_blackfox/reliability/cli.py'
+adding 'ix_blackfox/reliability/integrity.py'
+adding 'ix_blackfox/reliability/metrics.py'
+adding 'ix_blackfox/reliability/models.py'
+adding 'ix_blackfox/reliability/runner.py'
+adding 'ix_blackfox/reliability/scenarios.py'
+adding 'ix_blackfox/repository/__init__.py'
+adding 'ix_blackfox/repository/architecture_memory.py'
+adding 'ix_blackfox/repository/cli.py'
+adding 'ix_blackfox/repository/coverage_map.py'
+adding 'ix_blackfox/repository/dependencies.py'
+adding 'ix_blackfox/repository/evidence.py'
+adding 'ix_blackfox/repository/impact.py'
+adding 'ix_blackfox/repository/inventory.py'
+adding 'ix_blackfox/repository/models.py'
+adding 'ix_blackfox/repository/python_graph.py'
+adding 'ix_blackfox/repository/report.py'
+adding 'ix_blackfox/review_board/__init__.py'
+adding 'ix_blackfox/review_board/admission.py'
+adding 'ix_blackfox/review_board/cli.py'
+adding 'ix_blackfox/review_board/models.py'
+adding 'ix_blackfox/review_board/package.py'
+adding 'ix_blackfox/review_board/parsing.py'
+adding 'ix_blackfox/review_board/policy.py'
+adding 'ix_blackfox/review_board/verify.py'
+adding 'ix_blackfox/runtime/__init__.py'
+adding 'ix_blackfox/runtime/acceptance.py'
+adding 'ix_blackfox/runtime/approval.py'
+adding 'ix_blackfox/runtime/authoring_repair.py'
+adding 'ix_blackfox/runtime/brain_proposal.py'
+adding 'ix_blackfox/runtime/brain_repair.py'
+adding 'ix_blackfox/runtime/brain_repair_evidence.py'
+adding 'ix_blackfox/runtime/control_plane.py'
+adding 'ix_blackfox/runtime/control_plane_cli.py'
+adding 'ix_blackfox/runtime/doctor.py'
+adding 'ix_blackfox/runtime/governance.py'
+adding 'ix_blackfox/runtime/inference.py'
+adding 'ix_blackfox/runtime/operator_summary.py'
+adding 'ix_blackfox/runtime/orchestrator.py'
+adding 'ix_blackfox/runtime/policy_reasoning.py'
+adding 'ix_blackfox/runtime/programming_repair.py'
+adding 'ix_blackfox/runtime/readiness.py'
+adding 'ix_blackfox/runtime/reasoning.py'
+adding 'ix_blackfox/runtime/receipts.py'
+adding 'ix_blackfox/runtime/repair_loop.py'
+adding 'ix_blackfox/runtime/repair_receipts.py'
+adding 'ix_blackfox/runtime/replay.py'
+adding 'ix_blackfox/runtime/run_bundle.py'
+adding 'ix_blackfox/runtime/run_bundle_export.py'
+adding 'ix_blackfox/runtime/safeguard.py'
+adding 'ix_blackfox/runtime/verification_summary.py'
+adding 'ix_blackfox/runtime/vision.py'
+adding 'ix_blackfox/runtime/wave3_acceptance.py'
+adding 'ix_blackfox/runtime/wave3_bundle.py'
+adding 'ix_blackfox/runtime/wave3_cli.py'
+adding 'ix_blackfox/runtime/wave7_report.py'
+adding 'ix_blackfox/sandbox/__init__.py'
+adding 'ix_blackfox/sandbox/adversarial.py'
+adding 'ix_blackfox/sandbox/container.py'
+adding 'ix_blackfox/sandbox/contracts.py'
+adding 'ix_blackfox/sandbox/egress.py'
+adding 'ix_blackfox/sandbox/local_audit.py'
+adding 'ix_blackfox/sandbox/receipt.py'
+adding 'ix_blackfox/sandbox/signing.py'
+adding 'ix_blackfox/sandbox/workspace.py'
+adding 'ix_blackfox/sentinel/__init__.py'
+adding 'ix_blackfox/sentinel/checks.py'
+adding 'ix_blackfox/sentinel/core.py'
+adding 'ix_blackfox/sentinel/checks/__init__.py'
+adding 'ix_blackfox/sentinel/checks/contradiction.py'
+adding 'ix_blackfox/sentinel/checks/failure_loop.py'
+adding 'ix_blackfox/sentinel/checks/governance_consistency.py'
+adding 'ix_blackfox/sentinel/checks/policy.py'
+adding 'ix_blackfox/switchboard/__init__.py'
+adding 'ix_blackfox/switchboard/models.py'
+adding 'ix_blackfox/switchboard/runtime.py'
+adding 'ix_blackfox/tools/__init__.py'
+adding 'ix_blackfox/tools/artifacts.py'
+adding 'ix_blackfox/tools/contracts.py'
+adding 'ix_blackfox/tools/gateway.py'
+adding 'ix_blackfox/tools/manifest.py'
+adding 'ix_blackfox/tools/patch.py'
+adding 'ix_blackfox/tools/patch_apply.py'
+adding 'ix_blackfox/tools/policy.py'
+adding 'ix_blackfox/tools/policy_file.py'
+adding 'ix_blackfox/tools/receipts.py'
+adding 'ix_blackfox/tools/risk.py'
+adding 'ix_blackfox/tools/test_results.py'
+adding 'ix_blackfox/tools/test_runner.py'
+adding 'ix_blackfox/tools/workspace.py'
+adding 'ix_blackfox/vault/__init__.py'
+adding 'ix_blackfox/vault/provenance.py'
+adding 'ix_blackfox/vault/seal.py'
+adding 'ix_blackfox/vault/state_store.py'
+adding 'ix_blackfox/workflow/__init__.py'
+adding 'ix_blackfox/workflow/approval_policy.py'
+adding 'ix_blackfox/workflow/ci_evidence.py'
+adding 'ix_blackfox/workflow/cli.py'
+adding 'ix_blackfox/workflow/pr_evidence_io.py'
+adding 'ix_blackfox/workflow/pr_evidence_pack.py'
+adding 'ix_blackfox/workflow/pr_gate.py'
+adding 'ix_blackfox/workflow/sandbox_adversarial_evidence.py'
+adding 'ix_blackfox/workflow/sandbox_receipt_evidence.py'
+adding 'ix_blackfox-0.4.0.dist-info/licenses/LICENSE'
+adding 'ix_blackfox-0.4.0.dist-info/licenses/NOTICE.md'
+adding 'ix_blackfox-0.4.0.dist-info/METADATA'
+adding 'ix_blackfox-0.4.0.dist-info/WHEEL'
+adding 'ix_blackfox-0.4.0.dist-info/entry_points.txt'
+adding 'ix_blackfox-0.4.0.dist-info/top_level.txt'
+adding 'ix_blackfox-0.4.0.dist-info/RECORD'
+removing build/bdist.linux-x86_64/wheel
+WARNING `project.license` as a TOML table is deprecated
+!!
+
+        ********************************************************************************
+        Please use a simple string containing a SPDX expression for `project.license`. You can also use `project.license-files`. (Both options available on setuptools>=77.0.0).
+
+        By 2027-Feb-18, you need to update your project and remove deprecated calls
+        or your builds will no longer be supported.
+
+        See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.
+        ********************************************************************************
+
+!!
+WARNING License classifiers are deprecated.
+!!
+
+        ********************************************************************************
+        Please consider removing the following classifiers in favor of a SPDX license expression:
+
+        License :: Other/Proprietary License
+
+        See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.
+        ********************************************************************************
+
+!!
+WARNING License classifiers are deprecated.
+!!
+
+        ********************************************************************************
+        Please consider removing the following classifiers in favor of a SPDX license expression:
+
+        License :: Other/Proprietary License
+
+        See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.
+        ********************************************************************************
+
+!!
+Successfully built ix_blackfox-0.4.0-py3-none-any.whl

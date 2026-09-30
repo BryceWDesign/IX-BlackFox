@@ -20,6 +20,7 @@ from ix_blackfox.agents.models import (
     CapabilityRiskTier,
 )
 from ix_blackfox.agents.registry import AgentRegistry
+from ix_blackfox.authority_crypto.signing import SigningConfig
 from ix_blackfox.live_gateway.enterprise_identity import IdentityBinding, OidcProvider
 from ix_blackfox.live_gateway.evidence import EvidencePolicy, TrustedEvidenceIssuer
 from ix_blackfox.operating.models import OperatingDomain
@@ -69,9 +70,19 @@ class McpUpstreamConfig:
 
     def __post_init__(self) -> None:
         _validate_http_url(self.upstream_url, label="mcp.upstream_url")
-        normalized = tuple(sorted({method.strip() for method in self.passthrough_methods if method.strip()}))
+        normalized = tuple(
+            sorted(
+                {
+                    method.strip()
+                    for method in self.passthrough_methods
+                    if method.strip()
+                }
+            )
+        )
         if "tools/call" in normalized:
-            raise ValueError("mcp.passthrough_methods must not include governed tools/call.")
+            raise ValueError(
+                "mcp.passthrough_methods must not include governed tools/call."
+            )
         object.__setattr__(self, "passthrough_methods", normalized)
 
 
@@ -83,7 +94,9 @@ class ApiUpstreamConfig:
         _validate_http_url(self.base_url, label="api.base_url")
         parsed = urlparse(self.base_url)
         if parsed.params or parsed.query or parsed.fragment:
-            raise ValueError("api.base_url must not contain parameters, query, or fragment.")
+            raise ValueError(
+                "api.base_url must not contain parameters, query, or fragment."
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,7 +130,9 @@ class McpParameterHeaderBinding:
         if not path:
             raise ValueError("MCP parameter header argument_path must not be empty.")
         if len(path) != len(self.argument_path):
-            raise ValueError("MCP parameter header argument_path parts must not be empty.")
+            raise ValueError(
+                "MCP parameter header argument_path parts must not be empty."
+            )
         header_name = self.header_name.strip()
         if not header_name or not _HTTP_TOKEN.fullmatch(header_name):
             raise ValueError(
@@ -163,19 +178,27 @@ class ToolRoute:
                 raise ValueError(f"route.{label} must not be empty.")
         object.__setattr__(self, "path_argument", self.path_argument.strip())
         object.__setattr__(self, "revision_argument", self.revision_argument.strip())
-        object.__setattr__(self, "repository_argument", self.repository_argument.strip())
+        object.__setattr__(
+            self, "repository_argument", self.repository_argument.strip()
+        )
         method = self.api_method.strip().upper()
         if method not in {"POST", "PUT", "PATCH", "DELETE"}:
             raise ValueError("route.api_method must be POST, PUT, PATCH, or DELETE.")
         object.__setattr__(self, "api_method", method)
         if self.api_path:
             _validate_api_path(self.api_path)
-        header_names = [binding.header_name.lower() for binding in self.mcp_header_bindings]
+        header_names = [
+            binding.header_name.lower() for binding in self.mcp_header_bindings
+        ]
         if len(header_names) != len(set(header_names)):
-            raise ValueError("route MCP parameter header names must be unique case-insensitively.")
+            raise ValueError(
+                "route MCP parameter header names must be unique case-insensitively."
+            )
         argument_paths = [binding.argument_path for binding in self.mcp_header_bindings]
         if len(argument_paths) != len(set(argument_paths)):
-            raise ValueError("route MCP parameter header argument paths must be unique.")
+            raise ValueError(
+                "route MCP parameter header argument paths must be unique."
+            )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -214,9 +237,12 @@ class GatewayConfig:
     evidence_policies: tuple[EvidencePolicy, ...]
     routes: tuple[ToolRoute, ...]
     agent_registry: AgentRegistry
+    receipt_signing: SigningConfig | None = None
 
     def __post_init__(self) -> None:
-        issuer_keys = [(issuer.issuer, issuer.key_id) for issuer in self.trusted_issuers]
+        issuer_keys = [
+            (issuer.issuer, issuer.key_id) for issuer in self.trusted_issuers
+        ]
         if len(issuer_keys) != len(set(issuer_keys)):
             raise ValueError("trusted issuer/key_id bindings must be unique.")
         route_names = [route.tool_name for route in self.routes]
@@ -227,9 +253,17 @@ class GatewayConfig:
             raise ValueError("evidence policy_id values must be unique.")
         credential_agent_ids = [item.agent_id for item in self.agent_credentials]
         if len(credential_agent_ids) != len(set(credential_agent_ids)):
-            raise ValueError("agent credential bindings must have unique agent_id values.")
-        if self.identity_mode not in {"static_only", "static_or_federated", "federated_required"}:
-            raise ValueError("identity.mode must be static_only, static_or_federated, or federated_required.")
+            raise ValueError(
+                "agent credential bindings must have unique agent_id values."
+            )
+        if self.identity_mode not in {
+            "static_only",
+            "static_or_federated",
+            "federated_required",
+        }:
+            raise ValueError(
+                "identity.mode must be static_only, static_or_federated, or federated_required."
+            )
         provider_issuers = [item.issuer for item in self.identity_providers]
         if len(provider_issuers) != len(set(provider_issuers)):
             raise ValueError("identity provider issuer values must be unique.")
@@ -237,32 +271,54 @@ class GatewayConfig:
         if len(binding_keys) != len(set(binding_keys)):
             raise ValueError("identity issuer/subject bindings must be unique.")
         known_provider_issuers = set(provider_issuers)
-        unknown_binding_issuers = sorted({item.issuer for item in self.identity_bindings} - known_provider_issuers)
+        unknown_binding_issuers = sorted(
+            {item.issuer for item in self.identity_bindings} - known_provider_issuers
+        )
         if unknown_binding_issuers:
-            raise ValueError("Identity bindings reference unknown issuers: " + ", ".join(unknown_binding_issuers) + ".")
+            raise ValueError(
+                "Identity bindings reference unknown issuers: "
+                + ", ".join(unknown_binding_issuers)
+                + "."
+            )
         registered_ids = {agent.agent_id for agent in self.agent_registry.agents}
         credential_ids = set(credential_agent_ids)
         federated_ids = {item.agent_id for item in self.identity_bindings}
         unknown_credentials = sorted(credential_ids - registered_ids)
         unknown_bindings = sorted(federated_ids - registered_ids)
         if unknown_credentials:
-            raise ValueError("Agent credentials reference unregistered agents: " + ", ".join(unknown_credentials) + ".")
+            raise ValueError(
+                "Agent credentials reference unregistered agents: "
+                + ", ".join(unknown_credentials)
+                + "."
+            )
         if unknown_bindings:
-            raise ValueError("Identity bindings reference unregistered agents: " + ", ".join(unknown_bindings) + ".")
+            raise ValueError(
+                "Identity bindings reference unregistered agents: "
+                + ", ".join(unknown_bindings)
+                + "."
+            )
         if self.identity_mode == "static_only":
             missing = sorted(registered_ids - credential_ids)
         elif self.identity_mode == "federated_required":
             missing = sorted(registered_ids - federated_ids)
             if not self.identity_providers:
-                raise ValueError("federated_required identity mode requires at least one identity provider.")
+                raise ValueError(
+                    "federated_required identity mode requires at least one identity provider."
+                )
         else:
             missing = sorted(registered_ids - (credential_ids | federated_ids))
         if missing:
-            raise ValueError("Every registered agent requires an allowed ingress identity binding; missing: " + ", ".join(missing) + ".")
+            raise ValueError(
+                "Every registered agent requires an allowed ingress identity binding; missing: "
+                + ", ".join(missing)
+                + "."
+            )
         if self.mcp is None and self.api is None:
             raise ValueError("Wave 14 requires at least one live MCP or API upstream.")
         if self.mcp is None:
-            routes_without_api = [route.tool_name for route in self.routes if not route.api_path]
+            routes_without_api = [
+                route.tool_name for route in self.routes if not route.api_path
+            ]
             if routes_without_api:
                 raise ValueError(
                     "Routes without api_path require an MCP upstream; affected routes: "
@@ -272,7 +328,11 @@ class GatewayConfig:
         known_policies = set(policy_ids)
         for policy in self.evidence_policies:
             policy_issuers = (
-                tuple(issuer for issuer in self.trusted_issuers if issuer.issuer in policy.allowed_issuers)
+                tuple(
+                    issuer
+                    for issuer in self.trusted_issuers
+                    if issuer.issuer in policy.allowed_issuers
+                )
                 if policy.allowed_issuers
                 else self.trusted_issuers
             )
@@ -292,7 +352,10 @@ class GatewayConfig:
                     "configured human approval issuer/key may assert that evidence kind."
                 )
         for route in self.routes:
-            if route.evidence_policy_id and route.evidence_policy_id not in known_policies:
+            if (
+                route.evidence_policy_id
+                and route.evidence_policy_id not in known_policies
+            ):
                 raise ValueError(
                     f"route {route.tool_name!r} references unknown evidence policy "
                     f"{route.evidence_policy_id!r}."
@@ -302,7 +365,11 @@ class GatewayConfig:
                     f"route {route.tool_name!r} declares api_path but [api] is not configured."
                 )
             route_policy = self.evidence_policy_for(route.evidence_policy_id)
-            if route_policy is not None and route_policy.require_revision_match and not route.revision_argument:
+            if (
+                route_policy is not None
+                and route_policy.require_revision_match
+                and not route.revision_argument
+            ):
                 raise ValueError(
                     f"route {route.tool_name!r} uses revision-bound evidence policy "
                     f"{route_policy.policy_id!r} but has no revision_argument."
@@ -311,13 +378,19 @@ class GatewayConfig:
             raise ValueError("At least one [[routes]] entry is required.")
 
     def route_for(self, tool_name: str) -> ToolRoute | None:
-        return next((route for route in self.routes if route.tool_name == tool_name), None)
+        return next(
+            (route for route in self.routes if route.tool_name == tool_name), None
+        )
 
     def evidence_policy_for(self, policy_id: str) -> EvidencePolicy | None:
         if not policy_id:
             return None
         return next(
-            (policy for policy in self.evidence_policies if policy.policy_id == policy_id),
+            (
+                policy
+                for policy in self.evidence_policies
+                if policy.policy_id == policy_id
+            ),
             None,
         )
 
@@ -385,9 +458,15 @@ def load_gateway_config(path: Path) -> GatewayConfig:
         host=str(server_payload.get("host", "127.0.0.1")),
         port=int(server_payload.get("port", 8765)),
         max_request_bytes=int(server_payload.get("max_request_bytes", 2 * 1024 * 1024)),
-        max_response_bytes=int(server_payload.get("max_response_bytes", 8 * 1024 * 1024)),
-        upstream_timeout_seconds=float(server_payload.get("upstream_timeout_seconds", 30.0)),
-        operator_token_env=str(server_payload.get("operator_token_env", "BLACKFOX_WAVE14_OPERATOR_TOKEN")),
+        max_response_bytes=int(
+            server_payload.get("max_response_bytes", 8 * 1024 * 1024)
+        ),
+        upstream_timeout_seconds=float(
+            server_payload.get("upstream_timeout_seconds", 30.0)
+        ),
+        operator_token_env=str(
+            server_payload.get("operator_token_env", "BLACKFOX_WAVE14_OPERATOR_TOKEN")
+        ),
         allowed_origins=_string_tuple(server_payload.get("allowed_origins", ())),
     )
 
@@ -408,13 +487,22 @@ def load_gateway_config(path: Path) -> GatewayConfig:
         raise ValueError("api must be a TOML table when configured.")
     api = None
     if isinstance(api_payload, Mapping):
-        api = ApiUpstreamConfig(base_url=_required_text(api_payload, "base_url").rstrip("/"))
+        api = ApiUpstreamConfig(
+            base_url=_required_text(api_payload, "base_url").rstrip("/")
+        )
 
     evidence_payload = _mapping(payload.get("evidence", {}), "evidence")
-    evidence_root = _resolve_path(base, str(evidence_payload.get("root", ".blackfox-artifacts/wave14/evidence")))
+    evidence_root = _resolve_path(
+        base, str(evidence_payload.get("root", ".blackfox-artifacts/wave14/evidence"))
+    )
     receipt_database = _resolve_path(
         base,
-        str(evidence_payload.get("receipt_database", ".blackfox-artifacts/wave14/authority-receipts.sqlite3")),
+        str(
+            evidence_payload.get(
+                "receipt_database",
+                ".blackfox-artifacts/wave14/authority-receipts.sqlite3",
+            )
+        ),
     )
 
     identity_payload = _mapping(payload.get("identity", {}), "identity")
@@ -424,7 +512,12 @@ def load_gateway_config(path: Path) -> GatewayConfig:
     )
     identity_revocation_database = _resolve_path(
         base,
-        str(identity_payload.get("revocation_database", ".blackfox-artifacts/wave15/identity-revocations.sqlite3")),
+        str(
+            identity_payload.get(
+                "revocation_database",
+                ".blackfox-artifacts/wave15/identity-revocations.sqlite3",
+            )
+        ),
     )
     identity_providers = tuple(
         OidcProvider(
@@ -435,7 +528,9 @@ def load_gateway_config(path: Path) -> GatewayConfig:
             max_token_age_seconds=int(item.get("max_token_age_seconds", 900)),
             clock_skew_seconds=int(item.get("clock_skew_seconds", 30)),
         )
-        for item in _mapping_sequence(payload.get("identity_providers", []), "identity_providers")
+        for item in _mapping_sequence(
+            payload.get("identity_providers", []), "identity_providers"
+        )
     )
     identity_bindings = tuple(
         IdentityBinding(
@@ -443,7 +538,9 @@ def load_gateway_config(path: Path) -> GatewayConfig:
             subject=_required_text(item, "subject"),
             agent_id=_required_text(item, "agent_id"),
         )
-        for item in _mapping_sequence(payload.get("identity_bindings", []), "identity_bindings")
+        for item in _mapping_sequence(
+            payload.get("identity_bindings", []), "identity_bindings"
+        )
     )
 
     trusted_issuers = tuple(
@@ -453,7 +550,9 @@ def load_gateway_config(path: Path) -> GatewayConfig:
             secret_env=_required_text(item, "secret_env"),
             allowed_kinds=_string_tuple(item.get("allowed_kinds", ())),
         )
-        for item in _mapping_sequence(payload.get("trusted_issuers", []), "trusted_issuers")
+        for item in _mapping_sequence(
+            payload.get("trusted_issuers", []), "trusted_issuers"
+        )
     )
 
     agent_credentials = tuple(
@@ -461,7 +560,9 @@ def load_gateway_config(path: Path) -> GatewayConfig:
             agent_id=_required_text(item, "agent_id"),
             secret_env=_required_text(item, "secret_env"),
         )
-        for item in _mapping_sequence(payload.get("agent_credentials", []), "agent_credentials")
+        for item in _mapping_sequence(
+            payload.get("agent_credentials", []), "agent_credentials"
+        )
     )
 
     evidence_policies = tuple(
@@ -479,7 +580,9 @@ def load_gateway_config(path: Path) -> GatewayConfig:
                 item.get("human_approval_issuers", ())
             ),
             max_age_seconds=int(item.get("max_age_seconds", 3600)),
-            require_signature=_boolean(item.get("require_signature", True), "require_signature"),
+            require_signature=_boolean(
+                item.get("require_signature", True), "require_signature"
+            ),
             require_repository_match=_boolean(
                 item.get("require_repository_match", True), "require_repository_match"
             ),
@@ -487,7 +590,9 @@ def load_gateway_config(path: Path) -> GatewayConfig:
                 item.get("require_revision_match", True), "require_revision_match"
             ),
         )
-        for item in _mapping_sequence(payload.get("evidence_policies", []), "evidence_policies")
+        for item in _mapping_sequence(
+            payload.get("evidence_policies", []), "evidence_policies"
+        )
     )
 
     routes = tuple(
@@ -526,6 +631,9 @@ def load_gateway_config(path: Path) -> GatewayConfig:
     )
 
     return GatewayConfig(
+        receipt_signing=SigningConfig.parse(payload["receipt_signing"], base)
+        if "receipt_signing" in payload
+        else None,
         source_path=source_path,
         server=server,
         mcp=mcp,
@@ -583,14 +691,17 @@ def _parse_grant(item: Mapping[str, Any]) -> AgentCapabilityGrant:
                 str(scope_payload.get("max_risk_tier", "medium"))
             ),
             requires_human_review=_boolean(
-                scope_payload.get("requires_human_review", False), "requires_human_review"
+                scope_payload.get("requires_human_review", False),
+                "requires_human_review",
             ),
             evidence_artifact_ids=_string_tuple(
                 scope_payload.get("evidence_artifact_ids", ())
             ),
             delegated_by=str(scope_payload.get("delegated_by", "")),
             expires_at=str(scope_payload.get("expires_at", "")),
-            metadata=_plain_mapping(scope_payload.get("metadata", {}), "scope.metadata"),
+            metadata=_plain_mapping(
+                scope_payload.get("metadata", {}), "scope.metadata"
+            ),
         ),
         metadata=_plain_mapping(item.get("metadata", {}), "grant.metadata"),
     )
@@ -646,7 +757,9 @@ def _normalize_origin(value: str) -> str:
     if parsed.username or parsed.password:
         raise ValueError("Origin must not contain credentials.")
     if parsed.path not in {"", "/"} or parsed.params or parsed.query or parsed.fragment:
-        raise ValueError("Origin must not contain a path, parameters, query, or fragment.")
+        raise ValueError(
+            "Origin must not contain a path, parameters, query, or fragment."
+        )
     return f"{parsed.scheme.lower()}://{parsed.netloc.lower()}"
 
 
