@@ -38,4 +38,5 @@ jobs:
         with:
           name: wave16-${{ matrix.os }}-python-${{ matrix.python-version }}
           path: .blackfox-artifacts/wave16/*.json
+          include-hidden-files: true
           if-no-files-found: error

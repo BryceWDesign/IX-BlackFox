@@ -99,9 +99,9 @@
       "sha256": "a6837df1ddddd09676e36749c8d7cda42029906dd0e02059309d695b4a64adcd"
     },
     {
-      "bytes": 1194,
+      "bytes": 1231,
       "path": ".github/workflows/wave16-cryptographic-authority.yml",
-      "sha256": "b454e63292cdfe1a4e2deb6c592ea3ec6d17e911fe2e240f6f0c010d2585ccf2"
+      "sha256": "20558778cf23cc7cf025fb89e1a185559dd20271f87f480774b83b788627e8a1"
     },
     {
       "bytes": 2411,
