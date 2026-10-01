@@ -6,6 +6,7 @@ import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
 import pytest
 
@@ -172,16 +173,36 @@ def test_independent_checkpoint_detects_rollback_of_valid_snapshot(
     ).passed
 
 
+@pytest.mark.parametrize("signing_delta_seconds", [0, 1], ids=["same-time", "later-time"])
 def test_same_snapshot_can_be_resigned_against_retained_checkpoint(
-    store: AuthorityReceiptStore, controller: SigningController
+    store: AuthorityReceiptStore,
+    controller: SigningController,
+    signing_delta_seconds: int,
 ) -> None:
     store.append(denial())
-    first = store.export_bundle()
-    second = store.export_bundle()
-    assert first["checkpoint"] != second["checkpoint"]
-    assert verify_bundle(
+    first_time = datetime.now(UTC)
+    second_time = first_time + timedelta(seconds=signing_delta_seconds)
+    # Consecutive clock reads may coincide. Ed25519 then signs identical bytes.
+    # Control only the signing clock; real signing and verification still run.
+    with patch("ix_blackfox.authority_crypto.signing.datetime") as clock:
+        clock.now.side_effect = [first_time, second_time]
+        first = store.export_bundle()
+        second = store.export_bundle()
+    first_statement = strict_json(decode64(first["checkpoint"]["payload"]))
+    second_statement = strict_json(decode64(second["checkpoint"]["payload"]))
+    assert first_statement["signed_at"] == first_time.isoformat()
+    assert second_statement["signed_at"] == second_time.isoformat()
+    assert first["receipts"] == second["receipts"]
+    assert first_statement["body"] == second_statement["body"]
+    if signing_delta_seconds == 0:
+        assert first["checkpoint"] == second["checkpoint"]
+    else:
+        assert first["checkpoint"] != second["checkpoint"]
+    assert verify_bundle(first, controller.policy).passed
+    report = verify_bundle(
         second, controller.policy, expected_checkpoint=first["checkpoint"]
-    ).passed
+    )
+    assert report.passed and report.checkpoint_matched and report.receipt_count == 1
 
 
 def test_exact_typed_checkpoint_comparison(
