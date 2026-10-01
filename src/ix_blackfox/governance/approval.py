@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field, replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum, auto
 from pathlib import Path
-from threading import RLock
+from threading import Lock, RLock
 from typing import Any
 from uuid import uuid4
 
@@ -444,5 +444,18 @@ def _parse_datetime(value: str) -> datetime:
     return datetime.fromisoformat(value)
 
 
+_UTC_NOW_LOCK = Lock()
+_LAST_UTC_NOW: datetime | None = None
+
+
 def _utc_now() -> datetime:
-    return datetime.now(tz=UTC)
+    global _LAST_UTC_NOW
+
+    candidate = datetime.now(tz=UTC)
+
+    with _UTC_NOW_LOCK:
+        if _LAST_UTC_NOW is not None and candidate <= _LAST_UTC_NOW:
+            candidate = _LAST_UTC_NOW + timedelta(microseconds=1)
+        _LAST_UTC_NOW = candidate
+
+    return candidate

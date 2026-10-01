@@ -989,9 +989,9 @@
       "sha256": "50e07602dee3ced777514f6f4872bafc6f940ddf813c17c6e7d5c681b343b572"
     },
     {
-      "bytes": 14851,
+      "bytes": 15178,
       "path": "src/ix_blackfox/governance/approval.py",
-      "sha256": "d813b685d5e656aa9e14e1472a6c06ddd831cfa26035760853f89e3c62711e4c"
+      "sha256": "21d5143f662533a725be77d5b82be1c91f7d6170853db1eec6510a8e43b0e0ca"
     },
     {
       "bytes": 8779,
