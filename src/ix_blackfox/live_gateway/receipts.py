@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -377,8 +379,12 @@ class AuthorityReceiptStore:
             )
             connection.commit()
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
         connection = sqlite3.connect(self.path, timeout=10.0)
-        connection.execute("PRAGMA foreign_keys=ON")
-        connection.execute("PRAGMA synchronous=FULL")
-        return connection
+        try:
+            connection.execute("PRAGMA foreign_keys=ON")
+            connection.execute("PRAGMA synchronous=FULL")
+            yield connection
+        finally:
+            connection.close()

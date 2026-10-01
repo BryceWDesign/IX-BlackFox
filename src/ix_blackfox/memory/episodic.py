@@ -163,12 +163,7 @@ class EpisodicMemoryStore:
         Return an immutable snapshot of episodic memory in creation order.
         """
         with self._lock:
-            episodes = tuple(
-                sorted(
-                    self._episodes.values(),
-                    key=lambda item: (item.created_at, item.episode_id),
-                )
-            )
+            episodes = tuple(self._episodes.values())
         return EpisodicMemorySnapshot(episodes=episodes)
 
     def count(self) -> int:

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
@@ -136,25 +137,34 @@ class IdentityRevocationStore:
     def __init__(self, path: Path) -> None:
         self.path = path
         path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(path) as connection:
+        with self._connect() as connection:
             connection.execute(
                 "CREATE TABLE IF NOT EXISTS revoked_credentials (kind TEXT NOT NULL, value TEXT NOT NULL, revoked_at TEXT NOT NULL, reason TEXT NOT NULL, PRIMARY KEY(kind, value))"
             )
 
     def revoke(self, *, kind: str, value: str, reason: str = "operator_revoked") -> None:
-        with sqlite3.connect(self.path) as connection:
+        with self._connect() as connection:
             connection.execute(
                 "INSERT OR REPLACE INTO revoked_credentials(kind, value, revoked_at, reason) VALUES (?, ?, ?, ?)",
                 (kind, value, datetime.now(tz=UTC).isoformat(), reason),
             )
 
     def is_revoked(self, *, kind: str, value: str) -> bool:
-        with sqlite3.connect(self.path) as connection:
+        with self._connect() as connection:
             row = connection.execute(
                 "SELECT 1 FROM revoked_credentials WHERE kind = ? AND value = ? LIMIT 1",
                 (kind, value),
             ).fetchone()
         return row is not None
+
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        connection = sqlite3.connect(self.path)
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
 
 
 @dataclass(slots=True)

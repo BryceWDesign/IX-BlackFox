@@ -162,12 +162,7 @@ class TraceMemoryStore:
         Return an immutable snapshot of trace-memory records in creation order.
         """
         with self._lock:
-            records = tuple(
-                sorted(
-                    self._records.values(),
-                    key=lambda item: (item.created_at, item.trace_id),
-                )
-            )
+            records = tuple(self._records.values())
         return TraceMemorySnapshot(records=records)
 
     def count(self) -> int:

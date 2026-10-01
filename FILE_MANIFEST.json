@@ -1064,9 +1064,9 @@
       "sha256": "b0cfcd99d92eeaefa9b4dbf0adccbb0906d34d85b869a6e6c04749d22083ec73"
     },
     {
-      "bytes": 13411,
+      "bytes": 13679,
       "path": "src/ix_blackfox/live_gateway/enterprise_identity.py",
-      "sha256": "f17769205ee2871bd10f90fafcb4e435fcf24db4f4e3acea530edc238ce2a918"
+      "sha256": "434512aca8ff9eb7faebe6079fc91984e4a280511684ce2c74631551d231a9f2"
     },
     {
       "bytes": 20050,
@@ -1089,9 +1089,9 @@
       "sha256": "20665027692dc3c3a484d951ec4a03ec2f1529440f82c8337b7626282123b839"
     },
     {
-      "bytes": 15375,
+      "bytes": 15552,
       "path": "src/ix_blackfox/live_gateway/receipts.py",
-      "sha256": "d75b9bea0fa8368999335c25b7dcbe4ee5db40a9745f9bc21e14ab8df11d34c7"
+      "sha256": "13a04f93dc6a85c454b4ffa330c1de2272e795ac5c1efd8f644e9ff93d10e77a"
     },
     {
       "bytes": 59205,
@@ -1124,9 +1124,9 @@
       "sha256": "4428763aac49ce45920f0956202cfe7eac17e49c58ef3502fe2915edda0522d8"
     },
     {
-      "bytes": 6547,
+      "bytes": 6397,
       "path": "src/ix_blackfox/memory/episodic.py",
-      "sha256": "ff114f54be7837e1b9c92732c3323becc71851e18646750836d78a628af5b865"
+      "sha256": "78a6efb1461c2cc4c4c8e528a7a72013fe9404004277aeae832b768dee53b1ff"
     },
     {
       "bytes": 9364,
@@ -1134,9 +1134,9 @@
       "sha256": "dcdcc4da6d9250229641deafac9edec7fd163f07e421c2734d37e46c15e21c9e"
     },
     {
-      "bytes": 6555,
+      "bytes": 6407,
       "path": "src/ix_blackfox/memory/trace.py",
-      "sha256": "8578b093b7a29d235e2a5b394ddc7a3892dd95f2484c7067b4aba3000ee96c56"
+      "sha256": "adcd1ae5a18f03c7d12f093fb1ce45bbdfdba9c106e0a8ad30883341d2f753af"
     },
     {
       "bytes": 7739,
