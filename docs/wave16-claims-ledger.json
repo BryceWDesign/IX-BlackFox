@@ -1,6 +1,6 @@
 {
   "schema_version": "wave16.claims_ledger.v1",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "claims": [
     {
       "capability": "Pre-dispatch signed API/MCP authorization",
@@ -13,9 +13,9 @@
       "evidence_or_boundary": "Public verifier runs after temporary private state is removed."
     },
     {
-      "capability": "Independent expected-checkpoint comparison",
+      "capability": "Independent expected-checkpoint prefix consistency",
       "status": "IMPLEMENTED_AND_LOCALLY_VALIDATED",
-      "evidence_or_boundary": "Rejects an older valid snapshot against newer retained head; independent retention remains an operator responsibility."
+      "evidence_or_boundary": "Accepts a valid continuation of an older retained prefix; rejects rollback and signed forks. Independent retention and latestness remain operator responsibilities."
     },
     {
       "capability": "Encrypted local PKCS8 key storage",
@@ -40,7 +40,7 @@
     {
       "capability": "Linux/Windows Python 3.11-3.13 GitHub CI",
       "status": "CONFIGURED_NOT_RUN",
-      "evidence_or_boundary": "Local Python 3.12 checks executed; no remote green claim."
+      "evidence_or_boundary": "Local Linux Python 3.11/3.12/3.13 release checks are recorded in validation/wave16_1; Windows and remote GitHub jobs remain NOT_RUN here."
     },
     {
       "capability": "Human personal public-key approval signatures",
@@ -60,7 +60,22 @@
     {
       "capability": "Production performance and high availability",
       "status": "NOT_VALIDATED",
-      "evidence_or_boundary": "Full stream validation occurs inside each append transaction; no production throughput or failover evidence."
+      "evidence_or_boundary": "Normal single-store appends are incremental. External connection commits/policy changes conservatively replay full history. Local microbenchmark does not validate production throughput, sustained multiprocess performance or HA."
+    },
+    {
+      "capability": "Incremental single-store signed append scaling",
+      "status": "IMPLEMENTED_AND_LOCALLY_VALIDATED",
+      "evidence_or_boundary": "Operation-count regression forbids history reads during 1,000 normal appends; local WAL/FULL Ed25519 benchmark grows to 5,025 receipts. See validation/wave16_1/append-benchmark.json."
+    },
+    {
+      "capability": "Signer outside SQLite write lock and optimistic reconciliation",
+      "status": "IMPLEMENTED_AND_LOCALLY_VALIDATED",
+      "evidence_or_boundary": "Independent SQLite writer acquires lock during signing; injected competing append forces retry. Three independent stores retain one valid order in a bounded concurrency test; sustained multiwriter scaling is NOT_VALIDATED."
+    },
+    {
+      "capability": "Denial semantic validation and canonicalization compatibility",
+      "status": "IMPLEMENTED_AND_LOCALLY_VALIDATED",
+      "evidence_or_boundary": "Valid-signature contradictory-denial regression cases; full evaluated and minimal pre-evaluation denial contracts; fixed legacy and v1 byte/hash vectors. Human approval remains HMAC-authenticated evidence."
     }
   ],
   "external_services": {

@@ -384,6 +384,7 @@ def run_wave16_demo(root: Path | None = None) -> dict[str, Any]:
                 server.shutdown()
                 server.server_close()
                 gateway_thread.join(timeout=5)
+                gateway.receipt_store.close()
                 upstream.shutdown()
                 upstream.server_close()
                 upstream_thread.join(timeout=5)

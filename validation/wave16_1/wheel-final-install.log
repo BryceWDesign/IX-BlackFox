@@ -1,0 +1,6 @@
+Using Python 3.12.14 environment at: /workspace/scratch/eac693fdfc3e/wheel-env
+Resolved 1 package in 1ms
+Prepared 1 package in 15ms
+Uninstalled 1 package in 3ms
+Installed 1 package in 3ms
+ ~ ix-blackfox==0.4.1 (from file:///workspace/scratch/eac693fdfc3e/work/IX-BlackFox-main/dist/ix_blackfox-0.4.1-py3-none-any.whl)

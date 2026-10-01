@@ -1,0 +1,76 @@
+{
+  "schema_version": "wave16.append_benchmark.v1",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.39",
+  "signer": "local Ed25519",
+  "payload": "pre-evaluation denial",
+  "storage": "temporary SQLite WAL, synchronous FULL",
+  "clock": "time.perf_counter",
+  "boundary": "One long-lived store; independent writers trigger conservative full replay. Local microbenchmark, not production throughput or remote KMS validation.",
+  "baseline_inputs": {
+    "receipts_sha256": "13a04f93dc6a85c454b4ffa330c1de2272e795ac5c1efd8f644e9ff93d10e77a",
+    "verifier_sha256": "c37e6d3d36797107500a5ebf30900db1488ebdcd31ee5360f9023900d68ea481"
+  },
+  "baseline": {
+    "samples": [
+      {
+        "existing_receipts_before_batch": 100,
+        "batch_size": 25,
+        "median_ms": 145.6155599998965,
+        "min_ms": 121.2093270000878,
+        "max_ms": 156.82676000005813
+      },
+      {
+        "existing_receipts_before_batch": 500,
+        "batch_size": 25,
+        "median_ms": 609.8388519999389,
+        "min_ms": 561.8023629999698,
+        "max_ms": 673.8543909998498
+      }
+    ],
+    "final_receipt_count": 525,
+    "append_seconds": 168.67959610999992,
+    "full_audit_seconds": 0.40662729399991804,
+    "full_audit_passed": true
+  },
+  "hardened_inputs": {
+    "src/ix_blackfox/live_gateway/receipts.py": "216a7662e6225203d74e11a4f4f18b493ffe17d198e6f6c36b5aeaac88be5858",
+    "src/ix_blackfox/authority_crypto/verification.py": "ec6124c9c5ef7e5d29d0f32578f4fbc389ea902ea0d5f284c2403e07fba23904"
+  },
+  "hardened": {
+    "samples": [
+      {
+        "existing_receipts_before_batch": 100,
+        "batch_size": 25,
+        "median_ms": 1.1542419999841513,
+        "min_ms": 1.0709759999372181,
+        "max_ms": 1.4217960001587926
+      },
+      {
+        "existing_receipts_before_batch": 500,
+        "batch_size": 25,
+        "median_ms": 1.105137999957151,
+        "min_ms": 1.0632549999627372,
+        "max_ms": 1.4798229999541945
+      },
+      {
+        "existing_receipts_before_batch": 1000,
+        "batch_size": 25,
+        "median_ms": 1.26902500005599,
+        "min_ms": 1.0865299998386035,
+        "max_ms": 2.074341000025015
+      },
+      {
+        "existing_receipts_before_batch": 5000,
+        "batch_size": 25,
+        "median_ms": 1.1933499999940977,
+        "min_ms": 1.0886020002089936,
+        "max_ms": 2.1108559999447607
+      }
+    ],
+    "final_receipt_count": 5025,
+    "append_seconds": 5.916670371000009,
+    "full_audit_seconds": 3.784780334999823,
+    "full_audit_passed": true
+  }
+}

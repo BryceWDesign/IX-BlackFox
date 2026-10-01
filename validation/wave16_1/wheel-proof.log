@@ -1,0 +1,33 @@
+{
+  "schema_version": "wave16.crypto_authority_ci_summary.v1",
+  "generated_at": "2026-10-01T01:10:34.788263+00:00",
+  "passed": true,
+  "checks": {
+    "signer_and_identity_ready": true,
+    "unauthenticated_denied": true,
+    "missing_evidence_denied": true,
+    "out_of_scope_denied": true,
+    "denials_have_zero_upstream_calls": true,
+    "api_allowed_write": true,
+    "mcp_allowed_write": true,
+    "signatures_committed_before_both_writes": true,
+    "single_use_approval_replay_denied": true,
+    "signer_outage_readiness_false": true,
+    "signer_outage_blocks_dispatch": true,
+    "identity_revocation_denied": true,
+    "stored_chain_valid": true,
+    "bundle_matches_expected_checkpoint": true,
+    "tampered_record_rejected": true,
+    "truncated_snapshot_rejected": true,
+    "standalone_public_verifier_after_private_state_removed": true
+  },
+  "check_count": 17,
+  "receipt_count": 9,
+  "upstream_invocation_count": 2,
+  "fixture_scope": "Ephemeral local IdP and synthetic HMAC reviewer/test evidence; real loopback sockets and independently witnessed file writes.",
+  "external_services": {
+    "aws_kms": "NOT_RUN",
+    "physical_hsm": "NOT_RUN",
+    "sigstore_issuance": "NOT_RUN"
+  }
+}

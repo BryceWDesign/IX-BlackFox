@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ix-blackfox"
-version = "0.4.0"
+version = "0.4.1"
 description = "Evidence-conditioned authority gateway and governed AI engineering control plane."
 readme = "README.md"
 requires-python = ">=3.11"

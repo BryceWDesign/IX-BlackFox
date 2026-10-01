@@ -1,0 +1,10 @@
+{
+  "payload": "eyJhbGdvcml0aG0iOiJFZDI1NTE5IiwiYm9keSI6eyJkZXBsb3ltZW50X2lkIjoid2F2ZTE2LWxvY2FsLWRlbW8iLCJoZWFkX2RpZ2VzdCI6ImI1ZDI0ODhmYmZkZDY3MGRkZDI1YjE0MTgyNDg4NzBiNmVkNjI1ODQ5MjVkZTIwZWE1MWJhNDFjYzRjNWFmNmYiLCJyZWNlaXB0X2NvdW50Ijo5LCJyZWNlaXB0c19zaGEyNTYiOiJjMDgzNzNlMTUyNTIxODJjNTI5MzdlYTI0MjZhZDBjOGY1ODBlNGVmMzM1ZjMyMGFjOTI1NzgxYjc3ZDZlZTc4Iiwic2NoZW1hX3ZlcnNpb24iOiJ3YXZlMTYuY2hlY2twb2ludC52MSIsInN0cmVhbV9pZCI6IndhdmUxNi1kZW1vLXN0cmVhbSJ9LCJkZXBsb3ltZW50X2lkIjoid2F2ZTE2LWxvY2FsLWRlbW8iLCJrZXlfaWQiOiJ3YXZlMTYtZGVtby1rZXkiLCJzY2hlbWFfdmVyc2lvbiI6IndhdmUxNi5zaWduZWRfc3RhdGVtZW50LnYxIiwic2lnbmVkX2F0IjoiMjAyNi0xMC0wMVQwMTowNDozNC44NTAzNjkrMDA6MDAiLCJzdHJlYW1faWQiOiJ3YXZlMTYtZGVtby1zdHJlYW0ifQ==",
+  "payloadType": "application/vnd.ix-blackfox.authority-checkpoint.v16+json",
+  "signatures": [
+    {
+      "keyid": "wave16-demo-key",
+      "sig": "qvXMQaaOPCi8Nsxaf4mmMvThXt+jhnOipw6BakHQALjhNCmQp5yUhHpSsPQ9eb2gXbhJxMYWthGn4xPK7I0sBw=="
+    }
+  ]
+}

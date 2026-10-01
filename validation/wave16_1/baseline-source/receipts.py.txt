@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import threading
-import weakref
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -19,13 +17,10 @@ from ix_blackfox.authority_crypto.encoding import (
     strict_json,
 )
 from ix_blackfox.authority_crypto.signing import SigningController
-from ix_blackfox.authority_crypto.trust import TrustPolicy, fingerprint
 from ix_blackfox.authority_crypto.verification import (
     BUNDLE_SCHEMA,
     RECEIPT_SCHEMA,
-    VerifiedStreamState,
     checkpoint_body,
-    replay_records,
     verify_records,
 )
 from ix_blackfox.live_gateway.models import WAVE14_RECEIPT_SCHEMA_VERSION
@@ -51,194 +46,84 @@ class ReceiptChainVerification:
         }
 
 
-@dataclass(slots=True, weakref_slot=True)
+@dataclass(slots=True)
 class AuthorityReceiptStore:
     """SQLite-backed, transactionally hash-chained Wave 14 authority receipts."""
 
     path: Path
     signing: SigningController | None = None
-    _lock: threading.RLock = field(
-        default_factory=threading.RLock, init=False, repr=False
-    )
-    _connection: sqlite3.Connection | None = field(default=None, init=False, repr=False)
-    _finalizer: weakref.finalize[[], AuthorityReceiptStore] | None = field(
-        default=None, init=False, repr=False
-    )
-    _state: VerifiedStreamState | None = field(default=None, init=False, repr=False)
-    _generation: int = field(default=-1, init=False, repr=False)
-    _policy_digest: str = field(default="", init=False, repr=False)
-    _closed: bool = field(default=False, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.path = self.path.resolve()
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        if self.signing is not None:
-            # data_version is comparable only on the SAME connection. All local
-            # writes use this connection so every other writer invalidates cache.
-            self._connection = sqlite3.connect(
-                self.path, timeout=10.0, check_same_thread=False
-            )
-            self._finalizer = weakref.finalize(self, self._connection.close)
-        try:
-            self._initialize()
-            if self.signing is not None:
-                with self._connect() as connection:
-                    connection.execute("BEGIN")
-                    self._refresh_state(connection, self.signing.current_policy())
-        except Exception:
-            self.close()
-            raise
-
-    @staticmethod
-    def _policy_token(policy: TrustPolicy) -> str:
-        return digest(
-            {
-                "deployment": policy.deployment_id,
-                "stream": policy.stream_id,
-                "expires": policy.expires_at.isoformat(),
-                "skew": policy.clock_skew_seconds,
-                "keys": [
-                    [
-                        key.key_id,
-                        key.algorithm,
-                        fingerprint(key.key),
-                        key.not_before.isoformat(),
-                        key.not_after.isoformat(),
-                        key.revoked,
-                    ]
-                    for key in policy.keys
-                ],
-            }
-        )
-
-    def _refresh_state(
-        self, connection: sqlite3.Connection, policy: TrustPolicy
-    ) -> VerifiedStreamState:
-        generation = int(connection.execute("PRAGMA data_version").fetchone()[0])
-        token = self._policy_token(policy)
-        if (
-            self._state is None
-            or generation != self._generation
-            or token != self._policy_digest
-        ):
-            records = self._signed_records(connection)
-            state = replay_records(records, policy)
-            if self._state is not None and (
-                state.sequence < self._state.sequence
-                or (
-                    self._state.sequence
-                    and records[self._state.sequence - 1]["receipt_digest"]
-                    != self._state.head
-                )
-            ):
-                raise AuthorityProofError(
-                    "Database no longer extends the verified head."
-                )
-            self._state = state
-            self._generation = generation
-            self._policy_digest = token
-        return self._state
-
-    def _make_receipt(
-        self, payload: dict[str, Any], sequence: int, previous: str
-    ) -> dict[str, Any]:
-        receipt: dict[str, Any] = {
-            "schema_version": WAVE14_RECEIPT_SCHEMA_VERSION,
-            "sequence": sequence,
-            "previous_receipt_digest": previous,
-            **payload,
-        }
-        if self.signing is not None:
-            reserved = {
-                "schema_version",
-                "sequence",
-                "previous_receipt_digest",
-                "receipt_id",
-                "receipt_digest",
-                "attestation",
-                "deployment_id",
-                "stream_id",
-            }
-            if reserved.intersection(payload):
-                raise AuthorityProofError("Payload overrides reserved receipt fields.")
-            policy = self.signing.current_policy()
-            receipt.update(
-                schema_version=RECEIPT_SCHEMA,
-                deployment_id=policy.deployment_id,
-                stream_id=policy.stream_id,
-            )
-            receipt_id = "wave16-receipt-" + digest(receipt)
-        else:
-            receipt_id = "wave14-receipt-" + digest_payload(receipt)[:24]
-        receipt["receipt_id"] = receipt_id
-        receipt["receipt_digest"] = (
-            digest if self.signing is not None else digest_payload
-        )(receipt)
-        if self.signing is not None:
-            receipt["attestation"] = self.signing.envelope(RECEIPT_TYPE, dict(receipt))
-        return receipt
-
-    @staticmethod
-    def _insert(connection: sqlite3.Connection, receipt: dict[str, Any]) -> None:
-        connection.execute(
-            "INSERT INTO receipts(sequence, receipt_id, receipt_digest, previous_digest, payload_json) VALUES (?, ?, ?, ?, ?)",
-            (
-                receipt["sequence"],
-                receipt["receipt_id"],
-                receipt["receipt_digest"],
-                receipt["previous_receipt_digest"],
-                json.dumps(
-                    receipt,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                    ensure_ascii=False,
-                    allow_nan=False,
-                ),
-            ),
-        )
+        self._initialize()
 
     def append(self, payload: dict[str, Any]) -> dict[str, Any]:
         with self._connect() as connection:
-            if self.signing is None:
-                connection.execute("BEGIN IMMEDIATE")
-                row = connection.execute(
-                    "SELECT sequence, receipt_digest FROM receipts ORDER BY sequence DESC LIMIT 1"
-                ).fetchone()
-                receipt = self._make_receipt(
-                    payload,
-                    1 if row is None else int(row[0]) + 1,
-                    "" if row is None else str(row[1]),
-                )
-                self._insert(connection, receipt)
-                connection.commit()
-                return receipt
-            # Serialize local callers, but do not hold a SQLite writer/read lock
-            # while a remote signer is performing network I/O.
-            for _ in range(16):
-                connection.execute("BEGIN")
+            connection.execute("BEGIN IMMEDIATE")
+            if self.signing is not None:
+                records = self._signed_records(connection)
+                verify_records(records, self.signing.current_policy())
+            row = connection.execute(
+                "SELECT sequence, receipt_digest FROM receipts ORDER BY sequence DESC LIMIT 1"
+            ).fetchone()
+            sequence = 1 if row is None else int(row[0]) + 1
+            previous_digest = "" if row is None else str(row[1])
+            receipt: dict[str, Any] = {
+                "schema_version": WAVE14_RECEIPT_SCHEMA_VERSION,
+                "sequence": sequence,
+                "previous_receipt_digest": previous_digest,
+                **payload,
+            }
+            if self.signing is not None:
+                reserved = {
+                    "schema_version",
+                    "sequence",
+                    "previous_receipt_digest",
+                    "receipt_id",
+                    "receipt_digest",
+                    "attestation",
+                    "deployment_id",
+                    "stream_id",
+                }
+                if reserved.intersection(payload):
+                    raise AuthorityProofError(
+                        "Payload overrides reserved receipt fields."
+                    )
                 policy = self.signing.current_policy()
-                state = self._refresh_state(connection, policy)
-                generation, token = self._generation, self._policy_digest
-                connection.rollback()
-                receipt = self._make_receipt(payload, state.sequence + 1, state.head)
-                body = state.validate(receipt, self.signing.current_policy())
-                connection.execute("BEGIN IMMEDIATE")
-                if (
-                    int(connection.execute("PRAGMA data_version").fetchone()[0])
-                    != generation
-                    or self._policy_token(self.signing.current_policy()) != token
-                ):
-                    connection.rollback()
-                    continue
-                self._insert(connection, receipt)
-                connection.commit()
-                # Return data must not alias the private state retained for parent
-                # linkage. verify_receipt returns a detached signed body.
-                state.advance(body)
-                return receipt
-            raise AuthorityProofError(
-                "Receipt stream changed repeatedly during signing; append refused."
+                receipt.update(
+                    schema_version=RECEIPT_SCHEMA,
+                    deployment_id=policy.deployment_id,
+                    stream_id=policy.stream_id,
+                )
+                receipt_id = "wave16-receipt-" + digest(receipt)
+            else:
+                legacy_digest = digest_payload(receipt)
+                receipt_id = f"wave14-receipt-{legacy_digest[:24]}"
+            receipt["receipt_id"] = receipt_id
+            receipt["receipt_digest"] = (
+                digest if self.signing is not None else digest_payload
+            )({key: value for key, value in receipt.items() if key != "receipt_digest"})
+            if self.signing is not None:
+                receipt["attestation"] = self.signing.envelope(
+                    RECEIPT_TYPE, dict(receipt)
+                )
+                verify_records([*records, receipt], self.signing.current_policy())
+            body = json.dumps(
+                receipt, sort_keys=True, separators=(",", ":"), ensure_ascii=False
             )
+            connection.execute(
+                "INSERT INTO receipts(sequence, receipt_id, receipt_digest, previous_digest, payload_json) VALUES (?, ?, ?, ?, ?)",
+                (
+                    sequence,
+                    receipt_id,
+                    receipt["receipt_digest"],
+                    previous_digest,
+                    body,
+                ),
+            )
+            connection.commit()
+            return receipt
 
     def claim_single_use_evidence(
         self,
@@ -310,7 +195,6 @@ class AuthorityReceiptStore:
 
     def verify_chain(self) -> ReceiptChainVerification:
         with self._connect() as connection:
-            connection.execute("BEGIN")
             rows = connection.execute(
                 "SELECT sequence, receipt_id, receipt_digest, previous_digest, payload_json FROM receipts ORDER BY sequence"
             ).fetchall()
@@ -495,27 +379,12 @@ class AuthorityReceiptStore:
             )
             connection.commit()
 
-    def close(self) -> None:
-        """Release the signed-store observer, including its Windows file handle."""
-        with self._lock:
-            if self._finalizer is not None:
-                self._finalizer()
-            self._connection = None
-            self._state = None
-            self._closed = True
-
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
-        with self._lock:
-            if self._closed:
-                raise AuthorityProofError("Receipt store is closed.")
-            connection = self._connection or sqlite3.connect(self.path, timeout=10.0)
-            try:
-                connection.execute("PRAGMA foreign_keys=ON")
-                connection.execute("PRAGMA synchronous=FULL")
-                yield connection
-            finally:
-                if connection.in_transaction:
-                    connection.rollback()
-                if self._connection is None:
-                    connection.close()
+        connection = sqlite3.connect(self.path, timeout=10.0)
+        try:
+            connection.execute("PRAGMA foreign_keys=ON")
+            connection.execute("PRAGMA synchronous=FULL")
+            yield connection
+        finally:
+            connection.close()

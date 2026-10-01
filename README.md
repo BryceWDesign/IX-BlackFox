@@ -20,6 +20,16 @@ Today, BlackFox provides a live MCP/API enforcement boundary with federated work
 
 ---
 
+## Current release: 0.4.1, Wave 16.1 hardening
+
+Normal signed receipt appends now validate one transition; signing runs outside SQLite transactions. Retained checkpoints authenticate valid append-only extensions, evaluated and pre-evaluation denials receive semantic validation, and both legacy and v1 encoding contracts have fixed byte/hash vectors. Full replay remains available for recovery, audit and export.
+
+Local Linux validation passes **1,784 tests** on Python **3.11, 3.12 and 3.13**, with Ruff, strict mypy and the **17-check real API/MCP proof** passing on each. The local Ed25519 append microbenchmark remains about **1.1–1.3 ms** through **5,000 existing receipts** for one long-lived store. External connection commits and policy changes conservatively trigger full replay; sustained multiwriter scalability, production throughput and HA are not validated. Windows and remote GitHub CI were not run in this handoff.
+
+See [validation evidence](VALIDATION_REPORT.md), [hardening contract](docs/wave16-hardening.md), [claims ledger](docs/wave16-claims-ledger.json) and [Windows handoff](WINDOWS_HANDOFF.md). Human approval remains HMAC-authenticated evidence, not independently attributable personal public-key signatures. The 0.4.0 validation snapshots are historical.
+
+---
+
 ## What BlackFox does
 
 BlackFox governs AI-produced software changes **before consequential tool execution**.

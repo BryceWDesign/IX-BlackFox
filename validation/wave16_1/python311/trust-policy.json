@@ -1,0 +1,18 @@
+{
+  "clock_skew_seconds": 30,
+  "deployment_id": "wave16-local-demo",
+  "expires_at": "2027-10-01T01:04:37.952783+00:00",
+  "keys": [
+    {
+      "algorithm": "Ed25519",
+      "key_id": "wave16-demo-key",
+      "not_after": "2027-10-01T01:04:37.952783+00:00",
+      "not_before": "2026-10-01T00:59:37.952783+00:00",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA+Dq5j2IRZLK5K3mba312XsuBrC8Y0851boelqKwZkjU=\n-----END PUBLIC KEY-----\n",
+      "revoked": false,
+      "spki_sha256": "df440b861f22b8de41fc2a837c1786228116a563337ed94d3efed3a3244feecc"
+    }
+  ],
+  "schema_version": "wave16.trust_policy.v1",
+  "stream_id": "wave16-demo-stream"
+}

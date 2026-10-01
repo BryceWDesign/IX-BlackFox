@@ -24,7 +24,7 @@ class BlackFoxGatewayHttpServer(ThreadingHTTPServer):
 class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
     """Minimal standard-library HTTP surface for the Wave 14 live gateway."""
 
-    server_version = "IX-BlackFox/0.4.0"
+    server_version = "IX-BlackFox/0.4.1"
     protocol_version = "HTTP/1.1"
 
     @property

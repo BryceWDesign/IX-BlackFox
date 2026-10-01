@@ -1,27 +1,17 @@
-# IX-BlackFox Wave 16 full handoff
+# IX-BlackFox Wave 16.1 full handoff
 
-Release **0.4.0**, Cryptographic Authority Receipts and Externally Anchored Trust.
+Release **0.4.1**, signed-ledger performance and verifier hardening.
 
-## Delivered behavior
+Complete source, tests, documentation, public schemas, GitHub workflows, original assets and unchanged evaluation-only license terms are included. `dist/ix_blackfox-0.4.1-py3-none-any.whl` is the installable release. `FILE_MANIFEST.json` hashes every delivered file except itself; the ZIP digest is supplied alongside the ZIP. No Git metadata, virtual environments, private signing keys, credentials, runtime databases or caches are packaged.
 
-Configured live gateways commit signed authorization before governed API/MCP dispatch, reevaluate current identity/evidence/trust, and append a linked signed outcome observation. Failure before dispatch refuses execution; failure to record an outcome after dispatch reports uncertainty and prevents an unsafe retry. Historical configurations remain in their original unsigned mode.
+## Evidence
 
-## Contents
+1,784 tests pass with no failures or skips on Linux Python 3.11, 3.12 and 3.13. Ruff, strict mypy (271 source files), compileall, 17-check socket/file-write proofs and clean installed-wheel public/live verification pass. Measured normal signed appends remain approximately 1.1–1.3 ms through 5,000 receipts in this local microbenchmark. Full recovery/audit and independent-writer commits retain history-dependent replay. See `VALIDATION_REPORT.md` for precise measurements and limits.
 
-- Complete original project source, tests, documentation, schemas, workflows and assets, plus the Wave 16 extension.
-- `src/ix_blackfox/authority_crypto`: canonical encoding, DSSE and pinned public trust, encrypted local/KMS/PKCS11 signers, public stream verifier, CLI and optional Cosign adapter.
-- Integrated live gateway, real socket/file-write proof and external-service validator.
-- Adversarial security, provider-contract, CLI, schema and live runner tests.
-- Six Wave 16 public schemas; Ubuntu/Windows Python 3.11–3.13 CI configuration.
-- Operator contract, claims ledger, changelog and roadmap.
-- Public proof artifacts and validation logs under `validation/wave16`.
-- `dist/ix_blackfox-0.4.0-py3-none-any.whl`, verified in an isolated environment.
-- `FILE_MANIFEST.json`, per-file hashes excluding the manifest itself; the ZIP SHA-256 is supplied alongside the ZIP.
+Current evidence is under `validation/wave16_1`; the earlier Wave 16 evidence is historical. `docs/wave16-hardening.md` explains cache trust, recovery, multiwriter boundaries, denial contracts and both encoding profiles. Fixed vectors are in `examples/wave16/canonicalization-vectors.json`; original benchmark sources are preserved as text under `validation/wave16_1/baseline-source`.
 
-## Acceptance evidence
+## Apply and verify
 
-1,734 tests pass; Ruff and strict mypy pass; source and installed-wheel live proofs pass. Consult `VALIDATION_REPORT.md` and the machine-readable release validation. Live AWS/HSM/Sigstore and remote CI remain unrun. No real credentials, signing private keys, runtime SQLite databases, virtual environments or caches are included.
+Follow `WINDOWS_HANDOFF.md`. Use the existing Git checkout to preserve its history. Install `.[dev,aws-kms]`, run lint/types/tests/proof, inspect the diff, then commit and push. Remote Ubuntu/Windows Python 3.11–3.13 CI must run after the push; this local handoff cannot guarantee or claim that remote result.
 
-## First steps
-
-Extract the ZIP, open the contained repository directory and use the README PowerShell commands to create a virtual environment and reproduce the proof. Preserve the evaluation-only LICENSE/NOTICE/COMMERCIAL terms. Provision your own IdP, signing keys, trusted public policy, evidence issuers, protected upstream access and independent checkpoint retention before evaluating a deployment. The supplied public proof keys are demo fixtures.
+Approval remains HMAC-authenticated evidence. Live AWS/HSM/Sigstore, production IdP, production throughput/HA, independent checkpoint service and certification remain unvalidated or unprovisioned. No private credentials or physical key-custody claim is introduced.

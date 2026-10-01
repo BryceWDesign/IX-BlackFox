@@ -227,9 +227,10 @@ class OperatingEnvelope:
 
 
 def digest_payload(payload: Mapping[str, Any]) -> str:
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode(
-        "utf-8"
-    )
+    """Legacy ASCII-escaped Python JSON profile; finite historical bytes unchanged."""
+    encoded = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False
+    ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 

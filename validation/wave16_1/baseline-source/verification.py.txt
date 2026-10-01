@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from ix_blackfox.authority_crypto.encoding import (
@@ -111,60 +111,11 @@ def verify_receipt(receipt: dict[str, Any], policy: TrustPolicy) -> dict[str, An
         or type(body.get("executed")) is not bool
     ):
         raise AuthorityProofError("Execution flags must be booleans.")
-    minimal_denial = kind == "denial" and "schema_version" not in body["subject"]
-    if minimal_denial:
-        fields(body["subject"], {"agent_id", "tool_name"})
-        minimal_decision = fields(
-            body["authority_decision"], {"status", "reason_codes"}
-        )
-        reasons = minimal_decision["reason_codes"]
-        if (
-            any(not isinstance(value, str) for value in body["subject"].values())
-            or minimal_decision["status"] != "block"
-            or not isinstance(reasons, list)
-            or not reasons
-            or any(not isinstance(item, str) or not item for item in reasons)
-            or body["authenticated_principal"]
-            or refs
-            or body["evaluated_evidence_digests"]
-        ):
-            raise AuthorityProofError("Malformed pre-evaluation denial.")
-    else:
+    if kind in {"authorization", "outcome"}:
         subject, decision, principal = (
             body.get("subject"),
             body.get("authority_decision"),
             body.get("authenticated_principal"),
-        )
-        fields(
-            subject,
-            {
-                "schema_version",
-                "agent_id",
-                "tool_name",
-                "capability",
-                "repository_id",
-                "revision",
-                "path",
-                "arguments_digest",
-                "authority_context_digest",
-                "protocol",
-                "metadata",
-                "digest",
-            },
-        )
-        fields(
-            decision,
-            {
-                "schema_version",
-                "subject",
-                "status",
-                "reason_codes",
-                "agent_authorization",
-                "evidence",
-                "decided_at",
-                "allowed",
-                "digest",
-            },
         )
         if (
             not isinstance(subject, dict)
@@ -181,14 +132,8 @@ def verify_receipt(receipt: dict[str, Any], policy: TrustPolicy) -> dict[str, An
             != digest_payload(
                 {key: value for key, value in decision.items() if key != "digest"}
             )
-            or decision.get("schema_version") != "wave14.live_authority_decision.v1"
-            or decision.get("allowed") is not (kind != "denial")
-            or decision.get("status")
-            not in (
-                {"block", "review_required", "evidence_required"}
-                if kind == "denial"
-                else {"allow"}
-            )
+            or decision.get("allowed") is not True
+            or decision.get("status") != "allow"
             or canonical_bytes(decision.get("subject")) != canonical_bytes(subject)
         ):
             raise AuthorityProofError("Signed authority decision is inconsistent.")
@@ -196,23 +141,8 @@ def verify_receipt(receipt: dict[str, Any], policy: TrustPolicy) -> dict[str, An
             "agent_id"
         ):
             raise AuthorityProofError("Authenticated principal binding mismatch.")
-        if (
-            any(
-                not isinstance(subject[name], str)
-                for name in subject
-                if name != "metadata"
-            )
-            or subject["protocol"] != body["protocol"]
-            or not isinstance(decision["reason_codes"], list)
-            or not decision["reason_codes"]
-            or any(
-                not isinstance(reason, str) or not reason
-                for reason in decision["reason_codes"]
-            )
-            or not isinstance(subject.get("metadata"), dict)
-        ):
-            raise AuthorityProofError("Malformed subject or decision context.")
-        timestamp(decision["decided_at"])
+        if not isinstance(subject.get("metadata"), dict):
+            raise AuthorityProofError("Malformed subject metadata.")
         if principal.get("authentication_type") == "oidc_jwt" and subject.get(
             "metadata", {}
         ).get("identity_context_digest") != digest_payload(principal):
@@ -221,24 +151,14 @@ def verify_receipt(receipt: dict[str, Any], policy: TrustPolicy) -> dict[str, An
         if (
             not isinstance(evidence, dict)
             or not isinstance(evidence.get("verifications"), list)
-            or any(
-                not isinstance(item, dict)
-                or type(item.get("passed")) is not bool
-                or not isinstance(item.get("evidence_id"), str)
-                or not isinstance(item.get("digest"), str)
-                for item in evidence["verifications"]
-            )
+            or any(not isinstance(item, dict) for item in evidence["verifications"])
         ):
             raise AuthorityProofError("Malformed evaluated evidence.")
         expected_evidence = {
-            item.get("evidence_id"): item.get("digest")
+            item["evidence_id"]: item["digest"]
             for item in decision.get("evidence", {}).get("verifications", [])
             if item.get("passed") is True
         }
-        if not set(expected_evidence).issubset(refs):
-            raise AuthorityProofError(
-                "Evaluated evidence is absent from authority references."
-            )
         if canonical_bytes(body.get("evaluated_evidence_digests")) != canonical_bytes(
             expected_evidence
         ):
@@ -250,9 +170,7 @@ def verify_receipt(receipt: dict[str, Any], policy: TrustPolicy) -> dict[str, An
     ):
         raise AuthorityProofError("Authorization cannot claim execution.")
     if kind == "denial" and (
-        body["upstream_status"] != 0
-        or body["upstream_response_sha256"] != ""
-        or body["upstream_attempted"]
+        body["upstream_attempted"]
         or body["executed"]
         or body.get("execution_state") != "not_attempted"
     ):
@@ -269,7 +187,7 @@ def verify_receipt(receipt: dict[str, Any], policy: TrustPolicy) -> dict[str, An
         or len(claims) != len(set(claims))
     ):
         raise AuthorityProofError("Malformed evidence claims.")
-    if not set(claims).issubset(refs):
+    if kind in {"authorization", "outcome"} and not set(claims).issubset(refs):
         raise AuthorityProofError(
             "Evidence claims are absent from the authority references."
         )
@@ -279,51 +197,50 @@ def verify_receipt(receipt: dict[str, Any], policy: TrustPolicy) -> dict[str, An
         raise AuthorityProofError(
             "Outcome execution flag contradicts its observed state."
         )
-    return signed
+    return body
 
 
-@dataclass
-class VerifiedStreamState:
-    """Private replay-derived state; never loaded from unauthenticated DB metadata."""
-
-    sequence: int = 0
-    head: str = ""
-    authorizations: dict[str, dict[str, Any]] = field(default_factory=dict)
-    ids: set[str] = field(default_factory=set)
-    claims: set[str] = field(default_factory=set)
-
-    def validate(self, receipt: dict[str, Any], policy: TrustPolicy) -> dict[str, Any]:
-        """Validate one transition without mutating state before durable commit."""
+def verify_records(
+    receipts: list[dict[str, Any]], policy: TrustPolicy
+) -> tuple[str, tuple[str, ...]]:
+    head = ""
+    authorizations: dict[str, dict[str, Any]] = {}
+    completed: set[str] = set()
+    ids: set[str] = set()
+    claims: set[str] = set()
+    for sequence, receipt in enumerate(receipts, 1):
         body = verify_receipt(receipt, policy)
         if (
-            body["sequence"] != self.sequence + 1
-            or body["previous_receipt_digest"] != self.head
-            or body["receipt_id"] in self.ids
+            body["sequence"] != sequence
+            or body["previous_receipt_digest"] != head
+            or body["receipt_id"] in ids
         ):
             raise AuthorityProofError(
                 "Receipt chain has a gap, duplicate or reordering."
             )
+        ids.add(body["receipt_id"])
         kind = body["record_type"]
         if kind == "authorization":
-            if self.claims.intersection(body["single_use_evidence_claims"]):
+            if claims.intersection(body["single_use_evidence_claims"]):
                 raise AuthorityProofError(
                     "Single-use evidence authorized more than once."
                 )
+            claims.update(body["single_use_evidence_claims"])
+            authorizations[body["receipt_id"]] = body
         elif kind == "outcome":
             parent_id = body.get("authorization_receipt_id")
             parent = (
-                self.authorizations.get(parent_id)
-                if isinstance(parent_id, str)
-                else None
+                authorizations.get(parent_id) if isinstance(parent_id, str) else None
             )
             if (
                 parent is None
+                or parent_id in completed
                 or body.get("authorization_receipt_digest") != parent["receipt_digest"]
             ):
                 raise AuthorityProofError(
                     "Outcome lacks a unique earlier authorization."
                 )
-            for name in (
+            for field in (
                 "subject",
                 "authority_decision",
                 "authenticated_principal",
@@ -331,42 +248,19 @@ class VerifiedStreamState:
                 "evaluated_evidence_digests",
                 "single_use_evidence_claims",
             ):
-                if canonical_bytes(body.get(name)) != canonical_bytes(parent.get(name)):
+                if canonical_bytes(body.get(field)) != canonical_bytes(
+                    parent.get(field)
+                ):
                     raise AuthorityProofError(
                         "Outcome does not match its authorization."
                     )
+            completed.add(str(parent_id))
         elif body["single_use_evidence_claims"]:
             raise AuthorityProofError(
                 "Denial cannot claim consumption under authorization."
             )
-        return body
-
-    def advance(self, body: dict[str, Any]) -> None:
-        # Only called after validation, and (for a store append) after COMMIT.
-        self.ids.add(body["receipt_id"])
-        if body["record_type"] == "authorization":
-            self.claims.update(body["single_use_evidence_claims"])
-            self.authorizations[body["receipt_id"]] = body
-        elif body["record_type"] == "outcome":
-            del self.authorizations[body["authorization_receipt_id"]]
-        self.sequence = body["sequence"]
-        self.head = body["receipt_digest"]
-
-
-def replay_records(
-    receipts: list[dict[str, Any]], policy: TrustPolicy
-) -> VerifiedStreamState:
-    state = VerifiedStreamState()
-    for receipt in receipts:
-        state.advance(state.validate(receipt, policy))
-    return state
-
-
-def verify_records(
-    receipts: list[dict[str, Any]], policy: TrustPolicy
-) -> tuple[str, tuple[str, ...]]:
-    state = replay_records(receipts, policy)
-    return state.head, tuple(state.authorizations)
+        head = body["receipt_digest"]
+    return head, tuple(item for item in authorizations if item not in completed)
 
 
 def checkpoint_body(
@@ -401,7 +295,7 @@ class BundleVerification:
             "unresolved_authorizations": list(self.unresolved_authorizations),
             "issues": list(self.issues),
             "scope": "Pinned gateway signatures and receipt/checkpoint consistency; execution is the gateway observation, not proof of arbitrary side effects.",
-            "completeness": "Contains the supplied expected checkpoint as an authenticated prefix; latestness beyond that retained prefix is not established."
+            "completeness": "Matches supplied expected checkpoint; rollback protection depends on independent retention."
             if self.checkpoint_matched
             else "Latestness is not established without a separately retained expected checkpoint.",
         }
@@ -434,19 +328,12 @@ def verify_bundle(
             checkpoint_body(receipts, policy)
         ):
             raise AuthorityProofError("Checkpoint does not match the receipt snapshot.")
-        if expected_checkpoint is not None:
-            retained = policy.verify(expected_checkpoint, CHECKPOINT_TYPE)
-            count = retained.get("receipt_count")
-            if type(count) is not int or not 0 <= count <= len(receipts):
-                raise AuthorityProofError(
-                    "Retained checkpoint is malformed or newer than bundle."
-                )
-            if canonical_bytes(retained) != canonical_bytes(
-                checkpoint_body(receipts[:count], policy)
-            ):
-                raise AuthorityProofError(
-                    "Bundle does not extend the independently retained checkpoint."
-                )
+        if expected_checkpoint is not None and canonical_bytes(
+            policy.verify(expected_checkpoint, CHECKPOINT_TYPE)
+        ) != canonical_bytes(signed_head):
+            raise AuthorityProofError(
+                "Bundle does not match the independently retained checkpoint."
+            )
         return BundleVerification(
             True, len(receipts), head, expected_checkpoint is not None, pending
         )

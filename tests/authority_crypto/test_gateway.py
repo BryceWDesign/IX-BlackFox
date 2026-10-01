@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from dataclasses import replace
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -11,34 +9,10 @@ import pytest
 from ix_blackfox.authority_crypto.encoding import AuthorityProofError
 from ix_blackfox.authority_crypto.signing import SigningController
 from ix_blackfox.authority_crypto.verification import verify_bundle, verify_receipt
-from ix_blackfox.live_gateway.config import load_gateway_config
 from ix_blackfox.live_gateway.evidence import issue_signed_evidence
 from ix_blackfox.live_gateway.receipts import AuthorityReceiptStore
 from ix_blackfox.live_gateway.service import LiveAuthorityGateway
 from ix_blackfox.live_gateway.upstream import UpstreamResponse, UpstreamTransportError
-
-
-@pytest.fixture
-def signed_gateway(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, controller: SigningController
-) -> LiveAuthorityGateway:
-    root = Path(__file__).resolve().parents[2]
-    for key, value in {
-        "BLACKFOX_WAVE14_CI_KEY": "c" * 64,
-        "BLACKFOX_WAVE14_HUMAN_KEY": "h" * 64,
-        "BLACKFOX_WAVE14_AGENT_TOKEN": "a" * 64,
-        "BLACKFOX_WAVE14_OPERATOR_TOKEN": "o" * 64,
-    }.items():
-        monkeypatch.setenv(key, value)
-    config = replace(
-        load_gateway_config(root / "examples/wave14/blackfox.gateway.toml"),
-        evidence_root=tmp_path / "evidence",
-        receipt_database=tmp_path / "receipts.sqlite3",
-        identity_revocation_database=tmp_path / "revocations.sqlite3",
-    )
-    gateway = LiveAuthorityGateway.from_config(config)
-    gateway.receipt_store = AuthorityReceiptStore(config.receipt_database, controller)
-    return gateway
 
 
 def request(

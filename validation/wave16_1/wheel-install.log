@@ -1,0 +1,9 @@
+Using Python 3.12.14 environment at: /workspace/scratch/eac693fdfc3e/wheel-env
+Resolved 5 packages in 4.54s
+Prepared 2 packages in 92ms
+Installed 5 packages in 4ms
+ + cffi==2.1.1
+ + cryptography==50.0.2
+ + ix-blackfox==0.4.1 (from file:///workspace/scratch/eac693fdfc3e/work/IX-BlackFox-main/dist/ix_blackfox-0.4.1-py3-none-any.whl)
+ + pycparser==3.0
+ + pyjwt==2.15.1
