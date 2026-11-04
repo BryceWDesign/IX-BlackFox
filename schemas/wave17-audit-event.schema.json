@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ix-blackfox.invalid/schemas/wave17-audit-event.schema.json",
+  "title": "BlackFox signed authority CloudEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["specversion", "id", "source", "type", "time", "datacontenttype", "subject", "data"],
+  "properties": {
+    "specversion": {"const": "1.0"},
+    "id": {"type": "string", "pattern": "^wave16-receipt-[0-9a-f]{64}$"},
+    "source": {"type": "string", "pattern": "^urn:ix-blackfox:authority:[0-9a-f]{64}$"},
+    "type": {"enum": ["io.ix-blackfox.authority.authorization", "io.ix-blackfox.authority.outcome", "io.ix-blackfox.authority.denial"]},
+    "time": {"type": "string", "format": "date-time"},
+    "datacontenttype": {"const": "application/json"},
+    "subject": {"type": "string"},
+    "data": {"type": "object", "required": ["schema_version", "receipt_id", "attestation"], "properties": {"schema_version": {"const": "wave16.authority_receipt.v1"}}}
+  }
+}

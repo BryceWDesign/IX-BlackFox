@@ -1,4 +1,4 @@
-# IX-BlackFox Wave 16 full handoff
+# IX-BlackFox Wave 16 release contents
 
 Release **0.4.0**, Cryptographic Authority Receipts and Externally Anchored Trust.
 

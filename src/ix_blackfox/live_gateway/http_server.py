@@ -24,7 +24,7 @@ class BlackFoxGatewayHttpServer(ThreadingHTTPServer):
 class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
     """Minimal standard-library HTTP surface for the Wave 14 live gateway."""
 
-    server_version = "IX-BlackFox/0.4.1"
+    server_version = "IX-BlackFox/0.5.0"
     protocol_version = "HTTP/1.1"
 
     @property
@@ -47,7 +47,9 @@ class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
                 200,
                 {
                     "status": "ok",
-                    "wave": 16 if self.gateway.receipt_store.signing else 14,
+                    "wave": 17
+                    if self.gateway.config.mesh
+                    else (16 if self.gateway.receipt_store.signing else 14),
                 },
             )
             return
@@ -59,7 +61,9 @@ class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
                 {
                     "status": "ready" if payload["ready"] else "not_ready",
                     "ready": bool(payload["ready"]),
-                    "wave": 16 if self.gateway.receipt_store.signing else 14,
+                    "wave": 17
+                    if self.gateway.config.mesh
+                    else (16 if self.gateway.receipt_store.signing else 14),
                 },
             )
             return
@@ -102,7 +106,7 @@ class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
                 },
             )
             return
-        if self.path == "/mcp":
+        if self.path == "/mcp" or self.path.startswith("/mcp/"):
             origin = self.headers.get("Origin")
             if origin is not None and not self.gateway.config.origin_allowed(origin):
                 self._send_json(403, {"error": "MCP Origin is not allowed"})
@@ -122,11 +126,14 @@ class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
             return
 
         headers = self._request_headers()
-        if self.path == "/mcp":
+        if self.path == "/mcp" or self.path.startswith("/mcp/"):
             response = self.gateway.handle_mcp(
                 payload=payload,
                 headers=headers,
                 raw_body=raw,
+                connector_id=self.path[len("/mcp/") :]
+                if self.path.startswith("/mcp/")
+                else "",
             )
             self._send_gateway_response(response)
             return

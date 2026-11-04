@@ -89,7 +89,7 @@ An attempted installation failed before downloading any package. This report doe
 
 The Wave 15 GitHub Actions workflow installs `.[dev]` and runs both gates on
 Python 3.11, 3.12, and 3.13 before the full pytest suite and the live-network
-proof. The handoff should therefore be considered locally test-green and
+proof. The release should therefore be considered locally test-green and
 build-green, with Ruff/mypy requiring the normal connected CI environment for
 final confirmation.
 

@@ -20,13 +20,11 @@ Today, BlackFox provides a live MCP/API enforcement boundary with federated work
 
 ---
 
-## Current release: 0.4.1, Wave 16.1 hardening
+## Current release: 0.5.0, Wave 17 Enterprise Integration Mesh
 
-Normal signed receipt appends now validate one transition; signing runs outside SQLite transactions. Retained checkpoints authenticate valid append-only extensions, evaluated and pre-evaluation denials receive semantic validation, and both legacy and v1 encoding contracts have fixed byte/hash vectors. Full replay remains available for recovery, audit and export.
+Named GitHub Check Runs, Jira issue, JSON HTTP and MCP tool connectors now run through the signed authority boundary. Destination configuration is included in the approved subject. Outbound service credentials are isolated from ingress credentials. Durable request reservations prevent automatic duplicate command attempts across concurrent callers and restarts. Signed receipt CloudEvents reach configured audit sinks through an ordered durable outbox with backoff and operator recovery.
 
-Local Linux validation passes **1,784 tests** on Python **3.11, 3.12 and 3.13**, with Ruff, strict mypy and the **17-check real API/MCP proof** passing on each. The local Ed25519 append microbenchmark remains about **1.1–1.3 ms** through **5,000 existing receipts** for one long-lived store. External connection commits and policy changes conservatively trigger full replay; sustained multiwriter scalability, production throughput and HA are not validated. Windows and remote GitHub CI were not run in this handoff.
-
-See [validation evidence](VALIDATION_REPORT.md), [hardening contract](docs/wave16-hardening.md), [claims ledger](docs/wave16-claims-ledger.json) and [Windows handoff](WINDOWS_HANDOFF.md). Human approval remains HMAC-authenticated evidence, not independently attributable personal public-key signatures. The 0.4.0 validation snapshots are historical.
+The release includes adversarial regression tests and a real local HTTP proof with witnessed provider writes and independent public receipt verification. Hosted GitHub/Jira/MCP/SIEM accounts, Windows execution, production capacity and high availability are separate deployment qualifications. Review [current validation](VALIDATION_REPORT.md), [the Wave 17 integration contract](docs/wave17-enterprise-integration-mesh.md) and [Windows setup](WINDOWS_SETUP.md).
 
 ---
 
@@ -281,6 +279,12 @@ The gateway applies the enforcement path above to configured consequential tools
 
 The Wave names below are retained as stable repository and documentation contract identifiers.
 
+## Wave 17: Enterprise Integration Mesh
+
+Configured consequential actions can target distinct enterprise services using native approved payloads. Every mesh command requires a durable idempotency key and signed pre-dispatch authorization. Audit delivery runs independently from command dispatch; retrying an audit event cannot re-execute a command.
+
+See [Wave 17 Enterprise Integration Mesh](docs/wave17-enterprise-integration-mesh.md) for configuration, credential provisioning, request reconciliation and precise transport/deployment boundaries.
+
 ## Wave 16: Cryptographic Authority Receipts & Externally Anchored Trust
 
 Configured gateways commit a public-key signed authorization before dispatch and link a signed outcome afterward. Independent verification uses pinned keys and can compare the export with an independently retained expected checkpoint. Encrypted local keys, KMS, PKCS#11 and explicit Cosign adapters are implemented with fail-closed behavior. External service use, physical custody, independent production retention and remote CI remain separately validated deployment responsibilities.
@@ -345,7 +349,7 @@ The primary CI matrix covers:
 * pytest
 * dedicated evidence and authority workflows for major BlackFox control layers
 
-Wave 16 adds a dedicated Ubuntu/Windows matrix across Python 3.11–3.13, with lint, strict typing, the complete suite and real local signed-authority proof. The workflow is configured; remote GitHub execution was not performed in this handoff. Wave 15 proofing remains available.
+Wave 16 adds a dedicated Ubuntu/Windows matrix across Python 3.11–3.13, with lint, strict typing, the complete suite and real local signed-authority proof. The workflow is configured; remote GitHub execution is not part of local validation. Wave 17 adds a dedicated Ubuntu/Windows matrix across the same Python versions, including the complete suite and enterprise integration proof. Wave 15 proofing remains available.
 
 **Treat current GitHub Actions results and [VALIDATION_REPORT.md](VALIDATION_REPORT.md) as the source of truth for current validation status rather than relying on a static test-count claim in this README.**
 
@@ -387,6 +391,7 @@ Major recent milestones:
 
 | Generation | Capability |
 | --- | --- |
+| Wave 17 | Enterprise Integration Mesh |
 | Wave 16 | Cryptographic Authority Receipts & Externally Anchored Trust |
 | Wave 15 | Enterprise Identity & Delegated Authority |
 | Wave 14 | Live Authority Gateway |
@@ -457,6 +462,7 @@ See [COMMERCIAL.md](COMMERCIAL.md) for commercial-use information.
 
 Key documents:
 
+* [Wave 17 Enterprise Integration Mesh](docs/wave17-enterprise-integration-mesh.md)
 * [Wave 16 Cryptographic Authority](docs/wave16-cryptographic-authority.md)
 * [Wave 16 Claims Ledger](docs/wave16-claims-ledger.json)
 * [Roadmap](docs/ROADMAP.md)
@@ -467,7 +473,7 @@ Key documents:
 * [Wave 12 Certification-Ready Evidence](docs/wave12-certification-ready-evidence.md)
 * [System Architecture](docs/system-architecture.md)
 * [Validation Report](VALIDATION_REPORT.md)
-* [Handoff Manifest](HANDOFF_MANIFEST.md)
+* [Release Contents](RELEASE_CONTENTS.md)
 
 ---
 
@@ -476,4 +482,3 @@ Key documents:
 IX-BlackFox was originated and created by Bryce Lovell.
 
 **AI proposes. Humans decide. Evidence decides trust.**
-````

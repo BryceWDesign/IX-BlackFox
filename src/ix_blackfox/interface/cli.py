@@ -23,6 +23,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     """
     raw_argv = list(argv) if argv is not None else sys.argv[1:]
 
+    if raw_argv and raw_argv[0] == "mesh":
+        from ix_blackfox.integration_mesh.cli import main as mesh_main
+
+        return mesh_main(raw_argv[1:])
+
     if raw_argv and raw_argv[0] == "authority":
         from ix_blackfox.authority_crypto.cli import main as authority_main
 

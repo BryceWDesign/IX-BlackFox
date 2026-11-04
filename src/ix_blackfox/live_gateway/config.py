@@ -21,6 +21,7 @@ from ix_blackfox.agents.models import (
 )
 from ix_blackfox.agents.registry import AgentRegistry
 from ix_blackfox.authority_crypto.signing import SigningConfig
+from ix_blackfox.integration_mesh.config import MeshConfig
 from ix_blackfox.live_gateway.enterprise_identity import IdentityBinding, OidcProvider
 from ix_blackfox.live_gateway.evidence import EvidencePolicy, TrustedEvidenceIssuer
 from ix_blackfox.operating.models import OperatingDomain
@@ -168,6 +169,7 @@ class ToolRoute:
     api_path: str = ""
     operating_domain: OperatingDomain = OperatingDomain.POLICY_GOVERNED
     mcp_header_bindings: tuple[McpParameterHeaderBinding, ...] = ()
+    connector_id: str = ""
 
     def __post_init__(self) -> None:
         for label, value in (
@@ -213,6 +215,7 @@ class ToolRoute:
             "api_method": self.api_method,
             "api_path": self.api_path,
             "operating_domain": self.operating_domain.value,
+            **({"connector_id": self.connector_id} if self.connector_id else {}),
             "mcp_header_bindings": [
                 binding.to_dict() for binding in self.mcp_header_bindings
             ],
@@ -238,6 +241,7 @@ class GatewayConfig:
     routes: tuple[ToolRoute, ...]
     agent_registry: AgentRegistry
     receipt_signing: SigningConfig | None = None
+    mesh: MeshConfig | None = None
 
     def __post_init__(self) -> None:
         issuer_keys = [
@@ -313,11 +317,23 @@ class GatewayConfig:
                 + ", ".join(missing)
                 + "."
             )
-        if self.mcp is None and self.api is None:
+        if self.mesh is not None:
+            if self.receipt_signing is None:
+                raise ValueError("Wave 17 mesh requires receipt_signing.")
+            if self.mesh.database in {
+                self.receipt_database,
+                self.identity_revocation_database,
+            }:
+                raise ValueError(
+                    "Mesh database must be separate from authority databases."
+                )
+        if self.mcp is None and self.api is None and self.mesh is None:
             raise ValueError("Wave 14 requires at least one live MCP or API upstream.")
         if self.mcp is None:
             routes_without_api = [
-                route.tool_name for route in self.routes if not route.api_path
+                route.tool_name
+                for route in self.routes
+                if not route.api_path and not route.connector_id
             ]
             if routes_without_api:
                 raise ValueError(
@@ -360,7 +376,16 @@ class GatewayConfig:
                     f"route {route.tool_name!r} references unknown evidence policy "
                     f"{route.evidence_policy_id!r}."
                 )
-            if route.api_path and self.api is None:
+            if route.connector_id:
+                if self.mesh is None:
+                    raise ValueError("Route connector_id requires [mesh].")
+                connector = self.mesh.connector(route.connector_id)
+                connector.validate_route(
+                    route.api_path, route.api_method, route.repository_id
+                )
+                if route.repository_argument:
+                    raise ValueError("Mesh routes require a fixed repository_id.")
+            if route.api_path and self.api is None and not route.connector_id:
                 raise ValueError(
                     f"route {route.tool_name!r} declares api_path but [api] is not configured."
                 )
@@ -598,6 +623,7 @@ def load_gateway_config(path: Path) -> GatewayConfig:
     routes = tuple(
         ToolRoute(
             tool_name=_required_text(item, "tool_name"),
+            connector_id=str(item.get("connector_id", "")),
             capability=ToolCapability(_required_text(item, "capability")),
             repository_id=_required_text(item, "repository_id"),
             path_argument=str(item.get("path_argument", "path")),
@@ -631,6 +657,7 @@ def load_gateway_config(path: Path) -> GatewayConfig:
     )
 
     return GatewayConfig(
+        mesh=MeshConfig.parse(payload["mesh"], base) if "mesh" in payload else None,
         receipt_signing=SigningConfig.parse(payload["receipt_signing"], base)
         if "receipt_signing" in payload
         else None,

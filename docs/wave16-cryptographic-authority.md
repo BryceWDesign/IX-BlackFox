@@ -118,7 +118,7 @@ For a deliberate integrity-only check, supply `--allow-unanchored`. The result e
 
 ## Optional Sigstore attestation
 
-Install and review Cosign 3.x independently. Provision a trusted-root JSON and determine the exact expected certificate identity and OIDC issuer. The adapter uses the absolute executable path provided by the operator, bounded subprocess timeouts and no shell. It enables neither insecure options nor verification bypass flags. Tests in this release validate the command contract through fixtures; no Cosign binary or public issuance was executed in this handoff.
+Install and review Cosign 3.x independently. Provision a trusted-root JSON and determine the exact expected certificate identity and OIDC issuer. The adapter uses the absolute executable path provided by the operator, bounded subprocess timeouts and no shell. It enables neither insecure options nor verification bypass flags. Tests in this release validate the command contract through fixtures; no Cosign binary or public issuance was executed in this release.
 
 Configure these process environment variables with actual reviewed values: `BLACKFOX_COSIGN_PATH`, `BLACKFOX_SIGSTORE_ROOT`, `BLACKFOX_SIGSTORE_IDENTITY`, `BLACKFOX_SIGSTORE_ISSUER`. Use a non-interactive `SIGSTORE_ID_TOKEN` or the GitHub Actions OIDC environment supplied by an authorized job. This is an explicit operator action: signing may contact the configured Sigstore service and create a transparency log record. Review artifact sensitivity before doing so.
 

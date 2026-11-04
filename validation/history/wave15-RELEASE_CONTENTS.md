@@ -1,4 +1,4 @@
-# IX-BlackFox Wave 15 Handoff Manifest
+# IX-BlackFox Wave 15 Release Contents
 
 ## Release
 

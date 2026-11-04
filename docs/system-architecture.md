@@ -872,3 +872,10 @@ That is the footing this repository is built on.
 ## Wave 16 extension
 
 Configured cryptographic mode adds a mandatory signed and committed authorization before governed API/MCP dispatch, revalidates current identity/evidence/trust, then links signed outcome observations to that authorization. Signing and SQLite failures refuse dispatch or report an unknown post-dispatch outcome. Public export verifies DSSE signatures using independently pinned keys and compares a snapshot to an independently retained expected checkpoint when supplied. See [Wave 16 contract](wave16-cryptographic-authority.md) for formats, provider bindings, migration and deployment limits. Historical Wave 14/15 configurations remain explicitly unsigned.
+
+
+## Wave 17 extension
+
+Named enterprise connectors extend the existing signed authority request path. A connector's public destination/credential-binding contract participates in the exact approved subject. A separate SQLite database durably reserves request keys before signed authorization and a single outbound attempt. Linked signed outcomes authenticate retained response bytes on duplicate retrieval. Reserved or ambiguous requests are never automatically repeated.
+
+The signed receipt stream also supplies an independent audit relay. Verified bounded pages become durable CloudEvents and per-sink cursor advances in one mesh-database transaction. Leases and ordered retry govern only event delivery. Audit retry has no command-dispatch capability. See the [Wave 17 integration contract](wave17-enterprise-integration-mesh.md) for failure states, credentials and transport limits.

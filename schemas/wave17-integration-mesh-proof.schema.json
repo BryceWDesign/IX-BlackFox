@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Wave 17 local HTTP integration proof",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "passed", "checks", "environment", "provider_effects", "audit_unique_receipts", "audit_attempts", "latency_ms", "scope"],
+  "properties": {
+    "schema_version": {"const": "wave17.integration_mesh_proof.v1"},
+    "passed": {"type": "boolean"},
+    "checks": {"type": "object", "minProperties": 14, "additionalProperties": {"type": "boolean"}},
+    "environment": {"type": "object", "required": ["python", "platform"], "additionalProperties": {"type": "string"}},
+    "provider_effects": {"type": "integer", "minimum": 4},
+    "audit_unique_receipts": {"type": "integer", "minimum": 1},
+    "audit_attempts": {"type": "integer", "minimum": 1},
+    "latency_ms": {"type": "object", "required": ["samples", "median", "p95", "maximum"], "properties": {"samples": {"type": "integer", "minimum": 1}, "median": {"type": "number", "minimum": 0}, "p95": {"type": "number", "minimum": 0}, "maximum": {"type": "number", "minimum": 0}}, "additionalProperties": false},
+    "scope": {"type": "string", "minLength": 1}
+  }
+}

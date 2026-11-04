@@ -18,6 +18,9 @@ from ix_blackfox.authority_crypto.encoding import (
     canonical_bytes,
     strict_json,
 )
+from ix_blackfox.integration_mesh.config import AuditSink, Connector
+from ix_blackfox.integration_mesh.mcp import lifecycle as mesh_mcp_lifecycle
+from ix_blackfox.integration_mesh.runtime import dispatch as dispatch_mesh
 from ix_blackfox.live_gateway.authority import (
     evaluate_live_authority,
     no_evidence_policy,
@@ -115,6 +118,28 @@ class LiveAuthorityGateway:
             ),
         )
 
+    def validate_mesh_credentials(
+        self, selected: Sequence[Connector | AuditSink] | None = None
+    ) -> None:
+        if self.config.mesh is None:
+            return
+        protected = {
+            *self.agent_tokens.values(),
+            *self.evidence_store.trusted_keys.values(),
+            self.operator_token,
+        }
+        items: Sequence[Connector | AuditSink] = (
+            selected
+            if selected is not None
+            else (*self.config.mesh.connectors, *self.config.mesh.audit_sinks)
+        )
+        for item in items:
+            authorization = item.headers().get("Authorization", "")
+            if authorization and authorization.split(" ", 1)[1].encode() in protected:
+                raise ValueError(
+                    "Mesh credentials must be separate from ingress and evidence credentials."
+                )
+
     def status(self) -> dict[str, Any]:
         chain = self.receipt_store.verify_chain()
         signer_ready = True
@@ -159,14 +184,25 @@ class LiveAuthorityGateway:
             agent_tokens=self.agent_tokens,
             operator_token=self.operator_token,
         )
+        mesh_ready = True
+        try:
+            self.validate_mesh_credentials()
+        except ValueError:
+            mesh_ready = False
         return {
-            "wave": 16
+            "mesh_configured": self.config.mesh is not None,
+            "mesh_credentials_ready": mesh_ready,
+            "wave": 17
+            if self.config.mesh
+            else 16
             if self.receipt_store.signing
             else (15 if self.config.identity_mode != "static_only" else 14),
             "signing_required": self.receipt_store.signing is not None,
             "signer_ready": signer_ready,
             "signer_issue": signer_issue,
-            "mode": "cryptographic_authority_gateway"
+            "mode": "enterprise_integration_mesh"
+            if self.config.mesh
+            else "cryptographic_authority_gateway"
             if self.receipt_store.signing
             else (
                 "enterprise_identity_authority_gateway"
@@ -196,6 +232,7 @@ class LiveAuthorityGateway:
             "receipt_chain": chain.to_dict(),
             "ready": (
                 chain.passed
+                and mesh_ready
                 and signer_ready
                 and not missing_keys
                 and not weak_keys
@@ -270,6 +307,15 @@ class LiveAuthorityGateway:
             {
                 "agent_identity_digest": agent.digest,
                 "route": route.to_dict(),
+                **(
+                    {
+                        "connector": self.config.mesh.connector(
+                            route.connector_id
+                        ).contract()
+                    }
+                    if route.connector_id and self.config.mesh
+                    else {}
+                ),
                 "evidence_policy": effective_policy.to_dict(),
                 "trusted_issuers": trusted_issuers,
                 "authenticated_principal": (
@@ -279,6 +325,15 @@ class LiveAuthorityGateway:
                     else {}
                 ),
             }
+        )
+        mesh_metadata = (
+            {
+                "integration_connector": self.config.mesh.connector(
+                    route.connector_id
+                ).contract()
+            }
+            if route.connector_id and self.config.mesh
+            else {}
         )
         return AuthoritySubject(
             agent_id=normalized_agent,
@@ -292,12 +347,13 @@ class LiveAuthorityGateway:
             protocol=protocol,
             metadata=(
                 {
+                    **mesh_metadata,
                     "evidence_policy_id": effective_policy.policy_id,
                     "authentication_type": "oidc_jwt",
                     "identity_context_digest": principal.context_digest,
                 }
                 if principal is not None and principal.authentication_type == "oidc_jwt"
-                else {"evidence_policy_id": effective_policy.policy_id}
+                else {**mesh_metadata, "evidence_policy_id": effective_policy.policy_id}
             ),
         )
 
@@ -374,15 +430,27 @@ class LiveAuthorityGateway:
             return self._proof_unavailable(exc)
 
     def handle_mcp(
-        self, *, payload: Mapping[str, Any], headers: Mapping[str, str], raw_body: bytes
+        self,
+        *,
+        payload: Mapping[str, Any],
+        headers: Mapping[str, str],
+        raw_body: bytes,
+        connector_id: str = "",
     ) -> GatewayHttpResponse:
         try:
             canonical_bytes(dict(payload))
             if self.receipt_store.signing is not None and canonical_bytes(
                 strict_json(raw_body)
             ) != canonical_bytes(dict(payload)):
-                raise AuthorityProofError("MCP transport body differs from evaluated request.")
-            return self._handle_mcp(payload=payload, headers=headers, raw_body=raw_body)
+                raise AuthorityProofError(
+                    "MCP transport body differs from evaluated request."
+                )
+            return self._handle_mcp(
+                payload=payload,
+                headers=headers,
+                raw_body=raw_body,
+                connector_id=connector_id,
+            )
         except (AuthorityProofError, sqlite3.Error, OSError) as exc:
             return self._proof_unavailable(exc, request_id=payload.get("id"))
 
@@ -483,6 +551,7 @@ class LiveAuthorityGateway:
         payload: Mapping[str, Any],
         headers: Mapping[str, str],
         raw_body: bytes,
+        connector_id: str = "",
     ) -> GatewayHttpResponse:
         try:
             info = validate_mcp_request(payload, headers)
@@ -492,7 +561,27 @@ class LiveAuthorityGateway:
                 jsonrpc_error(payload.get("id"), code=exc.code, message=exc.message),
             )
 
-        if self.config.mcp is None:
+        selected_connector = None
+        if connector_id:
+            try:
+                if self.config.mesh is None:
+                    raise ValueError("Mesh is not configured.")
+                selected_connector = self.config.mesh.connector(connector_id)
+                if selected_connector.kind != "mcp":
+                    raise ValueError("Connector does not expose MCP.")
+            except ValueError:
+                return _json_response(404, {"error": "Named MCP connector not found."})
+
+        if (
+            self.config.mcp is None
+            and selected_connector is None
+            and not (
+                info.method == "tools/call"
+                and self.config.mesh
+                and (mesh_route := self.config.route_for(info.name))
+                and mesh_route.connector_id
+            )
+        ):
             return _json_response(
                 503,
                 jsonrpc_error(
@@ -561,6 +650,9 @@ class LiveAuthorityGateway:
             )
 
         if info.method != "tools/call":
+            if selected_connector is not None:
+                return mesh_mcp_lifecycle(self, selected_connector, payload, headers)
+            assert self.config.mcp is not None
             if info.method not in self.config.mcp.passthrough_methods:
                 receipt = self._append_preexecution_failure(
                     agent_id=agent_id,
@@ -594,6 +686,13 @@ class LiveAuthorityGateway:
         try:
             evidence_ids = _bounded_evidence_ids(_resolve_evidence_ids(headers, params))
             route = self._require_route(info.name)
+            if (
+                selected_connector is not None
+                and route.connector_id != selected_connector.connector_id
+            ):
+                raise ValueError(
+                    "Tool route does not belong to the selected MCP connector."
+                )
             _validate_mcp_parameter_headers(
                 route=route,
                 arguments=arguments,
@@ -667,6 +766,11 @@ class LiveAuthorityGateway:
                 extra_headers={"X-BlackFox-Receipt-Id": str(receipt["receipt_id"])},
             )
 
+        if prepared.route.connector_id:
+            return dispatch_mesh(
+                self, prepared, arguments, headers, mcp_payload=payload
+            )
+
         prepared, claimed_evidence, replayed_evidence = self._claim_single_use_evidence(
             prepared
         )
@@ -704,7 +808,7 @@ class LiveAuthorityGateway:
         forwarded_headers["X-BlackFox-Subject-Digest"] = prepared.subject.digest
         try:
             upstream = request_upstream(
-                url=self.config.mcp.upstream_url,
+                url=self.config.mcp.upstream_url if self.config.mcp else "",
                 method="POST",
                 headers=forwarded_headers,
                 body=raw_body,
@@ -868,6 +972,9 @@ class LiveAuthorityGateway:
                 },
                 extra_headers={"X-BlackFox-Receipt-Id": str(receipt["receipt_id"])},
             )
+
+        if prepared.route.connector_id:
+            return dispatch_mesh(self, prepared, arguments, headers)
 
         if self.config.api is None or not prepared.route.api_path:
             receipt = self._append_receipt(

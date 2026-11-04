@@ -30,6 +30,7 @@ class ToolCapability(StrEnum):
     REPORT_GENERATION = auto()
     POLICY_INSPECTION = auto()
     ARTIFACT_EXPORT = auto()
+    SERVICE_WRITE = auto()
 
 
 class ToolSideEffect(StrEnum):

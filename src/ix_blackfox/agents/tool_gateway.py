@@ -226,6 +226,7 @@ def agent_capability_for_tool_capability(
         ToolCapability.REPORT_GENERATION: AgentCapability.EXPORT_EVIDENCE,
         ToolCapability.POLICY_INSPECTION: AgentCapability.INSPECT_POLICY,
         ToolCapability.ARTIFACT_EXPORT: AgentCapability.EXPORT_EVIDENCE,
+        ToolCapability.SERVICE_WRITE: AgentCapability.ACCESS_NETWORK,
     }
     return mapping[capability]
 
@@ -245,6 +246,7 @@ def agent_action_for_tool_capability(capability: ToolCapability) -> AgentAction:
         ToolCapability.REPORT_GENERATION: AgentAction.EXPORT,
         ToolCapability.POLICY_INSPECTION: AgentAction.INSPECT,
         ToolCapability.ARTIFACT_EXPORT: AgentAction.EXPORT,
+        ToolCapability.SERVICE_WRITE: AgentAction.WRITE,
     }
     return mapping[capability]
 

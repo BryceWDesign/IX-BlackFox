@@ -1,10 +1,14 @@
-# Current roadmap
+# Roadmap
 
 | Wave | Scope | Status |
-|---|---|---|
-| 14 | Live MCP/API authority gateway | Preserved; exercised by current suite |
-| 15 | Enterprise identity and delegated authority | Preserved; exercised by current suite |
-| 16.1 | Signed-stream performance and verifier hardening | Implemented; see current local validation and explicit single-store/multiwriter boundaries |
-| 16 | Cryptographic authority receipts and externally anchored trust | Implemented; local proof and contract tests; live external services remain unrun |
+| --- | --- | --- |
+| 14 | Live Authority Gateway | Implemented; retained and tested |
+| 15 | Enterprise Identity & Delegated Authority | Implemented; retained and tested |
+| 16 | Cryptographic Authority Receipts & Externally Anchored Trust | Implemented; local public verification and external-provider contract tests |
+| 16.1 | Performance & Verifier Hardening | Implemented; retained and tested |
+| 17 | Enterprise Integration Mesh | Implemented in 0.5.0; named connectors, durable request reservations and signed audit relay; local network proof |
+| 18 | Governed Autonomy | Future |
+| 19 | Closed-Loop Verification | Future |
+| 20 | High-Consequence Engineering Intelligence Fabric | Long-term objective |
 
-Later waves are outside this release. No future capability is represented as implemented. See the Wave 16 claims ledger and validation report for executed evidence and deployment responsibilities.
+Wave 17's implemented boundary is defined in [the integration contract](wave17-enterprise-integration-mesh.md). Hosted provider qualification, enterprise deployment, throughput qualification and high availability are not implied by local protocol validation. Later waves are not represented as current capabilities.

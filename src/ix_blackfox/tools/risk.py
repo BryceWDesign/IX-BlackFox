@@ -361,6 +361,11 @@ class ToolRiskClassifier:
         signals: list[ToolRiskSignal],
         factors: list[ToolRiskFactor],
     ) -> int:
+        if capability is ToolCapability.SERVICE_WRITE:
+            factors.append(ToolRiskFactor.EXTERNAL_SIDE_EFFECT)
+            return _append_signal(signals, code="service-write-capability", signal_score=30,
+                                  summary="The tool can mutate an external enterprise service.")
+
         if capability is ToolCapability.FILE_READ:
             factors.append(ToolRiskFactor.WORKSPACE_READ)
             return _append_signal(

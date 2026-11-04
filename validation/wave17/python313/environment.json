@@ -1,0 +1,14 @@
+{
+  "python": "3.13.5",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "sqlite": "3.46.1",
+  "dependencies": {
+    "pytest": "9.2.0",
+    "ruff": "0.5.7",
+    "mypy": "1.20.2",
+    "cryptography": "50.0.2",
+    "PyJWT": "2.15.1",
+    "boto3": "1.43.123",
+    "jsonschema": "4.26.0"
+  }
+}

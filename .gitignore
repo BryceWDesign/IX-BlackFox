@@ -36,7 +36,7 @@ junit.xml
 # Local runtime state
 .blackfox/
 .ix_blackfox/
-runtime/
+/runtime/
 artifacts/
 tmp/
 logs/

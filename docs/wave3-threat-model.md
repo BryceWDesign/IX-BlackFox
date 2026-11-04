@@ -236,7 +236,7 @@ Required controls:
 
 ---
 
-### Boundary 8 — Wave 2 Handoff
+### Boundary 8 — Wave 2 Integration
 
 Wave 2 remains the execution authority.
 
@@ -337,7 +337,7 @@ blocked path rules
 secret path patterns
 absolute path rejection
 traversal rejection
-block before Wave 2 handoff
+block before Wave 2 execution
 
 Threat 6 — Dependency or Supply Chain Mutation
 

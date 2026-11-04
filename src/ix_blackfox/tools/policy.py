@@ -167,6 +167,7 @@ class ToolPolicyEvaluatorConfig:
     blocked_side_effects: tuple[ToolSideEffect, ...] = field(default_factory=tuple)
     review_capabilities: tuple[ToolCapability, ...] = (
         ToolCapability.FILE_WRITE,
+        ToolCapability.SERVICE_WRITE,
         ToolCapability.PATCH_APPLY,
         ToolCapability.COMMAND_EXECUTION,
         ToolCapability.TEST_EXECUTION,

@@ -39,4 +39,4 @@ py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe scripts/run_wave16_crypto_authority_ci.py --root .
 ```
 
-See `docs/wave16-cryptographic-authority.md` for trust provisioning, provider configuration, external validation, rotation/revocation and independent public verification. Controlling evaluation-only license terms are preserved. Historical Wave 15 handoff reports remain under `validation/history`, clearly identified as historical.
+See `docs/wave16-cryptographic-authority.md` for trust provisioning, provider configuration, external validation, rotation/revocation and independent public verification. Controlling evaluation-only license terms are preserved. Historical Wave 15 release reports remain under `validation/history`, clearly identified as historical.

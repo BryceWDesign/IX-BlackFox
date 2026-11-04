@@ -447,6 +447,27 @@ class AuthorityReceiptStore:
             records.append(record)
         return records
 
+    def verified_page(
+        self, after: int = 0, limit: int = 100
+    ) -> tuple[dict[str, Any], ...]:
+        """Read a bounded signed-stream page from a verified SQLite snapshot."""
+        if self.signing is None or after < 0 or not 1 <= limit <= 1000:
+            raise AuthorityProofError(
+                "Signed page requires signing, a nonnegative cursor and bounded limit."
+            )
+        with self._connect() as connection:
+            connection.execute("BEGIN")
+            state = self._refresh_state(connection, self.signing.current_policy())
+            if after > state.sequence:
+                raise AuthorityProofError(
+                    "Audit cursor is ahead of the signed source stream."
+                )
+            rows = connection.execute(
+                "SELECT payload_json FROM receipts WHERE sequence > ? ORDER BY sequence LIMIT ?",
+                (after, limit),
+            ).fetchall()
+            return tuple(strict_json(str(row[0]).encode("utf-8")) for row in rows)
+
     def export_bundle(self) -> dict[str, Any]:
         if self.signing is None:
             raise AuthorityProofError(

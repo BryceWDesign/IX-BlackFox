@@ -1,0 +1,38 @@
+{
+  "passed": true,
+  "proof": {
+    "api_allow_http_status": 200,
+    "api_allow_upstream_count": 2,
+    "api_output_exists": true,
+    "api_output_matches": true,
+    "auth_block_http_status": 401,
+    "auth_block_upstream_count": 0,
+    "evidence_block_http_status": 428,
+    "evidence_block_upstream_count": 0,
+    "gateway_ready": true,
+    "mcp_allow_http_status": 200,
+    "mcp_allow_upstream_count": 1,
+    "mcp_output_exists": true,
+    "mcp_output_matches": true,
+    "operator_receipt_inspection_status": 200,
+    "origin_block_http_status": 403,
+    "origin_block_upstream_count": 0,
+    "passed": true,
+    "receipt_chain": {
+      "head_digest": "b3d720238dbc477916585f4fbaf266e8029a2fd5c075176e7e4ba0e49f80ea3c",
+      "issue_count": 0,
+      "issues": [],
+      "passed": true,
+      "receipt_count": 6
+    },
+    "replay_block_http_status": 409,
+    "replay_block_upstream_count": 1,
+    "scope_block_http_status": 403,
+    "scope_block_upstream_count": 0,
+    "unauthenticated_receipt_inspection_status": 401,
+    "wave": 14
+  },
+  "schema_version": "wave14.live_authority_gateway_ci_summary.v1",
+  "scope_note": "This local integration proof uses real HTTP requests, environment-backed agent authentication, real pre-tool enforcement, HMAC-authenticated evidence, single-use target-bound human approval with replay rejection, a real upstream file side effect after authorization, operator-authenticated receipt inspection, and a durable receipt chain. It is not a production identity provider, PKI, compliance certification, or deployment authorization.",
+  "wave": "14"
+}

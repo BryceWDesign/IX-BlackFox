@@ -1,0 +1,30 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.14, pytest-9.2.0, pluggy-1.7.0
+rootdir: /workspace/scratch/382d5b674216/work/IX-BlackFox-main
+configfile: pyproject.toml
+plugins: cov-5.0.0
+collected 79 items
+
+tests/integration_mesh/test_audit.py ...................                 [ 24%]
+tests/integration_mesh/test_cli.py ..                                    [ 26%]
+tests/integration_mesh/test_config.py .............................      [ 63%]
+tests/integration_mesh/test_mcp_lifecycle.py .....                       [ 69%]
+tests/integration_mesh/test_network.py .                                 [ 70%]
+tests/integration_mesh/test_public_contract.py .                         [ 72%]
+tests/integration_mesh/test_routing.py ......................            [100%]
+
+---------- coverage: platform linux, python 3.12.14-final-0 ----------
+Name                                           Stmts   Miss  Cover   Missing
+----------------------------------------------------------------------------
+src/ix_blackfox/integration_mesh/__init__.py       0      0   100%
+src/ix_blackfox/integration_mesh/audit.py        106      9    92%   42, 73, 79, 109, 123-127, 144, 150, 208
+src/ix_blackfox/integration_mesh/cli.py           61      4    93%   33, 58, 71, 91
+src/ix_blackfox/integration_mesh/config.py       152      9    94%   111, 123, 148, 150, 163, 165, 168, 215, 232
+src/ix_blackfox/integration_mesh/ledger.py        59      1    98%   84
+src/ix_blackfox/integration_mesh/mcp.py           47      7    85%   59-60, 80-81, 86-88
+src/ix_blackfox/integration_mesh/runtime.py      118     11    91%   73, 85, 91, 112-113, 160, 162, 192, 204, 265-266
+----------------------------------------------------------------------------
+TOTAL                                            543     41    92%
+
+
+============================== 79 passed in 4.91s ==============================

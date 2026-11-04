@@ -1,55 +1,57 @@
-# IX-BlackFox Wave 16.1 validation report
+# IX-BlackFox 0.5.0 validation report
 
-Version **0.4.1**, validated **2026-10-01 UTC** (2026-09-30 in Arizona). All results below were executed against this hardening source. Earlier release evidence remains historical under `validation/wave16` and `validation/history/wave16_0`.
+Wave 17 Enterprise Integration Mesh, validated November 4, 2026. The table contains executed local results against this release source.
 
-| Executed environment | Full suite | Ruff | Strict mypy | Live API/MCP proof |
-|---|---|---|---|---|
-| Linux Python 3.11.16 | **1,784 passed, 0 failed, 0 skipped** (43.68s) | PASS | PASS, 271 files | PASS, 17 checks |
-| Linux Python 3.12.14 | **1,784 passed, 0 failed, 0 skipped** (37.43s) | PASS | PASS, 271 files | PASS, 17 checks |
-| Linux Python 3.13.15 | **1,784 passed, 0 failed, 0 skipped** (38.66s) | PASS | PASS, 271 files | PASS, 17 checks |
+| Environment | Complete suite | Ruff | Strict mypy | Real HTTP mesh proof |
+| --- | --- | --- | --- | --- |
+| Linux Python 3.11.17 | **1,864 passed** (46.69s) | PASS | PASS, 278 files | PASS, 17 checks |
+| Linux Python 3.12.14 | **1,864 passed** (45.19s) | PASS | PASS, 278 files | PASS, 17 checks |
+| Linux Python 3.13.5 | **1,864 passed** (42.34s) | PASS | PASS, 278 files | PASS, 17 checks |
 
-Source/tests/scripts compile successfully. The 0.4.1 wheel builds and installs in a clean environment; its public verifier and live proof run from `/tmp` with isolated Python mode, without the source tree on the import path. The original LICENSE, NOTICE.md and COMMERCIAL.md bytes are unchanged. Complete versions and hashes are in `validation/wave16_1/release-validation.json`.
+All three suite runs have zero failures and zero skips. The 79 integration-mesh tests include native request routing, destination-bound approval, scoped request reservations, concurrency, restart recovery, credential isolation, controlled post-dispatch storage failures, cached-result integrity, redirect refusal, named MCP lifecycle routing, audit backoff and dead-event recovery. Focused statement coverage for the mesh package is 92%; coverage does not establish that every possible failure mode has been exercised.
 
-## Review findings resolved
+## Executed network proof
 
-- Normal signed appends verify one transition using replay-derived private head/authorization/claim state, instead of loading and verifying all prior receipts twice. Startup, external commits, changed trust policy, audit and export retain full verification.
-- Signing is outside SQLite transactions. An optimistic generation/policy check guards the short write transaction. Failed inserts do not advance state; conflicting writes retry or refuse.
-- Older independently retained checkpoints authenticate a prefix of a newer valid bundle. Rollback, signed forks, malformed counts and wrong-domain prefixes fail.
-- Evaluated denials bind subject/decision/principal/evidence and forbid allowed decisions or execution. Minimal pre-evaluation denials have an exact separate historical contract.
-- Legacy finite digest bytes are preserved; non-finite values fail. Both canonicalization profiles are documented with fixed byte/hash vectors.
+Each runtime passes all 17 checks. The proof uses real local HTTP listeners and writes 29 provider-side records only after a separate SQLite reader observes committed public-key signed authorization. It validates native GitHub Check Run and Jira issue payloads, JSON service writes, named MCP initialization/session/discovery and governed tool calls. A denied action causes no provider effect. A duplicate command causes no second effect. Ingress credentials do not reach the provider.
 
-**50 additional hardening tests** cover these cases, cache recovery, concurrent independent stores, detached parent data, signer/SQLite lock ordering and a deterministic 1,000-append no-history-read regression. Baseline reproduction passed all original 1,734 tests before changes.
+The audit relay delivers all 59 signed receipts. A deliberately rejected first delivery is retried with the same event ID, producing 60 delivery attempts for 59 unique events. Re-synchronization adds no duplicate records. The complete receipt bundle passes the public verifier in a separate process with its pinned test trust policy and retained test checkpoint, with no unresolved authorizations.
 
-## Measured signed-append microbenchmark
+These local protocol providers are test infrastructure. No hosted GitHub App, Jira tenant, production MCP service or SIEM account was used. Public proof artifacts are validation fixtures; they are not deployment trust roots or independently operated production anchors.
 
-Python 3.12.14, local Ed25519, minimal pre-evaluation denial, temporary SQLite WAL with synchronous FULL, 25 consecutive appends at each starting count. The comparison loads the preserved original append and verifier source. It does not measure full governed-call latency or a cloud signer. No measurements were extrapolated.
+## Measured local command latency
 
-| Existing receipts before batch | Original median append | Hardened median append |
-|---|---|---|
-| 100 | 145.62 ms | 1.15 ms |
-| 500 | 609.84 ms | 1.11 ms |
-| 1,000 | Not measured | 1.27 ms |
-| 5,000 | Not measured | 1.19 ms |
+| Python | Samples | Median | p95 | Maximum |
+| --- | --- | --- | --- | --- |
+| 3.11.17 | 25 | 31.61 ms | 36.29 ms | 37.17 ms |
+| 3.12.14 | 25 | 27.61 ms | 36.89 ms | 38.07 ms |
+| 3.13.5 | 25 | 29.65 ms | 40.09 ms | 40.33 ms |
 
-The hardened stream reached **5,025 receipts** and its full independent audit passed in **3.78s**. Full audit intentionally remains linear. Reproduce using the benchmark command in `docs/wave16-hardening.md`; raw data and original source hashes are included.
+Measurements include client and provider loopback HTTP, identity/evidence/approval evaluation, request reservation, synchronous SQLite FULL/WAL durability, local Ed25519 authorization/outcome signing, independent pre-dispatch observation and response-cache persistence. Evidence issuance occurs outside the timed call. These small local measurements are not a production throughput claim, cloud-signing result, service-level objective or capacity forecast. Raw results accompany each runtime's proof.
 
-**Measured scope:** one long-lived store per stream. Commits from another connection and policy changes deliberately trigger full replay to preserve historical-tamper detection. Sustained multiwriter scalability is not established and can still incur history-dependent recovery cost. Multiple independent stores are tested for bounded concurrency correctness. Replay-derived state uses memory proportional to stream history; production retention and HA remain deployment work.
+## Compatibility and installed package
 
-## Proof interpretation and limits
+The real local network proofs for Wave 14, Wave 15 and Wave 16 pass on Python 3.12. The full suite on all three runtimes also preserves their regression coverage. Normal signed append verification retains the Wave 16.1 cache and replay boundaries; this release does not claim a new append-only microbenchmark result or improved multiwriter scalability.
 
-Each interpreter's real loopback proof passes 17 checks, producing 9 signed receipts and two independently witnessed file writes. The exported public record still verifies in a separate process after temporary private state is removed. The demo IdP, CI evidence and HMAC reviewer are synthetic. Signatures establish the gateway's endorsed statements, not truth of arbitrary side effects or independently attributable human approval.
+The 0.5.0 wheel builds, installs into an isolated environment and imports all 277 discoverable submodules. All 279 packaged Python source-file bytes match the source tree. Running the mesh network proof from outside the repository in Python isolated mode passes all 17 checks using that installed wheel. Python source in source/tests/scripts parses successfully. License, notice, commercial terms and original logo bytes match the uploaded baseline.
 
-**Windows and remote GitHub Actions were not executed here.** The Ubuntu/Windows Python 3.11–3.13 workflow is retained; push this source and wait for those jobs before asserting remote CI green. No live AWS KMS, physical HSM, Sigstore issuance, production IdP validation, production load/HA, crash/power-loss campaign, government authorization or certification is claimed. Human personal public-key approvals remain NOT_IMPLEMENTED.
+## Reproduce
 
-## Reproduce on Windows
-
-```powershell
-py -3.13 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[dev,aws-kms]"
-.\.venv\Scripts\python.exe -m ruff check .
-.\.venv\Scripts\python.exe -m mypy src
-.\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe scripts/run_wave16_crypto_authority_ci.py --root .
+```console
+python -m venv .venv
+python -m pip install -e ".[dev,aws-kms]"
+python -m ruff check .
+python -m mypy src
+python -m pytest -q
+python scripts/run_wave14_live_gateway_ci.py --root .
+python scripts/run_wave15_enterprise_identity_ci.py --root .
+python scripts/run_wave16_crypto_authority_ci.py --root .
+python scripts/run_wave17_integration_mesh_ci.py --root .
 ```
 
-`WINDOWS_HANDOFF.md` covers applying this release to an existing Git checkout and pushing it without rewriting repository history.
+Activate the virtual environment or invoke its Python executable directly. Dependency versions, exact tested-file hashes, preserved-asset hashes, raw test/type/lint logs, public proof artifacts and installed-wheel results are under `validation/wave17`. The current source inventory digest is `66389d88f4fd4e023fe6e92e1c9c93114a7f37d44ccf9a54f12e7fd38981556b`.
+
+## Deployment boundaries
+
+GitHub Actions workflows are configured for Ubuntu/Windows and Python 3.11–3.13. Remote Actions and Windows were not executed locally. Production throughput, high availability, hosted provider permissions, live IdP/KMS/HSM/Sigstore integrations, independent production checkpoint retention and external certification remain outside these executed results. Human approval retains the existing HMAC-authenticated evidence contract rather than personal public-key approval signatures.
+
+Mesh command reservations deliberately preserve ambiguous outcomes for reconciliation. There is no exactly-once external execution claim, distributed transaction, automatic command replay, retention pruning or automatic reservation repair. Audit delivery is at least once and requires receiver deduplication. See `docs/wave17-enterprise-integration-mesh.md` for the operational contract.

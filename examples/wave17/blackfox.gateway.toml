@@ -1,0 +1,152 @@
+registry_id = "enterprise-mesh-registry"
+
+[server]
+host = "127.0.0.1"
+port = 8765
+operator_token_env = "BLACKFOX_OPERATOR_TOKEN"
+
+[evidence]
+root = ".blackfox-artifacts/wave17/evidence"
+receipt_database = ".blackfox-artifacts/wave17/authority.sqlite3"
+
+[receipt_signing]
+provider = "local"
+key_id = "enterprise-authority"
+algorithm = "Ed25519"
+private_key = "receipt-keys/authority-signing-key.pem"
+password_env = "BLACKFOX_SIGNING_PASSWORD"
+trust_policy = "receipt-keys/trust-policy.json"
+
+[mesh]
+database = ".blackfox-artifacts/wave17/mesh.sqlite3"
+timeout_seconds = 15
+
+[[mesh.connectors]]
+connector_id = "github"
+kind = "github_check"
+base_url = "https://api.github.com"
+credential_env = "BLACKFOX_GITHUB_TOKEN"
+github_api_version = "2026-03-10"
+
+[[mesh.connectors]]
+connector_id = "jira"
+kind = "jira_issue"
+base_url = "https://your-tenant.atlassian.net"
+credential_env = "BLACKFOX_JIRA_BASIC"
+auth_scheme = "Basic"
+project_key = "ENG"
+
+[[mesh.connectors]]
+connector_id = "service"
+kind = "json"
+base_url = "https://engineering.example.invalid"
+credential_env = "BLACKFOX_SERVICE_TOKEN"
+
+[[mesh.connectors]]
+connector_id = "mcp-tools"
+kind = "mcp"
+base_url = "https://tools.example.invalid/mcp"
+credential_env = "BLACKFOX_MCP_TOKEN"
+
+[[mesh.audit_sinks]]
+sink_id = "security-events"
+url = "https://events.example.invalid/blackfox"
+credential_env = "BLACKFOX_AUDIT_TOKEN"
+max_attempts = 8
+
+[[trusted_issuers]]
+issuer = "ci"
+key_id = "ci-hmac-v1"
+secret_env = "BLACKFOX_CI_KEY"
+allowed_kinds = ["test_result"]
+
+[[trusted_issuers]]
+issuer = "human-review"
+key_id = "human-hmac-v1"
+secret_env = "BLACKFOX_HUMAN_KEY"
+allowed_kinds = ["human_approval"]
+
+[[agent_credentials]]
+agent_id = "engineering-agent"
+secret_env = "BLACKFOX_AGENT_TOKEN"
+
+[[evidence_policies]]
+policy_id = "protected-write"
+required_kinds = ["test_result"]
+human_approval_kind = "human_approval"
+target_bound_kinds = ["human_approval"]
+single_use_kinds = ["human_approval"]
+accepted_statuses = ["passed", "approved"]
+allowed_issuers = ["ci", "human-review"]
+human_approval_issuers = ["human-review"]
+max_age_seconds = 3600
+require_signature = true
+require_repository_match = true
+require_revision_match = true
+
+[[routes]]
+tool_name = "github.create_check_run"
+connector_id = "github"
+capability = "service_write"
+repository_id = "example/engineering"
+path_argument = ""
+revision_argument = "revision"
+risk_tier = "high"
+evidence_policy_id = "protected-write"
+api_method = "POST"
+api_path = "/repos/example/engineering/check-runs"
+
+[[routes]]
+tool_name = "jira.create_issue"
+connector_id = "jira"
+capability = "service_write"
+repository_id = "example/engineering"
+path_argument = ""
+revision_argument = "revision"
+risk_tier = "high"
+evidence_policy_id = "protected-write"
+api_method = "POST"
+api_path = "/rest/api/3/issue"
+
+[[routes]]
+tool_name = "service.submit"
+connector_id = "service"
+capability = "service_write"
+repository_id = "example/engineering"
+path_argument = ""
+revision_argument = "revision"
+risk_tier = "high"
+evidence_policy_id = "protected-write"
+api_method = "POST"
+api_path = "/submit"
+
+[[routes]]
+tool_name = "workspace.write"
+connector_id = "mcp-tools"
+capability = "service_write"
+repository_id = "example/engineering"
+path_argument = ""
+revision_argument = "revision"
+risk_tier = "high"
+evidence_policy_id = "protected-write"
+api_method = "POST"
+api_path = ""
+
+[[agents]]
+agent_id = "engineering-agent"
+display_name = "Governed Engineering Agent"
+kind = "external_agent"
+trust_tier = "governed_automation"
+lifecycle_state = "active"
+
+[[agents.grants]]
+grant_id = "enterprise-submissions"
+capability = "access_network"
+active = true
+rationale = "Explicit service-write authority for the configured tools and repository."
+
+[agents.grants.scope]
+repository_ids = ["example/engineering"]
+tool_ids = ["github.create_check_run", "jira.create_issue", "service.submit", "workspace.write"]
+max_risk_tier = "high"
+requires_human_review = true
