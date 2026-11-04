@@ -13,6 +13,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from contextlib import ExitStack
 from dataclasses import replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -219,10 +220,26 @@ def run(root: Path, samples: int = 25, output: Path | None = None) -> dict[str, 
     witness: Witness | None = None
     ingress: BlackFoxGatewayHttpServer | None = None
     checks: dict[str, bool] = {}
+
+    def close_services() -> None:
+        # Release Windows SQLite handles before TemporaryDirectory deletes its files.
+        try:
+            for server in (ingress, witness):
+                if server is not None:
+                    server.shutdown()
+                    server.server_close()
+        finally:
+            if gateway is not None:
+                gateway.receipt_store.close()
+
     try:
         for name, value in tokens.items():
             os.environ["BLACKFOX_" + name] = value
-        with tempfile.TemporaryDirectory(prefix="blackfox-wave17-") as temp:
+        with ExitStack() as stack:
+            temp = stack.enter_context(
+                tempfile.TemporaryDirectory(prefix="blackfox-wave17-")
+            )
+            stack.callback(close_services)
             work = Path(temp)
             generate_keys(
                 work / "receipt-keys",
@@ -503,12 +520,6 @@ def run(root: Path, samples: int = 25, output: Path | None = None) -> dict[str, 
             )
             return result
     finally:
-        for server in (ingress, witness):
-            if server is not None:
-                server.shutdown()
-                server.server_close()
-        if gateway is not None:
-            gateway.receipt_store.close()
         for name, value in previous.items():
             if value is None:
                 os.environ.pop("BLACKFOX_" + name, None)

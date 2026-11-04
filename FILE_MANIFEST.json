@@ -1,5 +1,5 @@
 {
-  "file_count": 767,
+  "file_count": 768,
   "schema_version": "blackfox.release_manifest.v1",
   "sha256": {
     ".blackfox-workspace": "faed6c4387d86520fd98d2f02d0d7c19ebdc35b6ee584cfd22189040432a808d",
@@ -89,7 +89,7 @@
     "scripts/run_wave14_live_gateway_ci.py": "f285109277f370c239fcd31fef8745aa140d946f957d6d9ba397bbdb8f5b75d5",
     "scripts/run_wave15_enterprise_identity_ci.py": "eef9779e007d391aea5accf9e46a621d0b0b87f07d8dcc87a288bd9fa97ec957",
     "scripts/run_wave16_crypto_authority_ci.py": "d447845ad3b55679b7c9177cd8aaef4a8dd8fb622668c41cfa043619db01de2b",
-    "scripts/run_wave17_integration_mesh_ci.py": "843c39a4f33f395045dec0f6d3fbe494ec5eb3b26997a314c9376b797b7c55f5",
+    "scripts/run_wave17_integration_mesh_ci.py": "0046926955c8ef3a980d3337720be35b13327a9ac890f1d54b53c0d6f3b12990",
     "scripts/run_wave6_sandbox_ci.py": "5907c55c1d2e72a4f581a6907bd04d8a71553c0349617c367efb22332f441c34",
     "scripts/run_wave7_model_repair_ci.py": "8fb3338c65b91e6e8f2096ffcac48e096a20db4ac35ee4d646f3f30b4eb81666",
     "scripts/run_wave8_repository_intelligence_ci.py": "2c8c967445523d024f76fa8f377917ddef2c1d326adc1e1361461504f9a35f9a",
@@ -462,6 +462,7 @@
     "tests/ci/test_wave15_enterprise_identity_runner.py": "51a7e81b3fbcfa26c77e4dceaa1e73616db0203b6348c3f5903b7ace749ae917",
     "tests/ci/test_wave15_enterprise_identity_workflow_contract.py": "21cf66b7b7459216a154a43ddf84fc3dd6d4f8a1596bf9b33b3bcaedd7a06ed9",
     "tests/ci/test_wave16_crypto_authority_runner.py": "c903af51743bcc2f0ae28bddadb65f7b0ee6d721d6a384caff4a29504476f24a",
+    "tests/ci/test_wave17_windows_cleanup.py": "1993dc7511d1efd91a10b807a9d973a7fe8741e47e58010efd87e9fd847b25cf",
     "tests/ci/test_wave6_sandbox_ci_integration.py": "63a0dd79a311a40a8b5c2252e552adc44e879e364bcd128552bfb003fe46e4ac",
     "tests/ci/test_wave7_model_repair_ci_integration.py": "81566e2e334280d358b10d35783fe211a1ab84ddcaa32371607b5db4d14336b5",
     "tests/ci/test_wave8_repository_intelligence_ci_integration.py": "eef80df8430b2962261400d02a7e38d04460c1e5e764e1ad4a5a7d671bae1a49",
