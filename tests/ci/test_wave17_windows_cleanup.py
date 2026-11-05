@@ -4,8 +4,9 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 
-from ix_blackfox.live_gateway.receipts import AuthorityReceiptStore
 from scripts import run_wave17_integration_mesh_ci as mesh_ci
+
+from ix_blackfox.live_gateway.receipts import AuthorityReceiptStore
 
 
 def test_wave17_closes_signed_receipt_store_before_temp_cleanup(

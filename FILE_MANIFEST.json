@@ -462,7 +462,7 @@
     "tests/ci/test_wave15_enterprise_identity_runner.py": "51a7e81b3fbcfa26c77e4dceaa1e73616db0203b6348c3f5903b7ace749ae917",
     "tests/ci/test_wave15_enterprise_identity_workflow_contract.py": "21cf66b7b7459216a154a43ddf84fc3dd6d4f8a1596bf9b33b3bcaedd7a06ed9",
     "tests/ci/test_wave16_crypto_authority_runner.py": "c903af51743bcc2f0ae28bddadb65f7b0ee6d721d6a384caff4a29504476f24a",
-    "tests/ci/test_wave17_windows_cleanup.py": "1993dc7511d1efd91a10b807a9d973a7fe8741e47e58010efd87e9fd847b25cf",
+    "tests/ci/test_wave17_windows_cleanup.py": "37442d4d4679051c4c9437a11f664464f569e02d93e0a9ebb2a241f61c8a84a2",
     "tests/ci/test_wave6_sandbox_ci_integration.py": "63a0dd79a311a40a8b5c2252e552adc44e879e364bcd128552bfb003fe46e4ac",
     "tests/ci/test_wave7_model_repair_ci_integration.py": "81566e2e334280d358b10d35783fe211a1ab84ddcaa32371607b5db4d14336b5",
     "tests/ci/test_wave8_repository_intelligence_ci_integration.py": "eef80df8430b2962261400d02a7e38d04460c1e5e764e1ad4a5a7d671bae1a49",
