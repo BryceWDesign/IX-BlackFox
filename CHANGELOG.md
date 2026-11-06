@@ -1,5 +1,11 @@
 # Changes
 
+## 0.6.0, Wave 18, 2026-11-05
+
+Add an operation API for agents to propose and coordinate human-approved engineering plans. Seal exact step payloads, assigned agents, dependency graphs, preconditions, expiry, attempt and cost budgets, expected outcomes, and recovery obligations. Bind managed REST step authority to the current operation snapshot and dependency evidence. Deny direct invocation of managed routes.
+
+Persist reservations, signed authorization references, transport states, and independently issued outcome evidence. Keep uncertain attempts blocked across restart and require new approvals and observations after an epoch changes. Require recovery evidence when an effect diverges before dispatching additional work. Add a two-agent gateway template, real HTTP tests, and a Linux/Windows workflow.
+
 ## 0.5.0, Wave 17, 2026-11-04
 
 Add named native GitHub Check Run, Jira issue, JSON HTTP and MCP tool connectors. Bind destination contracts into exact-subject authority; isolate outbound credentials; add explicit service-write capability mapping. Require signed authorization and durable scoped request reservations before mesh dispatch. Verify duplicate response bytes against signed outcomes. Preserve ambiguous requests across restarts without automatic mutation retries.

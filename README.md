@@ -20,11 +20,13 @@ Today, BlackFox provides a live MCP/API enforcement boundary with federated work
 
 ---
 
-## Current release: 0.5.0, Wave 17 Enterprise Integration Mesh
+## Current release: 0.6.0, Wave 18 Governed Autonomy
 
-Named GitHub Check Runs, Jira issue, JSON HTTP and MCP tool connectors now run through the signed authority boundary. Destination configuration is included in the approved subject. Outbound service credentials are isolated from ingress credentials. Durable request reservations prevent automatic duplicate command attempts across concurrent callers and restarts. Signed receipt CloudEvents reach configured audit sinks through an ordered durable outbox with backoff and operator recovery.
+Agents can propose and coordinate bounded engineering operations through the live authority gateway. Plans seal each step's agent, route, exact arguments, dependencies, preconditions, budgets, expected outcome, and recovery obligation. An operator approves the current conditions. Each dispatch also requires exact-subject human approval and the gateway's signed authorization.
 
-The release includes adversarial regression tests and a real local HTTP proof with witnessed provider writes and independent public receipt verification. Hosted GitHub/Jira/MCP/SIEM accounts, Windows execution, production capacity and high availability are separate deployment qualifications. Review [current validation](VALIDATION_REPORT.md), [the Wave 17 integration contract](docs/wave17-enterprise-integration-mesh.md) and [Windows setup](WINDOWS_SETUP.md).
+A separate observer verifies provider state before downstream work can proceed. Conditions updates suspend pending work until the operator approves the new snapshot and retained effects have current evidence. Unknown attempts remain reserved across restarts for reconciliation.
+
+See [the operation contract](docs/wave18-governed-autonomy.md), [current validation](VALIDATION_REPORT.md), and [Windows setup](WINDOWS_SETUP.md).
 
 ---
 
@@ -279,6 +281,10 @@ The gateway applies the enforcement path above to configured consequential tools
 
 The Wave names below are retained as stable repository and documentation contract identifiers.
 
+## Wave 18: Governed Autonomy
+
+Configured REST mutations can be reserved for approved multi-agent plans. The gateway checks the assigned agent, current conditions, dependency observations, and remaining budget at dispatch. See [the operation contract](docs/wave18-governed-autonomy.md) for the API and recovery procedures.
+
 ## Wave 17: Enterprise Integration Mesh
 
 Configured consequential actions can target distinct enterprise services using native approved payloads. Every mesh command requires a durable idempotency key and signed pre-dispatch authorization. Audit delivery runs independently from command dispatch; retrying an audit event cannot re-execute a command.
@@ -349,7 +355,7 @@ The primary CI matrix covers:
 * pytest
 * dedicated evidence and authority workflows for major BlackFox control layers
 
-Wave 16 adds a dedicated Ubuntu/Windows matrix across Python 3.11–3.13, with lint, strict typing, the complete suite and real local signed-authority proof. The workflow is configured; remote GitHub execution is not part of local validation. Wave 17 adds a dedicated Ubuntu/Windows matrix across the same Python versions, including the complete suite and enterprise integration proof. Wave 15 proofing remains available.
+Wave 16 adds a dedicated Ubuntu/Windows matrix across Python 3.11–3.13, with lint, strict typing, the complete suite and real local signed-authority proof. The workflow is configured; remote GitHub execution is not part of local validation. Wave 17 adds a dedicated Ubuntu/Windows matrix across the same Python versions, including the complete suite and enterprise integration proof. Wave 18 adds a focused Ubuntu/Windows matrix for governed operations and independent provider observation. Wave 15 proofing remains available.
 
 **Treat current GitHub Actions results and [VALIDATION_REPORT.md](VALIDATION_REPORT.md) as the source of truth for current validation status rather than relying on a static test-count claim in this README.**
 
@@ -392,6 +398,7 @@ Major recent milestones:
 | Generation | Capability |
 | --- | --- |
 | Wave 17 | Enterprise Integration Mesh |
+| Wave 18 | Governed Autonomy |
 | Wave 16 | Cryptographic Authority Receipts & Externally Anchored Trust |
 | Wave 15 | Enterprise Identity & Delegated Authority |
 | Wave 14 | Live Authority Gateway |
@@ -463,6 +470,7 @@ See [COMMERCIAL.md](COMMERCIAL.md) for commercial-use information.
 Key documents:
 
 * [Wave 17 Enterprise Integration Mesh](docs/wave17-enterprise-integration-mesh.md)
+* [Wave 18 Governed Autonomy](docs/wave18-governed-autonomy.md)
 * [Wave 16 Cryptographic Authority](docs/wave16-cryptographic-authority.md)
 * [Wave 16 Claims Ledger](docs/wave16-claims-ledger.json)
 * [Roadmap](docs/ROADMAP.md)

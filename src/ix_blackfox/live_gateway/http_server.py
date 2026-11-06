@@ -24,7 +24,7 @@ class BlackFoxGatewayHttpServer(ThreadingHTTPServer):
 class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
     """Minimal standard-library HTTP surface for the Wave 14 live gateway."""
 
-    server_version = "IX-BlackFox/0.5.0"
+    server_version = "IX-BlackFox/0.6.0"
     protocol_version = "HTTP/1.1"
 
     @property
@@ -47,7 +47,9 @@ class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
                 200,
                 {
                     "status": "ok",
-                    "wave": 17
+                    "wave": 18
+                    if self.gateway.operations
+                    else 17
                     if self.gateway.config.mesh
                     else (16 if self.gateway.receipt_store.signing else 14),
                 },
@@ -61,9 +63,8 @@ class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
                 {
                     "status": "ready" if payload["ready"] else "not_ready",
                     "ready": bool(payload["ready"]),
-                    "wave": 17
-                    if self.gateway.config.mesh
-                    else (16 if self.gateway.receipt_store.signing else 14),
+                    "wave": 18 if self.gateway.operations else 17
+                    if self.gateway.config.mesh else (16 if self.gateway.receipt_store.signing else 14),
                 },
             )
             return
@@ -134,6 +135,13 @@ class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
                 connector_id=self.path[len("/mcp/") :]
                 if self.path.startswith("/mcp/")
                 else "",
+            )
+            self._send_gateway_response(response)
+            return
+        prefix = "/v1/operations/"
+        if self.path.startswith(prefix) and self.gateway.operations is not None:
+            response = self.gateway.operations.request(
+                self.gateway, self.path[len(prefix):], payload, headers
             )
             self._send_gateway_response(response)
             return

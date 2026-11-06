@@ -1,0 +1,58 @@
+{
+  "earlier_wave_proofs_passed": [
+    6,
+    7,
+    8,
+    9,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17
+  ],
+  "github_hosted_actions_executed": false,
+  "installed_wheel": {
+    "passed": 1888,
+    "python": "3.12.14",
+    "skipped": 1,
+    "submodules_imported": 281
+  },
+  "linux": [
+    {
+      "autonomy_passed": 24,
+      "autonomy_seconds": 2.09,
+      "mesh_checks_passed": 17,
+      "mypy": "Success: no issues found in 282 source files",
+      "python": "3.11.17",
+      "ruff": "All checks passed!",
+      "suite_passed": 1889,
+      "suite_seconds": 65.7
+    },
+    {
+      "autonomy_passed": 24,
+      "autonomy_seconds": 2.06,
+      "mesh_checks_passed": 17,
+      "mypy": "Success: no issues found in 282 source files",
+      "python": "3.12.14",
+      "ruff": "All checks passed!",
+      "suite_passed": 1889,
+      "suite_seconds": 48.54
+    },
+    {
+      "autonomy_passed": 24,
+      "autonomy_seconds": 2.15,
+      "mesh_checks_passed": 17,
+      "mypy": "Success: no issues found in 282 source files",
+      "python": "3.13.5",
+      "ruff": "All checks passed!",
+      "suite_passed": 1889,
+      "suite_seconds": 59.42
+    }
+  ],
+  "version": "0.6.0",
+  "wave": 18,
+  "windows_executed": false,
+  "workflow_files_validated": 14
+}

@@ -1,0 +1,7 @@
+Wave 9 governance report written to .blackfox-artifacts/wave9/wave9-compliance-audit-report.json
+Wave 9 CI engine evidence written to .blackfox-artifacts/wave9/wave9-ci-engine-evidence.json
+Wave 9 CI summary written to .blackfox-artifacts/wave9/wave9-compliance-audit-ci-summary.json
+Passed: True
+Disposition: blocked
+Expected disposition: blocked
+Report validation passed: True

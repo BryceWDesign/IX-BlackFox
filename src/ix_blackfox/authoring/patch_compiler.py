@@ -107,7 +107,7 @@ class CompiledPatchCandidate:
     """
     Wave 3 compiler output.
 
-    This object is the handoff artifact from the authoring layer into the
+    This object is the artifact passed from the authoring layer into the
     existing Wave 2 patch-test-verify-bundle runtime. It is not execution
     evidence. It only proves that a parsed proposal compiled into a governed
     PatchDiff candidate.

@@ -1,0 +1,53 @@
+{
+  "archive_sha256": "2bb5fe299bcd97a3233a67f12c5cc84884ee027009f5cddd479b498717584abc",
+  "board_status": "human_review_required",
+  "bundle_index_digest": "3d05651a18f67452170595105992716d6b83de025b992c8392433a7207efbdff",
+  "evaluation_digest": "4339e781ffe76e91e37d8b7e705f7c1b8bc341bf199118d45051e17a02279234",
+  "expected_status": "human_review_required",
+  "external_verification_context_digest": "1b05aa13e094ee955699b30bf9c5b2167119b86660263f48b823a194b71c0eaa",
+  "external_verification_count": 0,
+  "external_verification_supplied": false,
+  "generated_at": "2026-11-05T22:34:38.252617+00:00",
+  "head_sha": "0000000000000000000000000000000000000018",
+  "human_review_supplied": false,
+  "machine_advisory_count": 1,
+  "machine_vote_weight": 0,
+  "missing_required_roles": [
+    "maintainer",
+    "manufacturing",
+    "operations",
+    "qa",
+    "safety",
+    "security",
+    "systems"
+  ],
+  "outputs": {
+    "advisories": "/workspace/scratch/4b61eebeafae/IX-BlackFox-main/.blackfox-artifacts/wave13/wave13-machine-advisories.json",
+    "case": "/workspace/scratch/4b61eebeafae/IX-BlackFox-main/.blackfox-artifacts/wave13/wave13-review-case.json",
+    "evaluation": "/workspace/scratch/4b61eebeafae/IX-BlackFox-main/.blackfox-artifacts/wave13/wave13-board-evaluation.json",
+    "package": "/workspace/scratch/4b61eebeafae/IX-BlackFox-main/.blackfox-artifacts/wave13/wave13-human-machine-review-board.zip",
+    "summary": "/workspace/scratch/4b61eebeafae/IX-BlackFox-main/.blackfox-artifacts/wave13/wave13-review-board-ci-summary.json",
+    "verification": "/workspace/scratch/4b61eebeafae/IX-BlackFox-main/.blackfox-artifacts/wave13/wave13-package-verification.json"
+  },
+  "passed": true,
+  "policy_digest": "95a07f692b8d760a7282013be351af9f5b9c984ea56c43ebf51597e4e6a5d3df",
+  "qualifying_human_approval_count": 0,
+  "required_roles": [
+    "maintainer",
+    "manufacturing",
+    "operations",
+    "qa",
+    "safety",
+    "security",
+    "systems"
+  ],
+  "schema_version": "wave13.review_board_ci_summary.v1",
+  "scope_note": "A passing Wave 13 CI result proves that verified Wave 12 evidence can be admitted into a role-based review package and that machine analysis cannot silently satisfy human quorum. The expected offline state is human_review_required. No human identity, role authority, review decision, or external verification context is fabricated.",
+  "subject_digest": "c2b35903ecbb0a8cf2c2a42b61224e0c02b3d5fcf6b615de338b71608493112a",
+  "upstream_wave12_readiness_status": "review_required",
+  "upstream_wave12_sha256": "462e1a5d79ca6b879f53b3049f96a6fec784fc63167f08ea3f75877fec473147",
+  "upstream_wave12_verification_passed": true,
+  "verification_issue_count": 0,
+  "verification_passed": true,
+  "wave": "13"
+}

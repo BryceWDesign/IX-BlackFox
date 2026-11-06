@@ -219,7 +219,7 @@ def default_architecture_records() -> tuple[RepositoryArchitectureRecord, ...]:
             subsystem="workflow",
             owned_paths=("src/ix_blackfox/workflow", "tests/workflow"),
             responsibilities=(
-                "Represent pull-request gates, approval posture, evidence packs, organization-grade review flow, and CI handoff.",
+                "Represent pull-request gates, approval posture, evidence packs, organization-grade review flow, and CI integration.",
                 "Keep AI-assisted code-change workflows inspectable before humans are asked to approve them.",
             ),
             constraints=(

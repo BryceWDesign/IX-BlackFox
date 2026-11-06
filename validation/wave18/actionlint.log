@@ -1,0 +1,4 @@
+1.7.7
+installed by downloading from release page
+built with go1.23.4 compiler for linux/amd64
+All 14 workflow files passed static validation.

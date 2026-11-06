@@ -6,6 +6,8 @@ import json
 import re
 import sqlite3
 from collections.abc import Mapping
+from contextlib import nullcontext
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from ix_blackfox.authority_crypto.encoding import (
@@ -15,6 +17,7 @@ from ix_blackfox.authority_crypto.encoding import (
     strict_json,
 )
 from ix_blackfox.authority_crypto.verification import verify_receipt
+from ix_blackfox.autonomy.contracts import DispatchPermit
 from ix_blackfox.integration_mesh.ledger import MeshLedger
 from ix_blackfox.integration_mesh.mcp import transport_headers
 from ix_blackfox.live_gateway.upstream import UpstreamTransportError, request_upstream
@@ -33,6 +36,7 @@ def dispatch(
     arguments: Mapping[str, Any],
     headers: Mapping[str, str],
     mcp_payload: Mapping[str, Any] | None = None,
+    permit: DispatchPermit | None = None,
 ) -> GatewayHttpResponse:
     """Execute a mesh route only through the existing authority and signing gates."""
     from ix_blackfox.live_gateway.service import (
@@ -204,8 +208,15 @@ def dispatch(
         return error(409, "Single-use authority evidence was already consumed.")
     authorization = gateway._commit_authorization(prepared, claims)
     assert authorization is not None
-    ledger.authorized(request_id, str(authorization["receipt_id"]))
-    gateway._revalidate_before_dispatch(prepared, headers, arguments, authorization)
+    authorization_id = str(authorization["receipt_id"])
+    ledger.authorized(request_id, authorization_id)
+    if permit is not None:
+        permit.authorized(authorization_id)
+    revalidate = partial(
+        gateway._revalidate_before_dispatch, prepared, headers, arguments, authorization
+    )
+    if permit is None:
+        revalidate()
     outbound.update(
         {
             "X-BlackFox-Authority": "allow",
@@ -228,14 +239,15 @@ def dispatch(
         raw_body = canonical_bytes(body)
     url = connector.base_url + prepared.route.api_path
     try:
-        upstream = request_upstream(
-            url=url,
-            method=prepared.route.api_method,
-            headers=outbound,
-            body=raw_body,
-            timeout_seconds=config.timeout_seconds,
-            max_response_bytes=gateway.config.server.max_response_bytes,
-        )
+        with permit.guard(authorization_id, revalidate) if permit else nullcontext():
+            upstream = request_upstream(
+                url=url,
+                method=prepared.route.api_method,
+                headers=outbound,
+                body=raw_body,
+                timeout_seconds=config.timeout_seconds,
+                max_response_bytes=gateway.config.server.max_response_bytes,
+            )
     except UpstreamTransportError:
         gateway._append_receipt(
             prepared=prepared,

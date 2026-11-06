@@ -1,15 +1,15 @@
-# IX-BlackFox 0.5.0 release contents
+# IX-BlackFox 0.6.0 release contents
 
-This source release implements Wave 17 Enterprise Integration Mesh and retains the existing authority, identity, evidence, runtime and verification layers. It includes source, tests, examples, public schemas, protocol/operator documentation, GitHub workflows and captured local validation evidence. License, notice and commercial terms retain their original bytes.
+The source archive includes Wave 18 Governed Autonomy, the preceding authority and integration layers, tests, examples, public schemas, GitHub workflows, and validation results. The evaluation license, notice, commercial terms, and original logo retain their supplied bytes.
 
-`FILE_MANIFEST.json` hashes every packaged file except itself. The source archive excludes Git metadata, private signing keys, credentials, runtime databases, virtual environments, caches and build directories. A clean wheel build and installed-package smoke checks are recorded in `VALIDATION_REPORT.md`.
+| Item | Location |
+| --- | --- |
+| Operation API and operator procedures | `docs/wave18-governed-autonomy.md` |
+| Two-agent gateway configuration | `examples/wave18/blackfox.gateway.toml` |
+| Loopback provider and failure tests | `tests/autonomy` |
+| Wave 18 workflow | `.github/workflows/wave18-governed-autonomy.yml` |
+| Local results and reproducible commands | `VALIDATION_REPORT.md`, `validation/wave18` |
+| Windows application instructions | `WINDOWS_SETUP.md` |
+| Roadmap | `docs/ROADMAP.md` |
 
-- Integration contract: `docs/wave17-enterprise-integration-mesh.md`
-- Claim-to-test mapping: `docs/wave17-claims-ledger.json`
-- Operator template: `examples/wave17/blackfox.gateway.toml`
-- Reproducible network proof: `scripts/run_wave17_integration_mesh_ci.py`
-- Validation results: `VALIDATION_REPORT.md` and `validation/wave17`
-- Windows application and verification: `WINDOWS_SETUP.md`
-- Roadmap through Wave 20: `docs/ROADMAP.md`
-
-Historical Wave 16/16.1 measurements remain under their versioned validation directories and are not presented as new release measurements. Hosted services, production capacity, high availability and remote GitHub Actions outcomes are not established by the local release results.
+`FILE_MANIFEST.json` hashes every packaged file except itself. The archive excludes Git metadata, live credentials, private signing keys, operational databases, build directories, and caches. Earlier measurements remain in their versioned validation directories.

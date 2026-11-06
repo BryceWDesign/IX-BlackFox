@@ -15,7 +15,7 @@ from ix_blackfox.runtime.control_plane import AuthoredEngineeringControlPlaneRep
 
 class Wave3AcceptanceStatus(StrEnum):
     """
-    Terminal acceptance status for a governed Wave 3 authored repair handoff.
+    Terminal acceptance status for a governed Wave 3 authored repair submission.
     """
 
     PASSED = auto()

@@ -780,7 +780,7 @@ class AuthoringReceiptLedger:
                 "candidate_ids": list(candidate_id_tuple),
                 "selection_reason": selection_reason,
             },
-            summary="Wave 3 candidate was selected for governed Wave 2 handoff.",
+            summary="Wave 3 candidate was selected for governed Wave 2 verification.",
             related_ids={
                 "request_id": request_id,
                 "selected_candidate_id": selected_candidate_id,
@@ -809,7 +809,7 @@ class AuthoringReceiptLedger:
                 "affected_paths": list(affected_paths),
             },
             status=AuthoringReceiptStatus.REJECTED,
-            summary="Wave 3 candidate was rejected before Wave 2 handoff.",
+            summary="Wave 3 candidate was rejected before Wave 2 verification.",
             related_ids={"request_id": request_id, "candidate_id": candidate_id},
             metadata={"candidate_id": candidate_id, "rejection_phase": rejection_phase},
         )
@@ -826,7 +826,7 @@ class AuthoringReceiptLedger:
             subject_id=request_id,
             payload={"failure_phase": failure_phase, "failure_reason": failure_reason},
             status=AuthoringReceiptStatus.FAILED,
-            summary="Wave 3 authoring failed before a governed handoff.",
+            summary="Wave 3 authoring failed before governed verification.",
             related_ids={"request_id": request_id},
             metadata={"failure_phase": failure_phase},
         )

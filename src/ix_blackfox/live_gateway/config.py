@@ -21,6 +21,7 @@ from ix_blackfox.agents.models import (
 )
 from ix_blackfox.agents.registry import AgentRegistry
 from ix_blackfox.authority_crypto.signing import SigningConfig
+from ix_blackfox.autonomy.contracts import AutonomyConfig
 from ix_blackfox.integration_mesh.config import MeshConfig
 from ix_blackfox.live_gateway.enterprise_identity import IdentityBinding, OidcProvider
 from ix_blackfox.live_gateway.evidence import EvidencePolicy, TrustedEvidenceIssuer
@@ -242,6 +243,7 @@ class GatewayConfig:
     agent_registry: AgentRegistry
     receipt_signing: SigningConfig | None = None
     mesh: MeshConfig | None = None
+    autonomy: AutonomyConfig | None = None
 
     def __post_init__(self) -> None:
         issuer_keys = [
@@ -399,8 +401,59 @@ class GatewayConfig:
                     f"route {route.tool_name!r} uses revision-bound evidence policy "
                     f"{route_policy.policy_id!r} but has no revision_argument."
                 )
+        if self.autonomy is not None:
+            self._validate_autonomy()
         if not self.routes:
             raise ValueError("At least one [[routes]] entry is required.")
+
+    def _validate_autonomy(self) -> None:
+        config, mesh = self.autonomy, self.mesh
+        assert config is not None
+        if mesh is None or self.receipt_signing is None:
+            raise ValueError("Autonomy requires the signed integration mesh.")
+        if config.database in {
+            mesh.database, self.receipt_database, self.identity_revocation_database,
+            self.source_path,
+        }:
+            raise ValueError("Autonomy requires a separate operation database.")
+        observer = next(
+            (
+                issuer for issuer in self.trusted_issuers
+                if (issuer.issuer, issuer.key_id) == (config.observer_issuer, config.observer_key_id)
+            ),
+            None,
+        )
+        if observer is None or observer.allowed_kinds != ("operation_observation",):
+            raise ValueError("Autonomy requires a dedicated operation observation issuer/key.")
+        if any(issuer is not observer and issuer.issuer == observer.issuer for issuer in self.trusted_issuers):
+            raise ValueError("The operation observation issuer must be distinct from other issuers.")
+        managed_destinations: set[str] = set()
+        for name in config.tools:
+            route = self.route_for(name)
+            if route is None or not route.connector_id:
+                raise ValueError("Managed operation tools require named mesh routes.")
+            connector = mesh.connector(route.connector_id)
+            policy = self.evidence_policy_for(route.evidence_policy_id)
+            if connector.kind == "mcp" or route.api_method not in {"POST", "PUT", "PATCH", "DELETE"}:
+                raise ValueError("Managed operation tools require a REST mutation route.")
+            if (
+                policy is None or not policy.human_approval_kind
+                or not policy.require_repository_match or not policy.require_revision_match
+                or not policy.required_kinds or observer.issuer in policy.human_approval_issuers
+            ):
+                raise ValueError("Managed tools require revision-bound evidence and exact human approval.")
+            managed_destinations.add(connector.base_url + route.api_path)
+        for route in self.routes:
+            if route.tool_name in config.tools or not route.api_path:
+                continue
+            if route.connector_id:
+                base_url = mesh.connector(route.connector_id).base_url
+            elif self.api is not None:
+                base_url = self.api.base_url.rstrip("/")
+            else:
+                continue
+            if base_url + route.api_path in managed_destinations:
+                raise ValueError("An unmanaged route aliases a managed destination.")
 
     def route_for(self, tool_name: str) -> ToolRoute | None:
         return next(
@@ -658,6 +711,8 @@ def load_gateway_config(path: Path) -> GatewayConfig:
 
     return GatewayConfig(
         mesh=MeshConfig.parse(payload["mesh"], base) if "mesh" in payload else None,
+        autonomy=AutonomyConfig.parse(payload["autonomy"], base)
+        if "autonomy" in payload else None,
         receipt_signing=SigningConfig.parse(payload["receipt_signing"], base)
         if "receipt_signing" in payload
         else None,

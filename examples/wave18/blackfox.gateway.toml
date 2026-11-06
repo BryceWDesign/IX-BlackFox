@@ -1,0 +1,137 @@
+registry_id = "governed-operations-registry"
+
+[server]
+host = "127.0.0.1"
+port = 8765
+operator_token_env = "BLACKFOX_OPERATOR_TOKEN"
+
+[evidence]
+root = ".blackfox-artifacts/wave18/evidence"
+receipt_database = ".blackfox-artifacts/wave18/authority.sqlite3"
+
+[receipt_signing]
+provider = "local"
+key_id = "enterprise-authority"
+algorithm = "Ed25519"
+private_key = "receipt-keys/authority-signing-key.pem"
+password_env = "BLACKFOX_SIGNING_PASSWORD"
+trust_policy = "receipt-keys/trust-policy.json"
+
+[mesh]
+database = ".blackfox-artifacts/wave18/mesh.sqlite3"
+timeout_seconds = 15
+
+[autonomy]
+database = ".blackfox-artifacts/wave18/operations.sqlite3"
+tools = ["service.submit", "service.publish"]
+observer_issuer = "service-observer"
+observer_key_id = "observer-hmac-v1"
+max_evidence_age_seconds = 900
+
+[[mesh.connectors]]
+connector_id = "service"
+kind = "json"
+base_url = "https://engineering.example.invalid"
+credential_env = "BLACKFOX_SERVICE_TOKEN"
+
+[[trusted_issuers]]
+issuer = "ci"
+key_id = "ci-hmac-v1"
+secret_env = "BLACKFOX_CI_KEY"
+allowed_kinds = ["test_result"]
+
+[[trusted_issuers]]
+issuer = "human-review"
+key_id = "human-hmac-v1"
+secret_env = "BLACKFOX_HUMAN_KEY"
+allowed_kinds = ["human_approval"]
+
+[[trusted_issuers]]
+issuer = "service-observer"
+key_id = "observer-hmac-v1"
+secret_env = "BLACKFOX_OBSERVER_KEY"
+allowed_kinds = ["operation_observation"]
+
+[[agent_credentials]]
+agent_id = "engineering-agent"
+secret_env = "BLACKFOX_AGENT_TOKEN"
+
+[[agent_credentials]]
+agent_id = "release-agent"
+secret_env = "BLACKFOX_RELEASE_AGENT_TOKEN"
+
+[[evidence_policies]]
+policy_id = "protected-write"
+required_kinds = ["test_result"]
+human_approval_kind = "human_approval"
+target_bound_kinds = ["human_approval"]
+single_use_kinds = ["human_approval"]
+accepted_statuses = ["passed", "approved"]
+allowed_issuers = ["ci", "human-review"]
+human_approval_issuers = ["human-review"]
+max_age_seconds = 3600
+require_signature = true
+require_repository_match = true
+require_revision_match = true
+
+[[routes]]
+tool_name = "service.submit"
+connector_id = "service"
+capability = "service_write"
+repository_id = "example/engineering"
+path_argument = ""
+revision_argument = "revision"
+risk_tier = "high"
+evidence_policy_id = "protected-write"
+api_method = "POST"
+api_path = "/submit"
+
+[[routes]]
+tool_name = "service.publish"
+connector_id = "service"
+capability = "service_write"
+repository_id = "example/engineering"
+path_argument = ""
+revision_argument = "revision"
+risk_tier = "high"
+evidence_policy_id = "protected-write"
+api_method = "POST"
+api_path = "/publish"
+
+[[agents]]
+agent_id = "engineering-agent"
+display_name = "Governed Engineering Agent"
+kind = "external_agent"
+trust_tier = "governed_automation"
+lifecycle_state = "active"
+
+[[agents.grants]]
+grant_id = "enterprise-submissions"
+capability = "access_network"
+active = true
+rationale = "Explicit service-write authority for the configured tools and repository."
+
+[agents.grants.scope]
+repository_ids = ["example/engineering"]
+tool_ids = ["service.submit"]
+max_risk_tier = "high"
+requires_human_review = true
+
+[[agents]]
+agent_id = "release-agent"
+display_name = "Governed Release Agent"
+kind = "external_agent"
+trust_tier = "governed_automation"
+lifecycle_state = "active"
+
+[[agents.grants]]
+grant_id = "enterprise-submissions"
+capability = "access_network"
+active = true
+rationale = "Explicit service-write authority for the configured tools and repository."
+
+[agents.grants.scope]
+repository_ids = ["example/engineering"]
+tool_ids = ["service.publish"]
+max_risk_tier = "high"
+requires_human_review = true

@@ -6,7 +6,7 @@ import hmac
 import json
 import sqlite3
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urljoin
@@ -18,6 +18,8 @@ from ix_blackfox.authority_crypto.encoding import (
     canonical_bytes,
     strict_json,
 )
+from ix_blackfox.autonomy.contracts import DispatchPermit
+from ix_blackfox.autonomy.coordinator import OperationCoordinator
 from ix_blackfox.integration_mesh.config import AuditSink, Connector
 from ix_blackfox.integration_mesh.mcp import lifecycle as mesh_mcp_lifecycle
 from ix_blackfox.integration_mesh.runtime import dispatch as dispatch_mesh
@@ -90,6 +92,11 @@ class LiveAuthorityGateway:
     agent_tokens: Mapping[str, bytes]
     operator_token: bytes
     identity_verifier: FederatedIdentityVerifier
+    operations: OperationCoordinator | None = field(init=False, default=None)
+
+    def __post_init__(self) -> None:
+        if self.config.autonomy is not None:
+            self.operations = OperationCoordinator(self.config.autonomy)
 
     @classmethod
     def from_config(cls, config: GatewayConfig) -> LiveAuthorityGateway:
@@ -189,10 +196,15 @@ class LiveAuthorityGateway:
             self.validate_mesh_credentials()
         except ValueError:
             mesh_ready = False
+        operations_ready = self.operations is None or self.operations.store.ready()
         return {
+            "operations_configured": self.operations is not None,
+            "operations_ready": operations_ready,
             "mesh_configured": self.config.mesh is not None,
             "mesh_credentials_ready": mesh_ready,
-            "wave": 17
+            "wave": 18
+            if self.operations
+            else 17
             if self.config.mesh
             else 16
             if self.receipt_store.signing
@@ -200,7 +212,9 @@ class LiveAuthorityGateway:
             "signing_required": self.receipt_store.signing is not None,
             "signer_ready": signer_ready,
             "signer_issue": signer_issue,
-            "mode": "enterprise_integration_mesh"
+            "mode": "governed_autonomy"
+            if self.operations
+            else "enterprise_integration_mesh"
             if self.config.mesh
             else "cryptographic_authority_gateway"
             if self.receipt_store.signing
@@ -233,6 +247,7 @@ class LiveAuthorityGateway:
             "ready": (
                 chain.passed
                 and mesh_ready
+                and operations_ready
                 and signer_ready
                 and not missing_keys
                 and not weak_keys
@@ -258,6 +273,7 @@ class LiveAuthorityGateway:
         arguments: Mapping[str, Any],
         protocol: str,
         principal: AuthenticatedPrincipal | None = None,
+        operation: Mapping[str, Any] | None = None,
     ) -> AuthoritySubject:
         route = self._require_route(tool_name)
         normalized_agent = normalize_identifier(agent_id, label="agent_id")
@@ -348,12 +364,17 @@ class LiveAuthorityGateway:
             metadata=(
                 {
                     **mesh_metadata,
+                    **({"operation": dict(operation)} if operation else {}),
                     "evidence_policy_id": effective_policy.policy_id,
                     "authentication_type": "oidc_jwt",
                     "identity_context_digest": principal.context_digest,
                 }
                 if principal is not None and principal.authentication_type == "oidc_jwt"
-                else {**mesh_metadata, "evidence_policy_id": effective_policy.policy_id}
+                else {
+                    **mesh_metadata,
+                    **({"operation": dict(operation)} if operation else {}),
+                    "evidence_policy_id": effective_policy.policy_id,
+                }
             ),
         )
 
@@ -366,6 +387,7 @@ class LiveAuthorityGateway:
         evidence_ids: Sequence[str],
         protocol: str,
         principal: AuthenticatedPrincipal | None = None,
+        operation: Mapping[str, Any] | None = None,
     ) -> PreparedAuthorityRequest:
         route = self._require_route(tool_name)
         subject = self.build_subject(
@@ -374,6 +396,7 @@ class LiveAuthorityGateway:
             arguments=arguments,
             protocol=protocol,
             principal=principal,
+            operation=operation,
         )
         if principal is not None:
             delegation_error = principal.authorize_action(
@@ -520,6 +543,7 @@ class LiveAuthorityGateway:
                 evidence_ids=prepared.evidence_ids,
                 protocol=prepared.subject.protocol,
                 principal=principal,
+                operation=prepared.subject.metadata.get("operation"),
             )
         except (KeyError, ValueError) as exc:
             raise AuthorityProofError("Authority changed during signing.") from exc
@@ -686,6 +710,8 @@ class LiveAuthorityGateway:
         try:
             evidence_ids = _bounded_evidence_ids(_resolve_evidence_ids(headers, params))
             route = self._require_route(info.name)
+            if self.operations and info.name in self.operations.config.tools:
+                raise ValueError("Managed tools are available only through operation dispatch.")
             if (
                 selected_connector is not None
                 and route.connector_id != selected_connector.connector_id
@@ -863,6 +889,7 @@ class LiveAuthorityGateway:
         *,
         payload: Mapping[str, Any],
         headers: Mapping[str, str],
+        permit: DispatchPermit | None = None,
     ) -> GatewayHttpResponse:
         tool_name = payload.get("tool_name")
         arguments = payload.get("arguments", {})
@@ -919,6 +946,16 @@ class LiveAuthorityGateway:
                 },
                 extra_headers={"X-BlackFox-Receipt-Id": str(receipt["receipt_id"])},
             )
+        if self.operations and tool_name in self.operations.config.tools and permit is None:
+            receipt = self._append_preexecution_failure(
+                agent_id=agent_id, tool_name=tool_name, protocol="blackfox-api/v1",
+                reason="Managed tools are available only through operation dispatch.",
+                reason_code="operation_dispatch_required",
+            )
+            return _json_response(403, {
+                "error": "Managed tools are available only through operation dispatch.",
+                "execution_state": "not_attempted", "receipt_id": receipt["receipt_id"],
+            })
         evidence_ids = _string_sequence(context.get("evidence_refs", ()))
         header_evidence = _header(headers, "X-BlackFox-Evidence")
         if header_evidence:
@@ -935,6 +972,7 @@ class LiveAuthorityGateway:
                 evidence_ids=evidence_ids,
                 protocol="blackfox-api/v1",
                 principal=principal,
+                operation=permit.binding if permit else None,
             )
         except (KeyError, ValueError) as exc:
             receipt = self._append_preexecution_failure(
@@ -974,7 +1012,7 @@ class LiveAuthorityGateway:
             )
 
         if prepared.route.connector_id:
-            return dispatch_mesh(self, prepared, arguments, headers)
+            return dispatch_mesh(self, prepared, arguments, headers, permit=permit)
 
         if self.config.api is None or not prepared.route.api_path:
             receipt = self._append_receipt(

@@ -1,0 +1,31 @@
+{
+  "expected_status": "warning",
+  "generated_at": "2026-11-05T22:33:41.245534+00:00",
+  "head_sha": "0000000000000000000000000000000000000018",
+  "passed": true,
+  "provenance_head_digest": "fb568095c8798d7c24e5411b227a337917e11b105218df0eb134b24b9863b113",
+  "ready": false,
+  "registry_snapshot_digest": "3dbf76ff04be2565dd95038f09cf7df80bdee357098f72066ff6ab063abf5189",
+  "report_digest": "d686d10dcd3572272e3f01d557c743b494e3745fc2cf6ace20cc5049e73ee550",
+  "report_validation": {
+    "has_digest": true,
+    "has_provenance_head_digest": true,
+    "has_registry_snapshot_digest": true,
+    "missing_keys": [],
+    "passed": true
+  },
+  "run_id": "wave11-ci-000000000000",
+  "scope_note": "This CI payload verifies the Wave 11 agent identity and capability registry, authorization evaluator, human-authority boundary, provenance ledger, readiness report, and deterministic JSON artifact export. It is not production deployment approval, model safety certification, ATO/cATO, DoD endorsement, procurement approval, or permission for autonomous execution.",
+  "status": "warning",
+  "summary": {
+    "active_agent_count": 3,
+    "authority_evaluation_count": 1,
+    "authorization_decision_count": 2,
+    "blocking_finding_count": 0,
+    "engine_evidence_path": "/workspace/scratch/4b61eebeafae/IX-BlackFox-main/.blackfox-artifacts/wave11/wave11-agent-identity-engine-evidence.json",
+    "provenance_record_count": 2,
+    "report_path": "/workspace/scratch/4b61eebeafae/IX-BlackFox-main/.blackfox-artifacts/wave11/wave11-agent-readiness-report.json",
+    "warning_finding_count": 1
+  },
+  "wave": "11"
+}

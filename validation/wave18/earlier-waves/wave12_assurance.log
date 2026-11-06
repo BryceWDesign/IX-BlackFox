@@ -1,0 +1,71 @@
+{
+  "archive_sha256": "462e1a5d79ca6b879f53b3049f96a6fec784fc63167f08ea3f75877fec473147",
+  "bundle_index_digest": "e630c029857d456c302a32796416bf066688d4293bb92215400b50f0a27879a1",
+  "crosswalk_digest": "1891090f8e3927bb78988efda69f5b0858bc38413c2ceb32fd294e306a92f97b",
+  "evidence_artifact_count": 10,
+  "expected_status": "review_required",
+  "generated_at": "2026-11-05T22:33:41.534754+00:00",
+  "head_sha": "0000000000000000000000000000000000000018",
+  "mandatory_evidence_complete": true,
+  "manifest_digest": "94bef2a9ce404374675642c7aa6891f09a1a911d853b7de56be720d7c9f461c1",
+  "outputs": {
+    "crosswalk": "/workspace/scratch/4b61eebeafae/IX-BlackFox-main/.blackfox-artifacts/wave12/wave12-assurance-crosswalk.json",
+    "evidence_spec": "/workspace/scratch/4b61eebeafae/IX-BlackFox-main/.blackfox-artifacts/wave12/wave12-evidence-spec.json",
+    "manifest": "/workspace/scratch/4b61eebeafae/IX-BlackFox-main/.blackfox-artifacts/wave12/wave12-assurance-manifest.json",
+    "package": "/workspace/scratch/4b61eebeafae/IX-BlackFox-main/.blackfox-artifacts/wave12/wave12-certification-ready-evidence.zip",
+    "readiness": "/workspace/scratch/4b61eebeafae/IX-BlackFox-main/.blackfox-artifacts/wave12/wave12-assurance-readiness-report.json",
+    "summary": "/workspace/scratch/4b61eebeafae/IX-BlackFox-main/.blackfox-artifacts/wave12/wave12-assurance-ci-summary.json",
+    "verification": "/workspace/scratch/4b61eebeafae/IX-BlackFox-main/.blackfox-artifacts/wave12/wave12-package-verification.json"
+  },
+  "passed": true,
+  "prerequisite_results": [
+    {
+      "exit_code": 0,
+      "name": "wave6-sandbox",
+      "passed": true,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "5185d35ffd5a700feaece70aa3fe254ed5b7a1c3ca49a01810657e5431a39a33"
+    },
+    {
+      "exit_code": 0,
+      "name": "wave7-model-repair",
+      "passed": true,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "88fac85f5efca2a4dd48f3624975cf1eed09ea79e2ac020d5d0310bb30a0d2ff"
+    },
+    {
+      "exit_code": 0,
+      "name": "wave8-repository-intelligence",
+      "passed": true,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "54de221e04eed32f755ce7bd428d192292b3aef3abd28eccfe3792e5ccd8882c"
+    },
+    {
+      "exit_code": 0,
+      "name": "wave11-agent-identity",
+      "passed": true,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "96479b9b854f8635c5e1f430252117f692fbb0e15442a9c2f882d377a2a2b284"
+    },
+    {
+      "exit_code": 0,
+      "name": "wave9-compliance-audit",
+      "passed": true,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "833d7fe91d1a4dd8a63dcd775b8e69b5e4dbfc435f5f81d13432e4310984cbdb"
+    }
+  ],
+  "prerequisites_run": true,
+  "profile_digest": "c1dbdf409a3f7de4e38e160773edbb256b2755e6e750448195f9f75d68a77095",
+  "quality_gate_count": 4,
+  "quality_gates_passed": true,
+  "quality_gates_run": true,
+  "readiness_digest": "c62338ab57e00dbaaeda0d4068545fb66ec9d981309ddf0b61714b5bc26b8778",
+  "readiness_status": "review_required",
+  "ready_for_external_assessment": false,
+  "schema_version": "wave12.assurance_ci_summary.v1",
+  "scope_note": "A passing Wave 12 CI result proves deterministic evidence collection, mandatory profile coverage, package construction, tamper verification, and an intentionally open human-review gate. It is not certification, compliance approval, ATO/cATO, procurement approval, deployment approval, production authority, or autonomous approval authority.",
+  "verification_issue_count": 0,
+  "verification_passed": true,
+  "wave": "12"
+}

@@ -836,7 +836,7 @@ class RepairCandidateRanker:
                 AuthoringFinding(
                     code="authoring.candidates.candidate_selected",
                     severity=AuthoringFindingSeverity.INFO,
-                    summary="A Wave 3 authored repair candidate was selected for governed handoff.",
+                    summary="A Wave 3 authored repair candidate was selected for governed verification.",
                     metadata={
                         "selected_candidate_id": selected_candidate_id,
                     },
