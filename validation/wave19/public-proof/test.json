@@ -1,0 +1,18 @@
+{
+  "clock_skew_seconds": 30,
+  "deployment_id": "quota-test",
+  "expires_at": "2027-11-06T18:10:22.971241+00:00",
+  "keys": [
+    {
+      "algorithm": "Ed25519",
+      "key_id": "test",
+      "not_after": "2027-11-06T18:10:22.971241+00:00",
+      "not_before": "2026-11-06T18:05:22.971241+00:00",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAa1tD5Ujw32ewfyINVG+jqK0JjMyxJXHQbm2hvzWO/i4=\n-----END PUBLIC KEY-----\n",
+      "revoked": false,
+      "spki_sha256": "ba86e055e926ee70eabdeae4c83b903eeb7c2344dd9a2f7ea98e7de4581b49b6"
+    }
+  ],
+  "schema_version": "wave16.trust_policy.v1",
+  "stream_id": "local-proof"
+}

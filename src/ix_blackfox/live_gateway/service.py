@@ -18,7 +18,7 @@ from ix_blackfox.authority_crypto.encoding import (
     canonical_bytes,
     strict_json,
 )
-from ix_blackfox.autonomy.contracts import DispatchPermit
+from ix_blackfox.autonomy.contracts import DispatchPermit, OperationError
 from ix_blackfox.autonomy.coordinator import OperationCoordinator
 from ix_blackfox.integration_mesh.config import AuditSink, Connector
 from ix_blackfox.integration_mesh.mcp import lifecycle as mesh_mcp_lifecycle
@@ -197,12 +197,18 @@ class LiveAuthorityGateway:
         except ValueError:
             mesh_ready = False
         operations_ready = self.operations is None or self.operations.store.ready()
+        verification_enabled = self.operations is not None and self.operations.config.verification is not None
+        if self.operations is not None and verification_enabled:
+            try:
+                self.operations.verification.trust(self)
+            except (AuthorityProofError, OperationError, OSError):
+                operations_ready = False
         return {
             "operations_configured": self.operations is not None,
             "operations_ready": operations_ready,
             "mesh_configured": self.config.mesh is not None,
             "mesh_credentials_ready": mesh_ready,
-            "wave": 18
+            "wave": 19 if verification_enabled else 18
             if self.operations
             else 17
             if self.config.mesh
@@ -212,7 +218,7 @@ class LiveAuthorityGateway:
             "signing_required": self.receipt_store.signing is not None,
             "signer_ready": signer_ready,
             "signer_issue": signer_issue,
-            "mode": "governed_autonomy"
+            "mode": "closed_loop_verification" if verification_enabled else "governed_autonomy"
             if self.operations
             else "enterprise_integration_mesh"
             if self.config.mesh

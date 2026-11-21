@@ -105,6 +105,7 @@ class Provider(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self) -> None:
+        self.allowed_operations = {"release-1"}
         self.commands: dict[str, dict[str, Any]] = {}
         self.receipts: list[dict[str, Any]] = []
         self.drop_response = False
@@ -139,9 +140,8 @@ class ProviderHandler(BaseHTTPRequestHandler):
             envelope, provider.config.receipt_signing.build().current_policy()
         )
         assert receipt["record_type"] == "authorization"
-        assert (
-            receipt["subject"]["metadata"]["operation"]["operation_id"] == "release-1"
-        )
+        operation = receipt["subject"]["metadata"]["operation"]
+        assert operation["operation_id"] in provider.allowed_operations
         assert receipt["subject"]["digest"] == self.headers["X-BlackFox-Subject-Digest"]
         effect = strict_json(self.rfile.read(int(self.headers["Content-Length"])))
         provider.commands[self.headers["Idempotency-Key"]] = effect

@@ -1,0 +1,29 @@
+{
+  "allowed_status": 200,
+  "claim_boundary": "This proof demonstrates local cryptographic OIDC/JWT verification, bounded delegated authority, revocation, pre-upstream denial, identity-bound authority subjects, and durable receipt-chain integrity. It does not claim DoD authorization, FedRAMP, cATO, AWS certification, or production identity-provider integration.",
+  "delegation_scope_status": 403,
+  "expired_token_status": 401,
+  "gateway_ready": true,
+  "identity_context_digest": "b780ddc63be1b67d7f69099691cbcacc2ff64394117b517b6e10f2e8b2fdd564",
+  "identity_mode": "federated_required",
+  "missing_delegation_status": 401,
+  "output_exists": true,
+  "output_matches": true,
+  "passed": true,
+  "receipt_chain": {
+    "head_digest": "e9692034f4ea6ffb7d7e73d6e1e95421cde34417b70fd99058b5fa05a6bc2e10",
+    "issue_count": 0,
+    "issues": [],
+    "passed": true,
+    "receipt_count": 7
+  },
+  "revoked_token_status": 401,
+  "schema_version": "wave15.enterprise_identity_ci_summary.v1",
+  "static_credential_status": 401,
+  "subject_identity_context_digest": "b780ddc63be1b67d7f69099691cbcacc2ff64394117b517b6e10f2e8b2fdd564",
+  "upstream_count_after_allow": 1,
+  "upstream_count_after_denials": 0,
+  "upstream_count_after_revocation": 1,
+  "wave": 15,
+  "wrong_audience_status": 401
+}

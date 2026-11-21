@@ -1,0 +1,9 @@
+usage: blackfox verification [-h]
+                             {assess,chain,target,export,events,unresolved,verify}
+                             ...
+
+positional arguments:
+  {assess,chain,target,export,events,unresolved,verify}
+
+options:
+  -h, --help            show this help message and exit

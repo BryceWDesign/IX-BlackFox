@@ -1,0 +1,1 @@
+{"check":"quota-boundary","probes":[{"allowed":true,"request_id":"25354f0bea795e76a671859fba8c79e651844030ac25e96fb47fadbe4ae5716d"},{"allowed":false,"request_id":"25354f0bea795e76a671859fba8c79e651844030ac25e96fb47fadbe4ae5716d"}],"provider_snapshot":{"limit":8,"request_id":"25354f0bea795e76a671859fba8c79e651844030ac25e96fb47fadbe4ae5716d"}}

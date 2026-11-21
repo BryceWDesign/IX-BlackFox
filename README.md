@@ -20,13 +20,13 @@ Today, BlackFox provides a live MCP/API enforcement boundary with federated work
 
 ---
 
-## Current release: 0.6.0, Wave 18 Governed Autonomy
+## Current release · 0.7.0, Wave 19 Closed-Loop Verification
 
-Agents can propose and coordinate bounded engineering operations through the live authority gateway. Plans seal each step's agent, route, exact arguments, dependencies, preconditions, budgets, expected outcome, and recovery obligation. An operator approves the current conditions. Each dispatch also requires exact-subject human approval and the gateway's signed authorization.
+Governed operations can bind a versioned change and explicit acceptance criteria to the plan, human approval, and signed dispatch authorization. After dispatch, an independent collector reads actual provider state. Configured test and simulation criteria must also pass on current signed evidence before a dependent step or verified closure can proceed.
 
-A separate observer verifies provider state before downstream work can proceed. Conditions updates suspend pending work until the operator approves the new snapshot and retained effects have current evidence. Unknown attempts remain reserved across restarts for reconciliation.
+The gateway retains evidence failures across restart. A separately approved remediation or rollback inherits the relevant criteria and must pass its own verification before an operator can close the chain. The CLI inspects unresolved requirements, exports signed closure bundles and verifies final results offline using independently pinned public keys.
 
-See [the operation contract](docs/wave18-governed-autonomy.md), [current validation](VALIDATION_REPORT.md), and [Windows setup](WINDOWS_SETUP.md).
+See the [verification contract](docs/wave19-closed-loop-verification.md), [executable example](examples/wave19/README.md), [validation report](VALIDATION_REPORT.md), and [Windows setup](WINDOWS_SETUP.md).
 
 ---
 

@@ -1,0 +1,1 @@
+{"failed_operation":"quota-20","final_outcome":"rolled_back","independently_observed_quota":10,"provider_acknowledged_failed_write":true,"recovered_quota":8,"recovery_operation":"restore-quota-8","requested_quota":20,"tampered_evidence_rejected":true,"verified":"quota-8","verified_closure_blocked":true}

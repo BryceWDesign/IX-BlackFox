@@ -30,6 +30,12 @@ from ix_blackfox.autonomy.store import OperationStore
 from ix_blackfox.integration_mesh.ledger import MeshLedger
 from ix_blackfox.live_gateway.evidence import EvidencePolicy, SignedEvidenceArtifact
 from ix_blackfox.live_gateway.models import AuthoritySubject
+from ix_blackfox.verification.loop import (
+    ACTIONS,
+    PROPOSALS,
+    READ_ACTIONS,
+    VerificationLoop,
+)
 
 if TYPE_CHECKING:
     from ix_blackfox.live_gateway.enterprise_identity import AuthenticatedPrincipal
@@ -46,6 +52,7 @@ class OperationCoordinator:
     def __init__(self, config: AutonomyConfig) -> None:
         self.config = config
         self.store = OperationStore(config.database)
+        self.verification = VerificationLoop(self)
         self.observation_policy = EvidencePolicy(
             policy_id="operation-observation",
             required_kinds=(OBSERVATION,),
@@ -65,7 +72,7 @@ class OperationCoordinator:
         from ix_blackfox.live_gateway.service import _json_response
 
         try:
-            if action in {"propose", "subject", "dispatch"}:
+            if action in {"propose", "subject", "dispatch"} | PROPOSALS:
                 principal, error = gateway.authenticate_principal(
                     headers=headers,
                     claimed_agent_id=next(
@@ -79,9 +86,9 @@ class OperationCoordinator:
                 )
                 if error or principal is None:
                     raise OperationError("Agent authentication required.", 401)
-                if action == "propose":
+                if action == "propose" or action in PROPOSALS:
                     return _json_response(
-                        201, self._propose(gateway, principal.agent_id, payload)
+                        201, self._propose(gateway, principal.agent_id, payload, action)
                     )
                 data = object_fields(
                     payload,
@@ -126,9 +133,20 @@ class OperationCoordinator:
             return _json_response(400, {"error": str(exc)})
 
     def _propose(
-        self, gateway: LiveAuthorityGateway, agent_id: str, payload: Mapping[str, Any]
+        self, gateway: LiveAuthorityGateway, agent_id: str, payload: Mapping[str, Any],
+        action: str = "propose",
     ) -> dict[str, Any]:
-        plan = parse_plan(payload)
+        proposal: dict[str, Any] = {}
+        if action == "propose":
+            if self.config.verification:
+                raise OperationError("Managed tools require a Wave 19 verification proposal.", 409)
+            plan = parse_plan(payload)
+        else:
+            proposal = object_fields(
+                payload, {"plan", "contract"} if action == "propose-verification"
+                else {"plan", "parent_operation_id", "mode", "change"}, action,
+            )
+            plan = parse_plan(proposal["plan"])
         now = datetime.now(UTC)
         if not now < timestamp(plan["expires_at"]) <= now + timedelta(days=30):
             raise OperationError("Operation expiry must be within the next 30 days.")
@@ -145,7 +163,7 @@ class OperationCoordinator:
                 arguments=step["arguments"],
                 protocol=PROTOCOL,
             )
-        state = {
+        state: dict[str, Any] = {
             "plan": plan,
             "plan_digest": digest(plan),
             "proposer": agent_id,
@@ -163,16 +181,20 @@ class OperationCoordinator:
                 "SELECT 1 FROM operations WHERE operation_id=?", (plan["operation_id"],)
             ).fetchone():
                 raise OperationError("Operation identifier is already reserved.", 409)
+            if action in PROPOSALS:
+                state["verification"] = self.verification.proposal(gateway, db, plan, agent_id, action, proposal)
             self.store.save(
                 db,
                 state,
                 "proposed",
                 proposer=agent_id,
                 plan_digest=state["plan_digest"],
+                **({"verification": state["verification"]["binding"]} if "verification" in state else {}),
             )
         return {
             "operation_id": plan["operation_id"],
             "plan_digest": state["plan_digest"],
+            **({"verification_digest": digest(state["verification"]["binding"])} if "verification" in state else {}),
         }
 
     def _snapshot(self, gateway: LiveAuthorityGateway, state: dict[str, Any]) -> str:
@@ -198,12 +220,19 @@ class OperationCoordinator:
                 "facts_until": state["facts_until"],
                 "policy": self.config.policy_digest,
                 "routes": subjects,
+                **({"verification": digest(state["verification"]["binding"])} if "verification" in state else {}),
             }
         )
 
     def _operator(
         self, gateway: LiveAuthorityGateway, action: str, payload: Mapping[str, Any]
     ) -> dict[str, Any]:
+        if action == "verification-unresolved":
+            data = object_fields(payload, {"after", "limit"}, action)
+            after = identifier(data["after"]) if data["after"] != "" else ""
+            limit = integer(data["limit"], "limit", 1, 50)
+            with self.store.transaction(write=False) as db:
+                return self.verification.unresolved(gateway, db, after, limit)
         fields = {
             "inspect": set(),
             "events": {"after"},
@@ -213,13 +242,20 @@ class OperationCoordinator:
             "close": {"epoch", "reason"},
             "observation-target": {"step_id"},
             "observe": {"step_id", "evidence_ref"},
+            "verification-assess": set(),
+            "verification-chain": set(),
+            "verification-export": set(),
+            "verification-target": {"requirement_id"},
+            "verification-evidence": {"requirement_id", "envelope"},
+            "verification-fail": {"epoch", "assessment_digest", "reviewer", "reason"},
+            "verification-close": {"epoch", "assessment_digest", "reviewer", "reason", "decision"},
         }
         if action not in fields:
             raise OperationError("Operation endpoint not found.", 404)
         data = object_fields(payload, {"operation_id", *fields[action]}, action)
         op = identifier(data["operation_id"])
         with self.store.transaction(
-            write=action not in {"inspect", "events", "observation-target"}
+            write=action not in ({"inspect", "events", "observation-target"} | READ_ACTIONS)
         ) as db:
             state = self.store.load(db, op)
             if action == "inspect":
@@ -230,6 +266,10 @@ class OperationCoordinator:
                         db, op, integer(data["after"], "after", 0, 2**63 - 1)
                     )
                 }
+            if action in ACTIONS:
+                return self.verification.request(gateway, db, state, action, data)
+            if "verification" in state and action in {"observe", "observation-target", "close"}:
+                raise OperationError("Use the requirement-bound Wave 19 verification endpoints.", 409)
             if action in {"observation-target", "observe"}:
                 step_id = identifier(data["step_id"])
                 target, current = self._observation_target(gateway, state, step_id)
@@ -256,6 +296,8 @@ class OperationCoordinator:
                     )
                 reviewer = text(data["reviewer"], "reviewer", 128)
                 if state["approval"] != snapshot:
+                    if "verification" in state:
+                        self.verification.approve(gateway, db, state, snapshot, reviewer)
                     state["approval"] = snapshot
                     self.store.save(
                         db,
@@ -287,6 +329,8 @@ class OperationCoordinator:
                 state["closed"] = True
             else:
                 state["facts_until"] = ""
+            if "verification" in state:
+                self.verification.renew(state)
             state.update(epoch=state["epoch"] + 1, approval="")
             self.store.save(
                 db,
@@ -310,7 +354,13 @@ class OperationCoordinator:
             attempt = current.get("attempt", {})
             observation = current.get("observation", {})
             phase = attempt.get("phase", "pending")
-            if observation and self._current_observation(gateway, state, name, now):
+            if "verification" in state:
+                current_result = self._current_observation(gateway, state, name, now) if attempt else None
+                if current_result:
+                    phase = current_result["disposition"]
+                elif phase in {"attempted", "reserved"}:
+                    phase = "verification_pending" if phase == "attempted" else "outcome_unknown"
+            elif observation and self._current_observation(gateway, state, name, now):
                 phase = observation["disposition"]
             elif observation:
                 phase = "observation_stale"
@@ -345,6 +395,12 @@ class OperationCoordinator:
         self, gateway: LiveAuthorityGateway, state: dict[str, Any], step_id: str
     ) -> tuple[dict[str, Any], dict[str, str]]:
         self._check_window(state)
+        if "verification" in state:
+            self.verification.check_policy(gateway, state)
+            if state["verification"]["failure"]:
+                raise OperationError("Failed verification blocks further execution.", 409)
+        elif self.config.verification:
+            raise OperationError("A legacy plan cannot dispatch against a verification-required gateway.", 409)
         if state["approval"] != self._snapshot(gateway, state):
             raise OperationError(
                 "Current operation snapshot requires operator approval.", 403
@@ -428,6 +484,9 @@ class OperationCoordinator:
             "attempt": state["attempts"] + 1,
             "dependency_observations": dependencies,
         }
+        if "verification" in state:
+            binding["verification_digest"] = digest(state["verification"]["binding"])
+            binding["approval_review_digest"] = digest(state["verification"]["approval_review"])
         subject = gateway.build_subject(
             agent_id=principal.agent_id,
             tool_name=step["tool_name"],
@@ -494,6 +553,8 @@ class OperationCoordinator:
                 "reserved_at": datetime.now(UTC).isoformat(),
                 "binding": binding,
             }
+            if "verification" in state:
+                attempt["approval_review"] = state["verification"]["approval_review"]
             state["steps"][step_id] = {"attempt": attempt}
             state["attempts"] += 1
             state["cost_spent"] += step["cost"]
@@ -578,7 +639,7 @@ class OperationCoordinator:
                 or attempt["request_id"] != request_id
                 or attempt["phase"] != "reserved"
                 or attempt.get("authorization_receipt_id") != authorization_id
-                or current.get("observation")
+                or self._has_observation(state, step_id)
             ):
                 raise OperationError("Operation changed before dispatch.", 409)
             # The reserved step is expected here. No other reserved attempt can
@@ -622,7 +683,7 @@ class OperationCoordinator:
                     attempt["phase"] == "reserved"
                     and execution == "not_attempted"
                     and response.status < 500
-                    and not state["steps"][step_id].get("observation")
+                    and not self._has_observation(state, step_id)
                 ):
                     attempt["phase"] = "not_attempted"
                 attempt["transport_state"] = (
@@ -650,6 +711,16 @@ class OperationCoordinator:
                 "request_id": request_id,
             },
         )
+
+    @staticmethod
+    def _has_observation(state: dict[str, Any], step_id: str) -> bool:
+        if "verification" in state:
+            verification = state["verification"]
+            return any(
+                row["step_id"] == step_id and row["id"] in verification["proofs"]
+                for row in verification["binding"]["contract"]["requirements"]
+            )
+        return bool(state["steps"][step_id].get("observation"))
 
     def _observation_target(
         self,
@@ -744,6 +815,8 @@ class OperationCoordinator:
         step_id: str,
         now: datetime,
     ) -> dict[str, Any] | None:
+        if "verification" in state:
+            return self.verification.observation(gateway, state, step_id, now)
         observation = state["steps"].get(step_id, {}).get("observation")
         if not observation or observation["epoch"] != state["epoch"]:
             return None

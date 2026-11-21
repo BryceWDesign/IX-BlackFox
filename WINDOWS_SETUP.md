@@ -1,4 +1,4 @@
-# Apply and verify 0.6.0 on Windows
+# Apply and verify 0.7.0 on Windows
 
 The source archive contains the full project and no Git metadata. Preserve your existing checkout's `.git` directory and history. Keep a clean backup or commit of your current work before applying a release.
 
@@ -15,6 +15,7 @@ py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m mypy src
 .\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\python.exe -m pytest -q tests/autonomy
+.\.venv\Scripts\python.exe examples/wave19/run.py --output wave19-proof
 .\.venv\Scripts\python.exe scripts/run_wave16_crypto_authority_ci.py --root .
 .\.venv\Scripts\python.exe scripts/run_wave17_integration_mesh_ci.py --root .
 ```
@@ -29,10 +30,10 @@ git diff --stat
 git status
 git remote -v
 git add -A
-git commit -m "Release v0.6.0 Wave 18 governed autonomy"
+git commit -m "Release v0.7.0 Wave 19 closed-loop verification"
 git push origin main
 ```
 
-Confirm that `origin` and `main` identify the intended repository and branch. The dedicated **Wave 18 Governed Autonomy** workflow runs on Ubuntu and Windows across Python 3.11–3.13. Its remote results become available after the push; local Linux validation does not establish Windows execution.
+Confirm that `origin` and `main` identify the intended repository and branch. The dedicated **Wave 19 Closed-Loop Verification** workflow runs on Ubuntu and Windows across Python 3.11–3.13. Its remote results become available after the push; local Linux validation does not establish Windows execution.
 
-The configuration in `examples/wave18` is an operator template. Generate your own signing keys, provision separate credentials, replace example destinations and supply valid evidence before operating real service routes. The automated proof creates temporary local credentials and removes them afterward. Captured public proof artifacts are validation fixtures, not operational trust roots.
+The configuration in `examples/wave18` is the base operator template. Follow the [Wave 19 contract](docs/wave19-closed-loop-verification.md) to add the verification trust policies. Generate your own signing keys, provision separate credentials, replace example destinations and supply valid evidence before operating real service routes. The automated proof creates temporary local credentials and removes them afterward. Captured public proof artifacts are validation fixtures, not operational trust roots.

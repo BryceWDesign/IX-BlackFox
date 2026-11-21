@@ -1,5 +1,11 @@
 # Changes
 
+## 0.7.0, Wave 19, 2026-11-06
+
+Add versioned acceptance and rollback criteria bound to governed plans and signed dispatch authorization. Evaluate separately signed provider observations, test results, and simulation outputs against exact requirements. Retain failures and conflicts, block dependent effects, and require independently verified follow-ups with explicit operator closure.
+
+Add operator inspection endpoints, unresolved failure discovery, signed closure export, and detached public-key verification. Add a reproducible SQLite-backed HTTP quota scenario with rejected evidence, a false-success provider response, and a verified rollback.
+
 ## 0.6.0, Wave 18, 2026-11-05
 
 Add an operation API for agents to propose and coordinate human-approved engineering plans. Seal exact step payloads, assigned agents, dependency graphs, preconditions, expiry, attempt and cost budgets, expected outcomes, and recovery obligations. Bind managed REST step authority to the current operation snapshot and dependency evidence. Deny direct invocation of managed routes.

@@ -1,0 +1,18 @@
+{
+  "clock_skew_seconds": 30,
+  "deployment_id": "quota-simulation",
+  "expires_at": "2027-11-06T18:10:22.972074+00:00",
+  "keys": [
+    {
+      "algorithm": "Ed25519",
+      "key_id": "simulation",
+      "not_after": "2027-11-06T18:10:22.972074+00:00",
+      "not_before": "2026-11-06T18:05:22.972074+00:00",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEASEsjnXgRFNavPX62uh48Q4wcBr72vzdzhvzRy7i4P1w=\n-----END PUBLIC KEY-----\n",
+      "revoked": false,
+      "spki_sha256": "436932ec7686d2c72a2616524f9757f7e2cd702a36d56e4f4aa38c18a605e444"
+    }
+  ],
+  "schema_version": "wave16.trust_policy.v1",
+  "stream_id": "local-proof"
+}

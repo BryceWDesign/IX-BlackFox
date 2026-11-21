@@ -1,0 +1,18 @@
+{
+  "clock_skew_seconds": 30,
+  "deployment_id": "local-gateway",
+  "expires_at": "2027-11-06T18:10:22.968830+00:00",
+  "keys": [
+    {
+      "algorithm": "Ed25519",
+      "key_id": "enterprise-authority",
+      "not_after": "2027-11-06T18:10:22.968830+00:00",
+      "not_before": "2026-11-06T18:05:22.968830+00:00",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAF56FwFNNBCmm0+KtA4W3swCm3/p1rXmK+w9bXvvcUDY=\n-----END PUBLIC KEY-----\n",
+      "revoked": false,
+      "spki_sha256": "2477a50a2959bd7b30f5c410642c9be783c17057281014239337c2f9a045d18c"
+    }
+  ],
+  "schema_version": "wave16.trust_policy.v1",
+  "stream_id": "quota"
+}

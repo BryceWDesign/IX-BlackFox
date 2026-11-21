@@ -24,7 +24,7 @@ class BlackFoxGatewayHttpServer(ThreadingHTTPServer):
 class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
     """Minimal standard-library HTTP surface for the Wave 14 live gateway."""
 
-    server_version = "IX-BlackFox/0.6.0"
+    server_version = "IX-BlackFox/0.7.0"
     protocol_version = "HTTP/1.1"
 
     @property
@@ -47,8 +47,8 @@ class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
                 200,
                 {
                     "status": "ok",
-                    "wave": 18
-                    if self.gateway.operations
+                    "wave": 19 if self.gateway.config.autonomy and self.gateway.config.autonomy.verification
+                    else 18 if self.gateway.operations
                     else 17
                     if self.gateway.config.mesh
                     else (16 if self.gateway.receipt_store.signing else 14),
@@ -63,8 +63,7 @@ class BlackFoxGatewayRequestHandler(BaseHTTPRequestHandler):
                 {
                     "status": "ready" if payload["ready"] else "not_ready",
                     "ready": bool(payload["ready"]),
-                    "wave": 18 if self.gateway.operations else 17
-                    if self.gateway.config.mesh else (16 if self.gateway.receipt_store.signing else 14),
+                    "wave": payload["wave"],
                 },
             )
             return

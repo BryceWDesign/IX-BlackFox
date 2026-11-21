@@ -6,9 +6,12 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ix_blackfox.authority_crypto.encoding import canonical_bytes, digest
+
+if TYPE_CHECKING:
+    from ix_blackfox.verification.contracts import VerificationConfig
 
 
 class OperationError(ValueError):
@@ -73,9 +76,13 @@ class AutonomyConfig:
     observer_issuer: str
     observer_key_id: str
     max_evidence_age_seconds: int
+    verification: VerificationConfig | None = None
 
     @classmethod
     def parse(cls, payload: Any, base: Path) -> AutonomyConfig:
+        from ix_blackfox.verification.contracts import VerificationConfig
+
+        optional = {"verification"} if isinstance(payload, dict) and "verification" in payload else set()
         data = object_fields(
             payload,
             {
@@ -84,7 +91,7 @@ class AutonomyConfig:
                 "observer_issuer",
                 "observer_key_id",
                 "max_evidence_age_seconds",
-            },
+            } | optional,
             "autonomy",
         )
         tools = data["tools"]
@@ -101,6 +108,7 @@ class AutonomyConfig:
             integer(
                 data["max_evidence_age_seconds"], "max_evidence_age_seconds", 1, 86400
             ),
+            VerificationConfig.parse(data["verification"], base) if optional else None,
         )
 
     @property

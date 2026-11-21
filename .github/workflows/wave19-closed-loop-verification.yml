@@ -1,0 +1,42 @@
+name: Wave 19 Closed-Loop Verification
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verification:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12", "3.13"]
+    env:
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install verification runtime and test dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Run governed operations and verification regressions
+        run: python -m pytest -q tests/autonomy --junitxml=wave19-tests.xml
+      - name: Verify independent provider outcomes and rollback
+        run: python examples/wave19/run.py --output wave19-proof
+      - name: Retain public verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave19-${{ matrix.os }}-python-${{ matrix.python-version }}
+          path: |
+            wave19-tests.xml
+            wave19-proof/
+          if-no-files-found: error
